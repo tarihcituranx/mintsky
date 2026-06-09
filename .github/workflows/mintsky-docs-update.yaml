@@ -239,6 +239,10 @@ jobs:
             HASH=$(git rev-parse --short HEAD)
             CHANGED=$(git diff --staged --name-only | tr '\n' ' ')
             git commit -m "📚 auto: ${CHANGED}güncellendi ← ${HASH} [skip ci]"
+            
+            # Uzak sunucudaki olası yeni değişiklikleri çek ve bizim commit'i onun üstüne koy
+            git pull --rebase origin main
+            
             git push
             echo "✅ Commit & push tamamlandı: ${CHANGED}"
           fi
