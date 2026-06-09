@@ -1,15 +1,24 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+MintSky — Linux Mint Masaüstü & Görev Çubuğu Uygulaması
+MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
+Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
+Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
+Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
+Versiyon    : 6.2 (Rate Limit Cache, Finans Yenile, Bugfix)
+Lisans      : MIT
+"""
 import sys
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
-
 try:
     gi.require_version("Notify", "0.7")
     from gi.repository import Notify
     HAS_NOTIFY = True
 except Exception:
     HAS_NOTIFY = False
-
+from gi.repository import Gtk, GLib, Gdk
 try:
     gi.require_version("AppIndicator3", "0.1")
     from gi.repository import AppIndicator3
@@ -21,7 +30,6 @@ except Exception:
         HAS_INDICATOR = True
     except Exception:
         HAS_INDICATOR = False
-
 import requests
 import threading
 import json
@@ -29,11 +37,23 @@ import os
 import shutil
 import time
 import webbrowser
+import uuid
 import concurrent.futures
 from datetime import datetime
-
+# ─── Sabitler ─────────────────────────────────────────────────────────────
+BASE_MGM      = "https://servis.mgm.gov.tr"
+import threading
+import requests
+from datetime import datetime
+import time
+import json
+import sqlite3
+import urllib.request
+import urllib.error
+import webbrowser
 from mintsky.constants import *
-from mintsky.utils import _safe_icon, yon, fmt_date, fmt_time, fmt_dt, val, hadise_mgm, hadise_wmo, safe_json
+from mintsky.utils import *
+from mintsky.utils import _safe_icon
 from mintsky.ui.styles import make_css
 
 class MintSkyApp(Gtk.Window):
@@ -48,6 +68,22 @@ class MintSkyApp(Gtk.Window):
 
         self._start_as_widget = "--autostart" in sys.argv
         self._load_settings()
+        self._load_portfolio()
+
+        # ── Hava durumu önbelleği ──────────────────────────────────────────
+        self._weather_cache     = None   # render'a giden 7-tuple
+        self._weather_cache_ts  = 0.0
+        self._weather_cache_key = ""     # "il|ilce"
+        self._fetch_in_progress = False  # eş zamanlı fetch engeli
+
+        # ── Finans önbelleği ───────────────────────────────────────────────
+        self._finance_data      = {}
+        self._last_finance_fetch= 0.0
+        self._finance_lock      = threading.Lock()
+        self._fin_fetching      = False  # çift finans-fetch engeli
+
+        # ── Güncelleme ─────────────────────────────────────────────────────
+        self._update_info      = None
 
         self._provider = Gtk.CssProvider()
         Gtk.StyleContext.add_provider_for_screen(
@@ -57,7 +93,7 @@ class MintSkyApp(Gtk.Window):
         self._apply_css()
         self._apply_autostart_logic()
 
-        self.set_default_size(int(500*self._get_scale()), int(860*self._get_scale()))
+        self.set_default_size(int(500*self._get_scale()), int(880*self._get_scale()))
         self.set_resizable(True)
         self.set_border_width(0)
 
@@ -66,7 +102,8 @@ class MintSkyApp(Gtk.Window):
         self._cur_lat        = None
         self._cur_lon        = None
         self._location_data  = {}
-        self._last_api_call  = 0
+        self._last_api_call  = 0.0
+        self._last_tray_fetch= 0.0
         self._is_compact     = False
         self._tray_busy      = False
         self._last_bg_hadise = None
@@ -83,18 +120,23 @@ class MintSkyApp(Gtk.Window):
         self.ilce_entry.set_text(self._def_ilce)
 
         threading.Thread(target=self._fetch_turkiye_api, daemon=True).start()
+        threading.Thread(target=self._check_update,      daemon=True).start()
 
         self.show_all()
         GLib.idle_add(self._initial_search)
         self._tray_update_loop()
         GLib.timeout_add_seconds(1800, self._tray_update_loop)
+        # Finans: her 2 dakikada güncelle
+        GLib.timeout_add_seconds(120, self._schedule_finance_refresh)
 
+    # ──────────────────── Başlangıç ────────────────────────────────────────
     def _initial_search(self):
-        self._search()
+        self._search(force=True)
         if self._start_as_widget and not self._is_compact:
             GLib.timeout_add(400, self._toggle_compact)
         return False
 
+    # ──────────────────── Klavye ───────────────────────────────────────────
     def _on_key_press(self, widget, event):
         keyval = event.keyval
         ctrl   = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
@@ -105,6 +147,7 @@ class MintSkyApp(Gtk.Window):
             self.il_entry.grab_focus(); return True
         return False
 
+    # ──────────────────── Widget Modu ──────────────────────────────────────
     def _on_compact_button_press(self, widget, event):
         if self._is_compact:
             if event.button == 1:
@@ -122,7 +165,7 @@ class MintSkyApp(Gtk.Window):
             self.set_keep_above(True)
             self.set_skip_taskbar_hint(True)
             self.stick()
-            self.set_opacity(0.88)
+            self.set_opacity(0.90)
             GLib.idle_add(self._apply_widget_geometry)
         else:
             self.set_opacity(1.0)
@@ -132,24 +175,39 @@ class MintSkyApp(Gtk.Window):
             self.set_keep_above(False)
             self.set_skip_taskbar_hint(False)
             self.unstick()
-            self.resize(int(500*self._get_scale()), int(860*self._get_scale()))
-        GLib.idle_add(self._search)
+            self.resize(int(500*self._get_scale()), int(880*self._get_scale()))
+        GLib.idle_add(self._render_from_cache)
 
     def _apply_widget_geometry(self):
         self.resize(1, 1)
         GLib.timeout_add(60, self._move_to_corner)
         return False
 
+    # ─── Önbellekten render ────────────────────────────────────────────────
+    def _render_from_cache(self):
+        """Önbellekte veri varsa API atmadan render et; yoksa force-fetch yap."""
+        if self._weather_cache is None:
+            self._search(force=True)
+        else:
+            self._render(*self._weather_cache)
+        return False
+
+    def _cache_is_fresh(self, key):
+        return (self._weather_cache is not None and
+                self._weather_cache_key == key and
+                time.time() - self._weather_cache_ts < WEATHER_CACHE_TTL)
+
     def _move_to_corner(self):
         screen  = self.get_screen()
         monitor = screen.get_monitor_at_window(self.get_window())
         if monitor:
-            geom   = monitor.get_geometry()
-            w, h   = self.get_size()
+            geom = monitor.get_geometry()
+            w, h = self.get_size()
             if w > 450: w = 360
             self.move(geom.x + geom.width - w - 20, geom.y + 40)
         return False
 
+    # ──────────────────── Türkiye İl/İlçe API ──────────────────────────────
     def _fetch_turkiye_api(self):
         for attempt in [self._try_mgm_ililce, self._try_cache, self._try_turkiyeapi]:
             if attempt(): return
@@ -165,7 +223,8 @@ class MintSkyApp(Gtk.Window):
                         locs.setdefault(il,[])
                         if ilce and ilce not in locs[il]: locs[il].append(ilce)
                 for il in locs: locs[il].sort()
-                self._save_locs(locs); GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
+                self._save_locs(locs)
+                GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
                 return True
         except Exception: pass
         return False
@@ -185,7 +244,8 @@ class MintSkyApp(Gtk.Window):
             if r.status_code == 200:
                 locs = {p.get("name"):sorted([d.get("name") for d in p.get("districts",[])])
                         for p in r.json().get("data",[])}
-                self._save_locs(locs); GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
+                self._save_locs(locs)
+                GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
                 return True
         except Exception: pass
         return False
@@ -211,40 +271,217 @@ class MintSkyApp(Gtk.Window):
             for d in self._location_data[il]: self.ilce_combo.append_text(d)
         self.ilce_entry.set_text(cur_ilce)
 
+    # ──────────────────── Ayarlar ──────────────────────────────────────────
     def _load_settings(self):
         try:
             with open(SETTING_FILE,"r",encoding="utf-8") as f: d = json.load(f)
-            self._theme          = d.get("theme",         "dark")
-            self._manual_scale   = d.get("scale",         1.2)
-            self._autostart      = d.get("autostart",     False)
-            self._def_il         = d.get("def_il",        "Samsun")
-            self._def_ilce       = d.get("def_ilce",      "Atakum")
-            self._notify_enabled = d.get("notify",        True)
-            self._api_source     = d.get("api_source",    "mgm")
-            self._show_extra     = d.get("show_extra",    False)
-            self._show_saatlik   = d.get("show_saatlik",  True)
-            self._show_gunluk    = d.get("show_gunluk",   True)
-            self._groq_api_key   = d.get("groq_api_key",  "")
+            self._theme              = d.get("theme",          "dark")
+            self._manual_scale       = d.get("scale",           1.2)
+            self._autostart          = d.get("autostart",       False)
+            self._def_il             = d.get("def_il",          "Samsun")
+            self._def_ilce           = d.get("def_ilce",        "Atakum")
+            self._notify_enabled     = d.get("notify",          True)
+            self._api_source         = d.get("api_source",      "mgm")
+            self._show_extra         = d.get("show_extra",       False)
+            self._show_saatlik       = d.get("show_saatlik",     True)
+            self._show_gunluk        = d.get("show_gunluk",      True)
+            self._groq_api_key       = d.get("groq_api_key",     "")
+            self._show_finance       = d.get("show_finance",     False)
+            self._fin_altin          = d.get("fin_altin",        DEFAULT_FINANCE_ALTIN)
+            self._fin_doviz          = d.get("fin_doviz",        DEFAULT_FINANCE_DOVIZ)
+            self._fin_kripto         = d.get("fin_kripto",       DEFAULT_FINANCE_KRIPTO)
         except Exception:
-            self._theme, self._manual_scale, self._autostart = "dark", 1.2, False
-            self._def_il, self._def_ilce  = "Samsun", "Atakum"
-            self._notify_enabled          = True
-            self._api_source              = "mgm"
-            self._show_extra              = False
-            self._show_saatlik            = True
-            self._show_gunluk             = True
-            self._groq_api_key            = ""
+            self._theme = "dark"; self._manual_scale = 1.2; self._autostart = False
+            self._def_il = "Samsun"; self._def_ilce = "Atakum"
+            self._notify_enabled = True; self._api_source = "mgm"
+            self._show_extra = False; self._show_saatlik = True; self._show_gunluk = True
+            self._groq_api_key = ""; self._show_finance = False
+            self._fin_altin = DEFAULT_FINANCE_ALTIN[:]
+            self._fin_doviz = DEFAULT_FINANCE_DOVIZ[:]
+            self._fin_kripto = DEFAULT_FINANCE_KRIPTO[:]
 
     def _save_settings(self):
         os.makedirs(CONFIG_DIR, exist_ok=True)
         with open(SETTING_FILE,"w",encoding="utf-8") as f:
-            json.dump({"theme":self._theme,"scale":self._manual_scale,
-                       "autostart":self._autostart,"def_il":self._def_il,
-                       "def_ilce":self._def_ilce,"notify":self._notify_enabled,
-                       "api_source":self._api_source,"show_extra":self._show_extra,
-                       "show_saatlik":self._show_saatlik,"show_gunluk":self._show_gunluk,
-                       "groq_api_key":self._groq_api_key}, f)
+            json.dump({
+                "theme":self._theme, "scale":self._manual_scale,
+                "autostart":self._autostart, "def_il":self._def_il,
+                "def_ilce":self._def_ilce, "notify":self._notify_enabled,
+                "api_source":self._api_source, "show_extra":self._show_extra,
+                "show_saatlik":self._show_saatlik, "show_gunluk":self._show_gunluk,
+                "groq_api_key":self._groq_api_key, "show_finance":self._show_finance,
+                "fin_altin":self._fin_altin, "fin_doviz":self._fin_doviz,
+                "fin_kripto":self._fin_kripto,
+            }, f, ensure_ascii=False)
 
+    # ──────────────────── Portföy ──────────────────────────────────────────
+    def _load_portfolio(self):
+        try:
+            with open(PORTFOLIO_FILE,"r",encoding="utf-8") as f:
+                data = json.load(f)
+                self._portfolio = data.get("items", [])
+        except Exception:
+            self._portfolio = []
+
+    def _save_portfolio(self):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(PORTFOLIO_FILE,"w",encoding="utf-8") as f:
+            json.dump({"items": self._portfolio}, f, ensure_ascii=False, indent=2)
+
+    # ──────────────────── Finans API ───────────────────────────────────────
+    def _schedule_finance_refresh(self):
+        """GLib timer callback — arka planda finans güncelle"""
+        if self._show_finance:
+            threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+        return True  # devam et
+
+    def _fetch_finance_bg(self, force=False):
+        """Rate-limited finans çekimi. force=True ise önbellek kontrolünü atla."""
+        now = time.time()
+        with self._finance_lock:
+            if not force and (now - self._last_finance_fetch < FINANCE_CACHE_TTL):
+                return
+            if self._fin_fetching:
+                return
+            self._fin_fetching = True
+        try:
+            r = requests.get(FINANCE_API, timeout=TIMEOUT)
+            if r.status_code == 200:
+                data = r.json()
+                with self._finance_lock:
+                    self._finance_data       = data.get("Rates", {})
+                    self._last_finance_fetch = time.time()
+                    self._fin_fetching       = False
+                GLib.idle_add(self._render_from_cache)
+            else:
+                with self._finance_lock: self._fin_fetching = False
+        except Exception as e:
+            print(f"[MintSky Finans] API hatası: {e}")
+            with self._finance_lock: self._fin_fetching = False
+
+    def _force_finance_refresh(self, btn=None):
+        """Kullanıcı 'Yenile' butonuna bastı — önbelleği sıfırla ve çek."""
+        if btn:
+            btn.set_label("⏳"); btn.set_sensitive(False)
+        with self._finance_lock:
+            self._last_finance_fetch = 0.0
+        def _do():
+            self._fetch_finance_bg(force=True)
+            if btn:
+                GLib.idle_add(lambda: (btn.set_label("🔄 Yenile"), btn.set_sensitive(True)) or False)
+        threading.Thread(target=_do, daemon=True).start()
+
+    def _get_rate_price(self, kod):
+        """Bir kodun güncel alış fiyatını döndür (TRY)"""
+        rates = self._finance_data
+        if not rates or kod not in rates: return None
+        r = rates[kod]
+        # Altın/döviz: Buying fiyatı; kripto: TRY_Price
+        if r.get("Type") == "CryptoCurrency":
+            return r.get("TRY_Price")
+        return r.get("Buying") or r.get("Selling")
+
+    # ──────────────────── Portföy hesaplama ────────────────────────────────
+    def _calc_portfolio_pnl(self):
+        """Toplam portföy değeri ve kar/zarar"""
+        total_cost    = 0.0
+        total_current = 0.0
+        details       = []
+        rates         = self._finance_data
+        for item in self._portfolio:
+            kod        = item.get("kod","")
+            amount     = float(item.get("amount", 0))
+            buy_price  = float(item.get("buy_price", 0))
+            cur_price  = self._get_rate_price(kod)
+            cost       = amount * buy_price
+            if cur_price is not None:
+                current    = amount * cur_price
+                pnl        = current - cost
+                pnl_pct    = (pnl / cost * 100) if cost > 0 else 0
+                total_cost    += cost
+                total_current += current
+                details.append({
+                    "kod":      kod,
+                    "name":     item.get("name", kod),
+                    "amount":   amount,
+                    "buy_price":buy_price,
+                    "cur_price":cur_price,
+                    "cost":     cost,
+                    "current":  current,
+                    "pnl":      pnl,
+                    "pnl_pct":  pnl_pct,
+                })
+            else:
+                details.append({
+                    "kod":      kod,
+                    "name":     item.get("name", kod),
+                    "amount":   amount,
+                    "buy_price":buy_price,
+                    "cur_price":None,
+                    "cost":     cost,
+                    "current":  None,
+                    "pnl":      None,
+                    "pnl_pct":  None,
+                })
+        total_pnl     = total_current - total_cost if total_cost > 0 else None
+        total_pnl_pct = (total_pnl / total_cost * 100) if (total_cost > 0 and total_pnl is not None) else None
+        return total_cost, total_current, total_pnl, total_pnl_pct, details
+
+    # ──────────────────── GitHub Güncelleme Kontrolü ───────────────────────
+    def _check_update(self):
+        try:
+            r = requests.get(GITHUB_API,
+                             headers={"User-Agent":"MintSkyApp/6.0"},
+                             timeout=10)
+            if r.status_code == 200:
+                data    = r.json()
+                tag     = data.get("tag_name","").lstrip("v")
+                url     = data.get("html_url", GITHUB_REPO)
+                if tag and tag != VERSIYON and self._is_newer(tag, VERSIYON):
+                    self._update_info = (tag, url)
+                    GLib.idle_add(self._show_update_banner)
+                    if self._notify_enabled and HAS_NOTIFY:
+                        n = Notify.Notification.new(
+                            "🔄 MintSky Güncellemesi",
+                            f"Yeni sürüm hazır: v{tag}\nGitHub'dan indirip güncelleyebilirsiniz.",
+                            _safe_icon("software-update-available")
+                        )
+                        GLib.idle_add(n.show)
+        except Exception: pass
+
+    def _is_newer(self, remote, local):
+        try:
+            def v2t(v): return tuple(int(x) for x in v.split("."))
+            return v2t(remote) > v2t(local)
+        except Exception: return False
+
+    def _show_update_banner(self):
+        """Güncelleme çubuğu (arama satırının altında)"""
+        if not self._update_info: return False
+        tag, url = self._update_info
+        if hasattr(self, "_update_bar") and self._update_bar.get_parent():
+            return False
+        self._update_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self._update_bar.get_style_context().add_class("update-row")
+        self._update_bar.set_margin_top(4)
+        lbl = Gtk.Label()
+        lbl.set_markup(
+            f'<b>🔄 Yeni sürüm mevcut: v{tag}</b>  '
+            f'<a href="{url}">GitHub\'dan indir</a>'
+        )
+        lbl.set_use_markup(True)
+        lbl.get_style_context().add_class("update-txt")
+        lbl.set_halign(Gtk.Align.START)
+        self._update_bar.pack_start(lbl, True, True, 0)
+        btn_kapat = Gtk.Button(label="✕")
+        btn_kapat.connect("clicked", lambda *_: self.hdr.remove(self._update_bar))
+        self._sc(btn_kapat, "btn-tool")
+        self._update_bar.pack_start(btn_kapat, False, False, 0)
+        self.hdr.pack_start(self._update_bar, False, False, 0)
+        self.hdr.show_all()
+        return False
+
+    # ──────────────────── Autostart / Kurulum ──────────────────────────────
     def _apply_autostart_logic(self):
         try:
             if self._autostart:
@@ -278,19 +515,22 @@ class MintSkyApp(Gtk.Window):
     def _get_scale(self):  return self._manual_scale
     def _apply_css(self):  self._provider.load_from_data(make_css(self._get_scale(), self._theme).encode("utf-8"))
 
+    # ──────────────────── UI Yardımcıları ──────────────────────────────────
     def _create_tool_btn(self, icon, text, tooltip, cb, css_class="btn-tool"):
         btn = Gtk.Button()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
         box.set_margin_top(2); box.set_margin_bottom(2)
         l1 = Gtk.Label(label=f"<span size='large'>{icon}</span>", use_markup=True)
         l2 = Gtk.Label(label=f"<span size='small' color='#8b949e'>{text}</span>", use_markup=True)
-        box.pack_start(l1, True, True, 0); box.pack_start(l2, True, True, 0)
+        box.pack_start(l1, True, True, 0)
+        box.pack_start(l2, True, True, 0)
         btn.add(box)
         self._sc(btn, css_class)
         btn.set_tooltip_text(tooltip)
         btn.connect("clicked", cb)
         return btn
 
+    # ──────────────────── Ana UI ───────────────────────────────────────────
     def _build_ui(self):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(root)
@@ -301,21 +541,29 @@ class MintSkyApp(Gtk.Window):
         title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         title = Gtk.Label(label=UYGULAMA_ADI.upper())
         self._sc(title,"hdr-title"); title.set_halign(Gtk.Align.START)
-        title_row.pack_start(title, True, True, 0)
+        ver_lbl = Gtk.Label(label=f"<span size='small' color='#5a6a85'>v{VERSIYON}</span>")
+        ver_lbl.set_use_markup(True)
+        title_row.pack_start(title, False, False, 0)
+        title_row.pack_start(ver_lbl, False, False, 4)
+        title_row.pack_start(Gtk.Box(), True, True, 0)  # spacer
 
         for icon, text, tooltip, cb in [
-            ("🔽","Widget",  "Widget Moduna Geç",        self._toggle_compact),
-            ("🔄","Yenile",  "Yenile (F5)",               self._manual_refresh),
-            ("📜","Sürüm",   "Sürüm Notları",             self._show_changelog),
-            ("ℹ️","Simgeler","Hava Simgeleri Rehberi",    self._open_mgm_simgeler),
-            ("⚙️","Ayarlar", "Uygulama Ayarları",         self._show_settings),
+            ("🔽","Widget",   "Widget Moduna Geç",        self._toggle_compact),
+            ("🔄","Yenile",   "Yenile (F5)",               self._manual_refresh),
+            ("📜","Sürüm",    "Sürüm Notları",             self._show_changelog),
+            ("ℹ️","Simgeler", "Hava Simgeleri Rehberi",    self._open_mgm_simgeler),
+            ("⚙️","Ayarlar",  "Uygulama Ayarları",         self._show_settings),
         ]:
             title_row.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
         self.btn_ai = self._create_tool_btn("🤖","AI","Groq AI Hava Danışmanı",
                                              self._show_ai_dialog, "btn-ai")
-        self.btn_ai.set_tooltip_text("Groq AI Hava Danışmanı\n(Ayarlar'dan API anahtarınızı girin)")
         title_row.pack_start(self.btn_ai, False, False, 0)
+
+        self.btn_fin = self._create_tool_btn("💰","Finans","Finans & Portföy Yönetimi",
+                                              self._show_portfolio_dialog, "btn-fin")
+        title_row.pack_start(self.btn_fin, False, False, 0)
+
         self.hdr.pack_start(title_row, False, False, 0)
 
         srow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
@@ -323,14 +571,15 @@ class MintSkyApp(Gtk.Window):
         self.il_combo   = Gtk.ComboBoxText.new_with_entry()
         self.il_entry   = self.il_combo.get_child()
         self.il_entry.set_placeholder_text("İl Seç / Yaz")
-        self.il_entry.connect("activate", lambda *_: self._search())
+        self.il_entry.connect("activate", lambda *_: self._search(force=True))
         self.il_combo.connect("changed",  self._on_il_changed)
         self.ilce_combo = Gtk.ComboBoxText.new_with_entry()
         self.ilce_entry = self.ilce_combo.get_child()
         self.ilce_entry.set_placeholder_text("İlçe Seç / Yaz")
-        self.ilce_entry.connect("activate", lambda *_: self._search())
+        self.ilce_entry.connect("activate", lambda *_: self._search(force=True))
         btn_ara = Gtk.Button(label="Ara")
-        self._sc(btn_ara,"btn-search"); btn_ara.connect("clicked", lambda *_: self._search())
+        self._sc(btn_ara,"btn-search")
+        btn_ara.connect("clicked", lambda *_: self._search(force=True))
         srow.pack_start(self.il_combo,   True, True, 0)
         srow.pack_start(self.ilce_combo, True, True, 0)
         srow.pack_start(btn_ara,         False, False, 0)
@@ -339,8 +588,8 @@ class MintSkyApp(Gtk.Window):
         arow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         arow.set_margin_top(5)
         for icon, text, tooltip, cb in [
-            ("📍","GPS Bul", "GPS ile konumu bul",         lambda *_: self._fetch_location()),
-            ("🏠","Sabitle", "Bu konumu varsayılan yap",   self._make_default),
+            ("📍","GPS Bul",  "GPS ile konumu bul",         lambda *_: self._fetch_location()),
+            ("🏠","Sabitle",  "Bu konumu varsayılan yap",   self._make_default),
         ]:
             arow.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
@@ -375,7 +624,7 @@ class MintSkyApp(Gtk.Window):
         if now - self._last_api_call < 10:
             self._status(f"Lütfen {10-int(now-self._last_api_call)} saniye bekleyin.", error=True)
             return
-        self._search()
+        self._search(force=True)
 
     def _make_default(self, *_):
         if not self._cur_il: return
@@ -384,115 +633,189 @@ class MintSkyApp(Gtk.Window):
         self._tray_update_loop()
         self._status(f"Varsayılan konum:\n{self._def_il} / {self._def_ilce}\n\n"
                      "Görev çubuğu bu konumu takip edecek.")
-        GLib.timeout_add(1500, self._search)
+        GLib.timeout_add(1500, self._render_from_cache)
 
+    # ──────────────────── Ayarlar Diyaloğu (Sekmeli) ──────────────────────
     def _show_settings(self, *_):
-        dlg = Gtk.Dialog(title="Ayarlar", transient_for=self, flags=0)
-        dlg.add_buttons("İptal", Gtk.ResponseType.CANCEL, "Kaydet", Gtk.ResponseType.OK)
-        dlg.set_default_size(480, -1)
-        box = dlg.get_content_area()
-        box.set_spacing(10); box.set_margin_top(14); box.set_margin_bottom(14)
-        box.set_margin_start(16); box.set_margin_end(16)
+        old_api_source = self._api_source
 
-        btn_install = Gtk.Button(label="🚀 Menüye Kısayol Ekle (Uygulama Olarak Kur)")
-        self._sc(btn_install,"btn-search"); btn_install.connect("clicked", self._install_as_app)
-        box.pack_start(btn_install, False, False, 0)
-        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+        dlg = Gtk.Dialog(title="⚙️ Ayarlar", transient_for=self, flags=0)
+        dlg.add_buttons("İptal", Gtk.ResponseType.CANCEL, "💾 Kaydet", Gtk.ResponseType.OK)
+        dlg.set_default_size(680, 400)
+        dlg.set_resizable(False)
 
-        self._lbl_section(box, "Veri Kaynağı")
+        root = dlg.get_content_area()
+        root.set_spacing(0); root.set_margin_top(0)
+
+        # ── Yatay Notebook ──────────────────────────────────────────────────
+        nb = Gtk.Notebook()
+        nb.set_tab_pos(Gtk.PositionType.TOP)
+        nb.set_margin_top(8); nb.set_margin_bottom(4)
+        nb.set_margin_start(8); nb.set_margin_end(8)
+        root.pack_start(nb, True, True, 0)
+
+        def _tab(label_text):
+            """Sekme içeriği için marjinli dikey kutu + sekme etiketi döndürür."""
+            page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            page.set_margin_top(14); page.set_margin_bottom(14)
+            page.set_margin_start(16); page.set_margin_end(16)
+            tab_lbl = Gtk.Label(label=label_text)
+            return page, tab_lbl
+
+        def _row(label_text, widget, page):
+            """Sağ-sol etiket + widget satırı."""
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+            lbl = Gtk.Label(label=label_text)
+            lbl.set_halign(Gtk.Align.START); lbl.set_xalign(0)
+            lbl.set_size_request(160, -1)
+            row.pack_start(lbl, False, False, 0)
+            row.pack_start(widget, True, True, 0)
+            page.pack_start(row, False, False, 0)
+
+        def _sep(page):
+            page.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
+
+        # ════════════════════════════════════════════════════════════════════
+        # SEKME 1 — HAVA DURUMU
+        # ════════════════════════════════════════════════════════════════════
+        p1, t1 = _tab("☁️  Hava Durumu")
+
         cb_src = Gtk.ComboBoxText()
-        cb_src.append("mgm",       "🇹🇷 MGM — Meteoroloji Genel Müdürlüğü (resmi, Türkiye)")
-        cb_src.append("openmeteo", "🌍 Open-Meteo — Uluslararası açık kaynak model")
+        cb_src.append("mgm",       "🇹🇷 MGM — Meteoroloji Genel Müdürlüğü (Türkiye)")
+        cb_src.append("openmeteo", "🌍 Open-Meteo — Uluslararası açık kaynak")
         cb_src.set_active_id(self._api_source)
-        box.pack_start(cb_src, False, False, 0)
+        _row("Veri Kaynağı", cb_src, p1)
+        _sep(p1)
 
-        note = Gtk.Label()
-        note.set_markup("<small><i>MGM seçiliyken de 'Ekstra Detaylar' açıksa Open-Meteo'dan\n"
-                        "UV, yağış olasılığı, rüzgar gustu, çiğ noktası otomatik eklenir.</i></small>")
-        note.set_halign(Gtk.Align.START); note.set_line_wrap(True)
-        box.pack_start(note, False, False, 0)
-        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
-
-        self._lbl_section(box, "Gösterilecek Bölümler")
-        chk_extra = Gtk.CheckButton.new_with_label("🔬 Ekstra Detaylar (UV, yağış, kar, deniz, bulut, çiğ noktası…)")
         chk_saat  = Gtk.CheckButton.new_with_label("⏰ Saatlik Tahmin (48 saat)")
         chk_gun   = Gtk.CheckButton.new_with_label("📅 5 Günlük Tahmin")
-        chk_extra.set_active(self._show_extra)
+        chk_extra = Gtk.CheckButton.new_with_label("🔬 Ekstra Detaylar  (UV, yağış, kar, çiğ noktası…)")
         chk_saat.set_active(self._show_saatlik)
         chk_gun.set_active(self._show_gunluk)
-        for w in (chk_extra, chk_saat, chk_gun): box.pack_start(w, False, False, 0)
-        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+        chk_extra.set_active(self._show_extra)
 
-        self._lbl_section(box, "🤖 Groq AI Hava Danışmanı")
+        bolum_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        for w in (chk_saat, chk_gun, chk_extra): bolum_box.pack_start(w, False, False, 0)
+        _row("Gösterilecek\nBölümler", bolum_box, p1)
+
+        nb.append_page(p1, t1)
+
+        # ════════════════════════════════════════════════════════════════════
+        # SEKME 2 — FİNANS
+        # ════════════════════════════════════════════════════════════════════
+        p2, t2 = _tab("💰  Finans")
+
+        chk_fin = Gtk.CheckButton.new_with_label("Finans modülünü aktif et  (altın, döviz fiyatları)")
+        chk_fin.set_active(self._show_finance)
+        p2.pack_start(chk_fin, False, False, 0)
+        _sep(p2)
+
+        # Altın — yatay 3 sütun grid
+        altin_lbl = Gtk.Label(); altin_lbl.set_markup("<b>🥇 Altın / Gümüş / Platin</b>")
+        altin_lbl.set_halign(Gtk.Align.START); p2.pack_start(altin_lbl, False, False, 0)
+        altin_grid = Gtk.Grid(); altin_grid.set_column_spacing(12); altin_grid.set_row_spacing(2)
+        altin_chks = {}
+        for idx, (kod, ad) in enumerate(ALTIN_KODLAR.items()):
+            chk = Gtk.CheckButton.new_with_label(f"{ALTIN_EMOJIS.get(kod,'🥇')} {ad}")
+            chk.set_active(kod in self._fin_altin)
+            altin_chks[kod] = chk
+            altin_grid.attach(chk, idx % 3, idx // 3, 1, 1)
+        p2.pack_start(altin_grid, False, False, 0)
+        _sep(p2)
+
+        # Döviz — yatay 3 sütun grid
+        doviz_lbl = Gtk.Label(); doviz_lbl.set_markup("<b>💵 Döviz Kurları</b>")
+        doviz_lbl.set_halign(Gtk.Align.START); p2.pack_start(doviz_lbl, False, False, 0)
+        doviz_grid = Gtk.Grid(); doviz_grid.set_column_spacing(12); doviz_grid.set_row_spacing(2)
+        doviz_chks = {}
+        for idx, (kod, ad) in enumerate(DOVIZ_KODLAR.items()):
+            chk = Gtk.CheckButton.new_with_label(f"{DOVIZ_EMOJIS.get(kod,'🏳')} {ad}")
+            chk.set_active(kod in self._fin_doviz)
+            doviz_chks[kod] = chk
+            doviz_grid.attach(chk, idx % 3, idx // 3, 1, 1)
+        p2.pack_start(doviz_grid, False, False, 0)
+
+        nb.append_page(p2, t2)
+
+        # ════════════════════════════════════════════════════════════════════
+        # SEKME 3 — AI & GÖRÜNÜM
+        # ════════════════════════════════════════════════════════════════════
+        p3, t3 = _tab("🤖  AI & Görünüm")
+
         groq_note = Gtk.Label()
         groq_note.set_markup(
-            "<small>Ücretsiz API anahtarı için: "
-            "<a href='https://console.groq.com'>console.groq.com</a></small>")
+            "Ücretsiz Groq API anahtarı: "
+            "<a href='https://console.groq.com'>console.groq.com</a>")
         groq_note.set_halign(Gtk.Align.START); groq_note.set_use_markup(True)
-        box.pack_start(groq_note, False, False, 0)
+        p3.pack_start(groq_note, False, False, 0)
 
-        key_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        key_box    = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         groq_entry = Gtk.Entry()
         groq_entry.set_placeholder_text("gsk_xxxxxxxxxxxxxxxxxxxx")
-        groq_entry.set_visibility(False)
-        groq_entry.set_text(self._groq_api_key)
+        groq_entry.set_visibility(False); groq_entry.set_text(self._groq_api_key)
         groq_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-conceal-symbolic")
-        groq_entry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, "Göster/Gizle")
-        def _toggle_vis(e, *_): e.set_visibility(not e.get_visibility())
-        groq_entry.connect("icon-press", _toggle_vis)
+        groq_entry.connect("icon-press", lambda e, *_: e.set_visibility(not e.get_visibility()))
         key_box.pack_start(groq_entry, True, True, 0)
-
-        btn_test = Gtk.Button(label="Test Et")
-        self._sc(btn_test, "btn-tool")
+        btn_test = Gtk.Button(label="Test Et"); self._sc(btn_test, "btn-tool")
         def _test_groq(*_):
             k = groq_entry.get_text().strip()
-            if not k:
-                self._msg_dialog(dlg, "API Anahtarı Eksik", "Lütfen bir Groq API anahtarı girin."); return
-            btn_test.set_label("…")
-            btn_test.set_sensitive(False)
-            
-            def _do_test():
+            if not k: self._msg_dialog(dlg, "API Anahtarı Eksik", "Groq API anahtarı gerekli."); return
+            btn_test.set_label("…"); btn_test.set_sensitive(False)
+            def _do():
                 ok, msg = self._test_groq_key(k)
-                def _ui_guncelle():
-                    btn_test.set_label("Test Et")
-                    btn_test.set_sensitive(True)
-                    self._msg_dialog(dlg, "Groq Bağlantı Testi", msg)
-                    return False
-                GLib.idle_add(_ui_guncelle)
-                
-            threading.Thread(target=_do_test, daemon=True).start()
-            
+                GLib.idle_add(lambda: (btn_test.set_label("Test Et"), btn_test.set_sensitive(True),
+                                       self._msg_dialog(dlg, "Groq Test", msg)) or False)
+            threading.Thread(target=_do, daemon=True).start()
         btn_test.connect("clicked", _test_groq)
         key_box.pack_start(btn_test, False, False, 0)
-        box.pack_start(key_box, False, False, 0)
-        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+        _row("Groq API Anahtarı", key_box, p3)
+        _sep(p3)
 
-        self._lbl_section(box, "Görünüm")
-        theme_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        theme_box.pack_start(Gtk.Label(label="Tema:"), False, False, 0)
         cb_theme = Gtk.ComboBoxText()
-        cb_theme.append("dark","Karanlık"); cb_theme.append("light","Aydınlık")
+        cb_theme.append("dark", "🌙 Karanlık"); cb_theme.append("light", "☀️ Aydınlık")
         cb_theme.set_active_id(self._theme)
-        theme_box.pack_start(cb_theme, True, True, 0)
-        box.pack_start(theme_box, False, False, 0)
+        _row("Tema", cb_theme, p3)
 
-        box.pack_start(Gtk.Label(label="Büyüklük"), False, False, 0)
         adj = Gtk.Adjustment(value=self._manual_scale, lower=0.5, upper=3.0,
                              step_increment=0.1, page_increment=0.5)
         scale_sl = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
         scale_sl.set_digits(1); scale_sl.set_value_pos(Gtk.PositionType.RIGHT)
-        box.pack_start(scale_sl, False, False, 0)
-        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+        for tick in (0.5, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0):
+            scale_sl.add_mark(tick, Gtk.PositionType.BOTTOM, None)
+        _row("Arayüz Büyüklüğü", scale_sl, p3)
 
-        self._lbl_section(box, "Sistem")
-        chk_notify = Gtk.CheckButton.new_with_label("Masaüstü bildirimleri gönder")
-        chk_auto   = Gtk.CheckButton.new_with_label("Sistem açılışında otomatik (Widget olarak) başlat")
+        nb.append_page(p3, t3)
+
+        # ════════════════════════════════════════════════════════════════════
+        # SEKME 4 — SİSTEM
+        # ════════════════════════════════════════════════════════════════════
+        p4, t4 = _tab("⚙️  Sistem")
+
+        chk_notify = Gtk.CheckButton.new_with_label("Hava değişimi ve uyarıları için masaüstü bildirimi gönder")
+        chk_auto   = Gtk.CheckButton.new_with_label("Sistem açılışında otomatik başlat  (widget modunda)")
         chk_notify.set_active(self._notify_enabled)
         chk_auto.set_active(self._autostart)
-        box.pack_start(chk_notify, False, False, 0)
-        box.pack_start(chk_auto,   False, False, 0)
+        p4.pack_start(chk_notify, False, False, 0)
+        p4.pack_start(chk_auto,   False, False, 0)
+        _sep(p4)
 
-        box.show_all()
+        btn_install = Gtk.Button(label="🚀 Uygulama Menüsüne Kısayol Ekle")
+        self._sc(btn_install, "btn-search")
+        btn_install.connect("clicked", self._install_as_app)
+        btn_install.set_halign(Gtk.Align.START)
+        p4.pack_start(btn_install, False, False, 0)
+
+        inst_note = Gtk.Label()
+        inst_note.set_markup(
+            "<small><i>Uygulama menüsünde 'MintSky' adıyla görünmesini sağlar.\n"
+            "İkon dosyası (mintsky.png) ile aynı klasörde çalıştırılmalıdır.</i></small>")
+        inst_note.set_halign(Gtk.Align.START); inst_note.set_line_wrap(True)
+        p4.pack_start(inst_note, False, False, 0)
+
+        nb.append_page(p4, t4)
+
+        # ── Göster ──────────────────────────────────────────────────────────
+        dlg.show_all()
         if dlg.run() == Gtk.ResponseType.OK:
             self._api_source     = cb_src.get_active_id()
             self._theme          = cb_theme.get_active_id()
@@ -502,11 +825,231 @@ class MintSkyApp(Gtk.Window):
             self._show_extra     = chk_extra.get_active()
             self._show_saatlik   = chk_saat.get_active()
             self._show_gunluk    = chk_gun.get_active()
+            self._show_finance   = chk_fin.get_active()
             self._groq_api_key   = groq_entry.get_text().strip()
+            self._fin_altin      = [k for k,c in altin_chks.items() if c.get_active()]
+            self._fin_doviz      = [k for k,c in doviz_chks.items() if c.get_active()]
             self._save_settings()
             self._apply_css()
             self._apply_autostart_logic()
-            GLib.idle_add(self._search)
+            if self._show_finance and not self._finance_data:
+                threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+            if self._api_source != old_api_source:
+                self._weather_cache = None
+                GLib.idle_add(lambda: self._search(force=True))
+            else:
+                GLib.idle_add(self._render_from_cache)
+        dlg.destroy()
+
+    # ──────────────────── Portföy Yönetim Diyaloğu ─────────────────────────
+    def _show_portfolio_dialog(self, *_):
+        """Portföy yönetimi: ekle/sil/görüntüle"""
+        if self._show_finance:
+            # Finans verisi yoksa önce çek
+            if not self._finance_data:
+                threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+
+        dlg = Gtk.Dialog(title="💰 Finans & Portföy Yönetimi", transient_for=self, flags=0)
+        dlg.add_button("Kapat", Gtk.ResponseType.CLOSE)
+        dlg.set_default_size(580, 520)
+        box = dlg.get_content_area()
+        box.set_spacing(8); box.set_margin_top(12); box.set_margin_bottom(12)
+        box.set_margin_start(14); box.set_margin_end(14)
+
+        # Finans modülü uyarısı
+        if not self._show_finance:
+            note = Gtk.Label()
+            note.set_markup(
+                "⚠️ <b>Finans modülü kapalı.</b> Ayarlar'dan 'Finans Modülü'nü aktif edin.")
+            note.set_halign(Gtk.Align.START); note.set_use_markup(True)
+            box.pack_start(note, False, False, 0)
+
+        # ── Portföy özeti ──
+        self._lbl_section(box, "📊 PORTFÖY ÖZETİ")
+
+        pnl_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        pnl_box.get_style_context().add_class("fin-card")
+
+        def _refresh_pnl():
+            for w in pnl_box.get_children(): pnl_box.remove(w)
+            tc, cur, pnl, pnl_pct, details = self._calc_portfolio_pnl()
+            if not details:
+                e = Gtk.Label(label="Henüz portföy kalemi yok.\nAşağıdan ekleyebilirsiniz.")
+                e.set_halign(Gtk.Align.CENTER); pnl_box.pack_start(e, False, False, 8)
+            else:
+                for d in details:
+                    row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                    row.get_style_context().add_class("fin-row")
+                    name_lbl = Gtk.Label(label=f"{d['name']} × {d['amount']:.4g}")
+                    name_lbl.get_style_context().add_class("fin-name")
+                    name_lbl.set_halign(Gtk.Align.START)
+                    row.pack_start(name_lbl, True, True, 0)
+                    if d["cur_price"] is not None:
+                        cur_lbl = Gtk.Label(label=fmt_try(d["current"]))
+                        cur_lbl.get_style_context().add_class("fin-price")
+                        row.pack_start(cur_lbl, False, False, 0)
+                        sign   = "+" if d["pnl"] >= 0 else ""
+                        cls    = "fin-change-pos" if d["pnl"] >= 0 else "fin-change-neg"
+                        p_lbl  = Gtk.Label(label=f"{sign}{fmt_try(d['pnl'])} ({fmt_pct(d['pnl_pct'])})")
+                        p_lbl.get_style_context().add_class(cls)
+                        row.pack_start(p_lbl, False, False, 0)
+                    else:
+                        na = Gtk.Label(label="Fiyat bekleniyor…")
+                        na.get_style_context().add_class("fin-change-neu")
+                        row.pack_start(na, False, False, 0)
+                    pnl_box.pack_start(row, False, False, 0)
+
+                sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL); pnl_box.pack_start(sep, False, False, 4)
+                tot_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                tot_lbl = Gtk.Label(label="TOPLAM")
+                tot_lbl.get_style_context().add_class("fin-title")
+                tot_row.pack_start(tot_lbl, True, True, 0)
+                if pnl is not None:
+                    tv_lbl = Gtk.Label(label=fmt_try(cur))
+                    tv_lbl.get_style_context().add_class("fin-price")
+                    tot_row.pack_start(tv_lbl, False, False, 0)
+                    sign   = "+" if pnl >= 0 else ""
+                    cls    = "profit-lbl" if pnl >= 0 else "loss-lbl"
+                    tp_lbl = Gtk.Label(label=f"{sign}{fmt_try(pnl)} ({fmt_pct(pnl_pct)})")
+                    tp_lbl.get_style_context().add_class(cls)
+                    tot_row.pack_start(tp_lbl, False, False, 0)
+                pnl_box.pack_start(tot_row, False, False, 0)
+            pnl_box.show_all()
+
+        _refresh_pnl()
+        box.pack_start(pnl_box, False, False, 0)
+
+        # ── Kale listesi ──
+        self._lbl_section(box, "📋 PORTFÖY KALEMLERİ")
+
+        scroll_p = Gtk.ScrolledWindow()
+        scroll_p.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll_p.set_min_content_height(140)
+        port_list_box = Gtk.ListBox()
+        port_list_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        scroll_p.add(port_list_box)
+        box.pack_start(scroll_p, True, True, 0)
+
+        def _rebuild_list():
+            for row in port_list_box.get_children(): port_list_box.remove(row)
+            for i, item in enumerate(self._portfolio):
+                row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                row_box.set_margin_top(4); row_box.set_margin_bottom(4)
+                row_box.set_margin_start(8); row_box.set_margin_end(8)
+                info = Gtk.Label()
+                info.set_markup(
+                    f"<b>{item.get('name',item['kod'])}</b>  "
+                    f"× {item['amount']:.4g}  "
+                    f"@ <i>{fmt_try(item['buy_price'])}</i>  "
+                    f"<span color='#5a6a85'>{item.get('buy_date','')}</span>"
+                )
+                info.set_halign(Gtk.Align.START); info.set_use_markup(True)
+                row_box.pack_start(info, True, True, 0)
+                cur_p = self._get_rate_price(item["kod"])
+                if cur_p is not None:
+                    pnl_v   = (cur_p - float(item["buy_price"])) * float(item["amount"])
+                    sign    = "+" if pnl_v >= 0 else ""
+                    color   = "#3fb950" if pnl_v >= 0 else "#f85149"
+                    pl_lbl  = Gtk.Label()
+                    pl_lbl.set_markup(f"<span color='{color}'><b>{sign}{fmt_try(pnl_v)}</b></span>")
+                    pl_lbl.set_use_markup(True)
+                    row_box.pack_start(pl_lbl, False, False, 0)
+                del_btn = Gtk.Button(label="🗑")
+                self._sc(del_btn, "btn-tool")
+                del_btn.set_tooltip_text("Bu kalemi sil")
+                idx_capture = i
+                def _del(_, idx=idx_capture):
+                    self._portfolio.pop(idx)
+                    self._save_portfolio()
+                    _rebuild_list()
+                    _refresh_pnl()
+                del_btn.connect("clicked", _del)
+                row_box.pack_start(del_btn, False, False, 0)
+                port_list_box.add(row_box)
+            port_list_box.show_all()
+
+        _rebuild_list()
+
+        # ── Yeni kalem ekle ──
+        self._lbl_section(box, "➕ YENİ KALEM EKLE")
+
+        add_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        # Tür seçimi
+        cb_type = Gtk.ComboBoxText()
+        all_codes = (
+            [(k, f"🥇 {v}") for k,v in ALTIN_KODLAR.items()] +
+            [(k, f"{DOVIZ_EMOJIS.get(k,'🏳')} {v}") for k,v in DOVIZ_KODLAR.items()]
+        )
+        for kod, ad in all_codes:
+            cb_type.append(kod, ad)
+        cb_type.set_active(0)
+        add_box.pack_start(cb_type, True, True, 0)
+
+        # Miktar
+        entry_amt = Gtk.Entry()
+        entry_amt.set_placeholder_text("Miktar (ör: 10.5)")
+        entry_amt.set_max_width_chars(10)
+        add_box.pack_start(entry_amt, False, False, 0)
+
+        # Alım fiyatı
+        entry_price = Gtk.Entry()
+        entry_price.set_placeholder_text("Alım fiyatı (₺)")
+        entry_price.set_max_width_chars(12)
+
+        # Alım fiyatını otomatik doldur
+        def _on_type_changed(_):
+            kod = cb_type.get_active_id()
+            if not kod: return
+            cur_p = self._get_rate_price(kod)
+            if cur_p is not None:
+                entry_price.set_text(f"{cur_p:.2f}")
+        cb_type.connect("changed", _on_type_changed)
+        _on_type_changed(None)
+        add_box.pack_start(entry_price, False, False, 0)
+
+        # Tarih
+        entry_date = Gtk.Entry()
+        entry_date.set_text(datetime.now().strftime("%Y-%m-%d"))
+        entry_date.set_max_width_chars(11)
+        add_box.pack_start(entry_date, False, False, 0)
+
+        btn_add = Gtk.Button(label="Ekle")
+        self._sc(btn_add, "btn-search")
+        def _add_item(*_):
+            kod = cb_type.get_active_id()
+            try: amt = float(entry_amt.get_text().replace(",","."))
+            except: self._msg_dialog(dlg,"Hata","Geçersiz miktar."); return
+            try: bp  = float(entry_price.get_text().replace(",","."))
+            except: self._msg_dialog(dlg,"Hata","Geçersiz alım fiyatı."); return
+            # İsim bul
+            all_names = {**ALTIN_KODLAR, **DOVIZ_KODLAR}
+            name = all_names.get(kod, kod)
+            self._portfolio.append({
+                "id":        str(uuid.uuid4())[:8],
+                "kod":       kod,
+                "name":      name,
+                "amount":    amt,
+                "buy_price": bp,
+                "buy_date":  entry_date.get_text().strip(),
+            })
+            self._save_portfolio()
+            entry_amt.set_text("")
+            _rebuild_list()
+            _refresh_pnl()
+        btn_add.connect("clicked", _add_item)
+        add_box.pack_start(btn_add, False, False, 0)
+        box.pack_start(add_box, False, False, 0)
+
+        # Yardım notu
+        hint = Gtk.Label()
+        hint.set_markup(
+            "<small><i>💡 Alım fiyatı alanı seçilen ürünün güncel fiyatı ile otomatik dolar. "
+            "Geçmiş alımlar için el ile girin.</i></small>")
+        hint.set_halign(Gtk.Align.START); hint.set_use_markup(True); hint.set_line_wrap(True)
+        box.pack_start(hint, False, False, 0)
+
+        box.show_all()
+        dlg.run()
         dlg.destroy()
 
     def _lbl_section(self, box, text):
@@ -520,23 +1063,25 @@ class MintSkyApp(Gtk.Window):
                               buttons=Gtk.ButtonsType.OK, text=title)
         d.format_secondary_text(msg); d.run(); d.destroy()
 
+    # ──────────────────── Sürüm Notları ────────────────────────────────────
     def _show_changelog(self, *_):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0,
                                 message_type=Gtk.MessageType.INFO,
                                 buttons=Gtk.ButtonsType.OK, text="Sürüm Notları")
         dlg.format_secondary_markup(
-            "<b>v5.0 (Bu Sürüm):</b>\n"
-            "• 🤖 <b>Groq AI Hava Danışmanı</b> eklendi — hava verilerine dayalı\n"
-            "  pratik Türkçe öneriler (giyim, aktivite, sağlık, yol uyarısı).\n"
-            "• Widget modundaki 3 saatlik tahmin düzeltildi — artık düzgün\n"
-            "  görünüyor, sadece widget modunda gösteriliyor.\n"
-            "• Menüye kurulan uygulamanın ikonunu hicolor'a kopyalar;\n"
-            "  menüde küçük/yanlış ikon sorunu giderildi.\n"
-            "• Open-Meteo ek verileri (UV, gustu, çiğ noktası…) MGM seçiliyken\n"
-            "  de 'Ekstra Detaylar' açıksa görünür.\n\n"
-            "<b>v4.4:</b> MGM bypass, thread fix, yenileme 10s.\n"
+            f"<b>v6.2 (Bu Sürüm) — Güncel versiyon</b>\n"
+            "• 💰 <b>Finans Modülü</b> — Truncgil Finance API ile altın, gümüş, döviz\n"
+            "  fiyatları (widget + ana pencere), rate-limited önbellekleme (2 dk)\n"
+            "• 📊 <b>Portföy Takibi</b> — Alım fiyatı gir, gram/adet miktarı kaydet,\n"
+            "  anlık kar/zarar hesapla, portföy özeti görüntüle\n"
+            "• 🔄 <b>GitHub Güncelleme Kontrolü</b> — Yeni sürüm bildirimler\n"
+            "• 🔔 <b>Gelişmiş Bildirimler</b> — Kategoriye göre başlık (Hava / Finans / Güncelleme)\n"
+            "• 🎨 <b>Modern 3D CSS</b> — Gradyanlar, gölgeler, drop-shadow filtreler\n"
+            "• ⚡ <b>Optimizasyonlar</b> — Thread güvenliği, Lock mekanizması, cache\n\n"
+            "<b>v5.0:</b> Groq AI Danışman, Widget düzeltme, Hibrit OM, İkon düzeltme.\n"
             "<b>v4.x:</b> Concurrent fetch, Open-Meteo hybrid.\n"
-            "<b>v3.x:</b> Widget modu, Tray, MeteoAlarm, Session havuzu."
+            "<b>v3.x:</b> Widget modu, Tray, MeteoAlarm.\n\n"
+            f"<small>Geliştirici: Turan Kaya | {GITHUB_REPO}</small>"
         )
         dlg.run(); dlg.destroy()
 
@@ -545,11 +1090,12 @@ class MintSkyApp(Gtk.Window):
         dlg.set_transient_for(self); dlg.set_modal(True)
         dlg.set_program_name(UYGULAMA_ADI); dlg.set_version(VERSIYON)
         dlg.set_comments("MintSky by tarihcituranx (Turan Kaya)\n"
-                         "MGM resmi API + Open-Meteo + Groq AI.")
+                         "MGM resmi API + Open-Meteo + Groq AI + Truncgil Finance.")
         dlg.set_website(GELISTIRICI); dlg.set_website_label("GitHub: tarihcituranx")
         dlg.set_license_type(Gtk.License.MIT_X11); dlg.set_authors(["Turan Kaya"])
         dlg.run(); dlg.destroy()
 
+    # ──────────────────── Groq AI ──────────────────────────────────────────
     def _test_groq_key(self, key):
         try:
             r = requests.post(
@@ -560,21 +1106,16 @@ class MintSkyApp(Gtk.Window):
                       "max_tokens": 20},
                 timeout=10
             )
-            if r.status_code == 200:
-                return True, "✅ Bağlantı başarılı! API anahtarı geçerli."
-            elif r.status_code == 401:
-                return False, "❌ Geçersiz API anahtarı. Lütfen kontrol edin."
-            else:
-                return False, f"❌ API hatası: {r.status_code} — {r.text[:80]}"
-        except Exception as e:
-            return False, f"❌ Bağlantı hatası: {str(e)[:80]}"
+            if r.status_code == 200:  return True, "✅ Bağlantı başarılı! API anahtarı geçerli."
+            elif r.status_code == 401: return False, "❌ Geçersiz API anahtarı. Lütfen kontrol edin."
+            else: return False, f"❌ API hatası: {r.status_code} — {r.text[:80]}"
+        except Exception as e: return False, f"❌ Bağlantı hatası: {str(e)[:80]}"
 
     def _build_weather_context(self, custom_q=""):
         d = self._last_render_data
-        if not d:
-            return ""
+        if not d: return ""
         now_str = datetime.now().strftime("%d %B %Y, %H:%M")
-        lines = [
+        lines   = [
             f"Konum: {d.get('sehir', '?')}",
             f"Tarih/Saat: {now_str}",
             f"Hava Durumu: {d.get('kisa', '?')}",
@@ -586,23 +1127,17 @@ class MintSkyApp(Gtk.Window):
         if d.get("basinc"):    lines.append(f"Basınç: {d['basinc']:.0f} hPa")
         if d.get("gorus"):
             g = d["gorus"]
-            lines.append(f"Görüş Mesafesi: {g/1000:.1f} km" if g >= 1000 else f"Görüş: {g:.0f} m")
-        if d.get("uv") is not None:
-            lines.append(f"UV İndeksi: {d['uv']:.1f}")
-        if d.get("yagis_olas") is not None:
-            lines.append(f"Yağış Olasılığı: %{d['yagis_olas']:.0f}")
-        if d.get("gustu") is not None:
-            lines.append(f"Rüzgar Gustu: {d['gustu']:.0f} km/s")
+            lines.append(f"Görüş: {g/1000:.1f} km" if g >= 1000 else f"Görüş: {g:.0f} m")
+        if d.get("uv") is not None:       lines.append(f"UV İndeksi: {d['uv']:.1f}")
+        if d.get("yagis_olas") is not None: lines.append(f"Yağış Olasılığı: %{d['yagis_olas']:.0f}")
+        if d.get("gustu") is not None:    lines.append(f"Rüzgar Gustu: {d['gustu']:.0f} km/s")
         if d.get("uyarilar"):
-            lines.append(f"Aktif Meteorolojik Uyarılar: {', '.join(d['uyarilar'])}")
-        else:
-            lines.append("Aktif Meteorolojik Uyarı: Yok")
+            lines.append("Aktif Uyarılar: " + ", ".join(d["uyarilar"]))
         if d.get("tahmin_3s"):
             lines.append("Önümüzdeki 3 Saat:")
             for t_str, em, tmp in d["tahmin_3s"]:
                 lines.append(f"  {t_str} — {em} {tmp}")
-
-        context = "\n".join(lines)
+        context  = "\n".join(lines)
         context += f"\n\n{'Kullanıcı Sorusu: ' + custom_q if custom_q else 'Lütfen bu hava koşullarına göre pratik tavsiyeler ver.'}"
         return context
 
@@ -616,27 +1151,20 @@ class MintSkyApp(Gtk.Window):
                       {"role": "system", "content": GROQ_SYSTEM},
                       {"role": "user",   "content": context},
                   ],
-                  "max_tokens": 600,
-                  "temperature": 0.25},
+                  "max_tokens": 600, "temperature": 0.25},
             timeout=20
         )
-        if r.status_code == 200:
-            return r.json()["choices"][0]["message"]["content"].strip()
-        elif r.status_code == 401:
-            raise PermissionError("Geçersiz Groq API anahtarı.")
-        else:
-            raise RuntimeError(f"Groq API hatası {r.status_code}: {r.text[:120]}")
+        if r.status_code == 200:   return r.json()["choices"][0]["message"]["content"].strip()
+        elif r.status_code == 401: raise PermissionError("Geçersiz Groq API anahtarı.")
+        else: raise RuntimeError(f"Groq API hatası {r.status_code}: {r.text[:120]}")
 
     def _show_ai_dialog(self, *_):
         if not self._groq_api_key:
             self._msg_dialog(self, "API Anahtarı Yok",
                              "Groq API anahtarını Ayarlar → Groq AI bölümünden ekleyin.\n"
-                             "Ücretsiz anahtar: https://console.groq.com")
-            return
+                             "Ücretsiz anahtar: https://console.groq.com"); return
         if not self._last_render_data:
-            self._msg_dialog(self, "Veri Yok",
-                             "Önce bir konum arayın; AI veriyi okuyarak tavsiye üretir.")
-            return
+            self._msg_dialog(self, "Veri Yok", "Önce bir konum arayın; AI veriyi okuyarak tavsiye üretir."); return
 
         dlg = Gtk.Dialog(title="🤖 Groq AI Hava Danışmanı", transient_for=self, flags=0)
         dlg.add_button("Kapat", Gtk.ResponseType.CLOSE)
@@ -646,21 +1174,16 @@ class MintSkyApp(Gtk.Window):
         box.set_margin_top(14); box.set_margin_bottom(14); box.set_spacing(8)
 
         sehir_lbl = Gtk.Label(label=f"📍 {self._last_render_data.get('sehir','')}")
-        sehir_lbl.set_halign(Gtk.Align.START)
-        box.pack_start(sehir_lbl, False, False, 0)
+        sehir_lbl.set_halign(Gtk.Align.START); box.pack_start(sehir_lbl, False, False, 0)
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(200)
         self._ai_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
         self._ai_lbl.set_halign(Gtk.Align.START); self._ai_lbl.set_valign(Gtk.Align.START)
-        self._ai_lbl.set_line_wrap(True)
-        self._ai_lbl.set_selectable(True)
-        scroll.add(self._ai_lbl)
-        box.pack_start(scroll, True, True, 0)
-
-        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        box.pack_start(sep, False, False, 0)
+        self._ai_lbl.set_line_wrap(True); self._ai_lbl.set_selectable(True)
+        scroll.add(self._ai_lbl); box.pack_start(scroll, True, True, 0)
+        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         q_lbl = Gtk.Label(label="Özel soru (boş bırakırsanız genel tavsiye üretir):")
         q_lbl.set_halign(Gtk.Align.START); box.pack_start(q_lbl, False, False, 0)
@@ -677,30 +1200,18 @@ class MintSkyApp(Gtk.Window):
             btn_sor.set_sensitive(False)
             self._ai_lbl.set_text("⏳ AI danışılıyor, lütfen bekleyin…")
             context = self._build_weather_context(custom_q)
-            
             def _do():
-                try:
-                    result = self._call_groq(context)
-                except Exception as e:
-                    result = f"❌ Hata: {e}"
-                    
-                def _ui_guncelle():
-                    self._ai_lbl.set_text(result)
-                    btn_sor.set_sensitive(True)
-                    return False
-                    
-                GLib.idle_add(_ui_guncelle)
-                
+                try:    result = self._call_groq(context)
+                except Exception as e: result = f"❌ Hata: {e}"
+                GLib.idle_add(lambda: (self._ai_lbl.set_text(result), btn_sor.set_sensitive(True)) or False)
             threading.Thread(target=_do, daemon=True).start()
 
-        def _on_sor(*_): _run_ai(q_entry.get_text().strip())
-        btn_sor.connect("clicked", _on_sor)
-        q_entry.connect("activate", _on_sor)
-
+        btn_sor.connect("clicked", lambda *_: _run_ai(q_entry.get_text().strip()))
+        q_entry.connect("activate", lambda *_: _run_ai(q_entry.get_text().strip()))
         threading.Thread(target=lambda: _run_ai(""), daemon=True).start()
-
         dlg.run(); dlg.destroy()
 
+    # ──────────────────── Tray ─────────────────────────────────────────────
     def _build_tray(self):
         if HAS_INDICATOR:
             self._indicator = AppIndicator3.Indicator.new(
@@ -720,20 +1231,25 @@ class MintSkyApp(Gtk.Window):
         show = Gtk.MenuItem.new_with_label("Pencereyi Göster / Gizle")
         show.connect("activate", self._tray_toggle); menu.append(show)
         menu.append(Gtk.SeparatorMenuItem())
+        if self._show_finance:
+            fin_item = Gtk.MenuItem.new_with_label("💰 Finans & Portföy")
+            fin_item.connect("activate", self._show_portfolio_dialog)
+            menu.append(fin_item)
+            menu.append(Gtk.SeparatorMenuItem())
         ab = Gtk.MenuItem.new_with_label("Hakkında"); ab.connect("activate", self._show_about); menu.append(ab)
         q  = Gtk.MenuItem.new_with_label("Çıkış");   q.connect("activate",  self._quit);       menu.append(q)
         menu.show_all(); return menu
 
     def _apply_tray_data(self, emoji, temp_txt, sehir, icon_key, kisa_desc):
-        if isinstance(icon_key, int):
-            raw = WMO_TRAY.get(icon_key, "weather-clear")
-        else:
-            raw = TRAY_ICONS.get(icon_key, "weather-clear")
+        raw = (WMO_TRAY.get(icon_key, "weather-clear") if isinstance(icon_key, int)
+               else TRAY_ICONS.get(icon_key, "weather-clear"))
         icon_name    = _safe_icon(raw)
-        tooltip_text = f"Lokasyon: {sehir}\nSıcaklık: {temp_txt}°\nDurum: {kisa_desc}"
+        tooltip_text = f"☁️ MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
         if HAS_INDICATOR:
             self._indicator.set_icon_full(icon_name, kisa_desc)
             self._indicator.set_title(tooltip_text)
+            # Menüyü yenile (finans eklenebilir)
+            self._indicator.set_menu(self._build_tray_menu())
         else:
             self._tray.set_from_icon_name(icon_name)
             self._tray.set_tooltip_text(tooltip_text)
@@ -748,9 +1264,14 @@ class MintSkyApp(Gtk.Window):
     def _on_delete(self, *_): self.hide(); return True
     def _quit(self, *_):      Gtk.main_quit()
 
+    # ──────────────────── Tray Arka Plan Güncelleme ─────────────────────────
     def _tray_update_loop(self):
-        if not self._tray_busy:
-            threading.Thread(target=self._fetch_tray_bg, daemon=True).start()
+        now = time.time()
+        # TTL dolmadıysa ve daha önce başarılı çekim olduysa atla
+        if self._tray_busy: return True
+        if now - self._last_tray_fetch < TRAY_FETCH_TTL and self._last_bg_hadise is not None:
+            return True
+        threading.Thread(target=self._fetch_tray_bg, daemon=True).start()
         return True
 
     def _fetch_tray_bg(self):
@@ -758,51 +1279,59 @@ class MintSkyApp(Gtk.Window):
         il, ilce = self._def_il, self._def_ilce
         if not il: self._tray_busy = False; return
         try:
-            merk = safe_json(requests.get(
+            merk = self._safe_json(requests.get(
                 f"{BASE_MGM}/web/merkezler?il={il}" + (f"&ilce={ilce}" if ilce else ""),
                 headers=MGM_HEADERS, timeout=TIMEOUT))
             if not merk: self._tray_busy = False; return
 
             merkez_id = merk[0]["merkezId"]
-            sondur    = safe_json(requests.get(
+            sondur    = self._safe_json(requests.get(
                 f"{BASE_MGM}/web/sondurumlar?merkezid={merkez_id}",
                 headers=MGM_HEADERS, timeout=TIMEOUT))
-            alarmlar_r= safe_json(requests.get(
+            alarmlar_r= self._safe_json(requests.get(
                 f"{BASE_MGM}/web/alarmlar", headers=MGM_HEADERS, timeout=TIMEOUT))
-            meteoalarm= safe_json(requests.get(
+            meteoalarm= self._safe_json(requests.get(
                 f"{BASE_MGM}/web/meteoalarm/today", headers=MGM_HEADERS, timeout=TIMEOUT))
             if not sondur: self._tray_busy = False; return
 
-            sd     = sondur[0]
-            h_kod  = sd.get("hadiseKodu","")
+            sd    = sondur[0]
+            h_kod = sd.get("hadiseKodu","")
             emoji, kisa, _ = hadise_mgm(h_kod)
-            sicak  = sd.get("sicaklik",-9999)
-            ttxt   = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
-            sehir  = f"{il} / {ilce}" if ilce else il
+            sicak = sd.get("sicaklik",-9999)
+            ttxt  = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
+            sehir = f"{il} / {ilce}" if ilce else il
             GLib.idle_add(self._apply_tray_data, emoji, ttxt, sehir, h_kod, kisa)
+            self._last_tray_fetch = time.time()
 
             aktif = [a.get("baslik") for a in alarmlar_r
                      if a.get("il","").upper() == il.upper()]
             for ma in (meteoalarm or []):
                 if ma.get("il","").upper()==il.upper() and int(ma.get("seviye",1))>=2:
-                    aktif.append(f"{ma.get('etkinlik') or 'MeteoAlarm'} (MeteoAlarm)")
+                    aktif.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
 
             if self._last_bg_hadise is None:
                 self._last_bg_hadise = h_kod; self._last_bg_alarms = aktif
                 self._tray_busy = False; return
 
             msgs = []
-            if self._last_bg_hadise != h_kod: msgs.append(f"Hava durumu {kisa} olarak değişti.")
+            if self._last_bg_hadise != h_kod:
+                msgs.append(f"Hava durumu değişti: {kisa}")
             yeni = [a for a in aktif if a not in self._last_bg_alarms]
-            if yeni: msgs.append("Yeni uyarı: " + ", ".join(yeni))
+            if yeni: msgs.append("⚠️ Yeni uyarı: " + ", ".join(yeni))
+
             if msgs and self._notify_enabled and HAS_NOTIFY:
-                icon = _safe_icon("weather-storm" if yeni else TRAY_ICONS.get(h_kod,"weather-clear"))
-                n = Notify.Notification.new(UYGULAMA_ADI, f"{sehir} için " + " ".join(msgs), icon)
+                icon  = _safe_icon("weather-storm" if yeni else TRAY_ICONS.get(h_kod,"weather-clear"))
+                title = f"⚠️ MintSky Hava Uyarısı — {sehir}" if yeni else f"☁️ MintSky Hava — {sehir}"
+                body  = "\n".join(msgs) + f"\n🌡 Sıcaklık: {ttxt}°C"
+                n = Notify.Notification.new(title, body, icon)
+                n.set_urgency(2 if yeni else 1)
                 GLib.idle_add(n.show)
+
             self._last_bg_hadise = h_kod; self._last_bg_alarms = aktif
         except Exception: pass
         finally: self._tray_busy = False
 
+    # ──────────────────── Konum GPS ────────────────────────────────────────
     def _fetch_location(self):
         self._status("📡 Konum alınıyor…")
         threading.Thread(target=self._location_thread, daemon=True).start()
@@ -827,8 +1356,10 @@ class MintSkyApp(Gtk.Window):
             GLib.idle_add(self._status, f"Konum hatası: {e}", True)
 
     def _apply_location(self, il, ilce):
-        self.il_entry.set_text(il); self.ilce_entry.set_text(ilce); self._search()
+        self.il_entry.set_text(il); self.ilce_entry.set_text(ilce)
+        self._search(force=True)
 
+    # ──────────────────── Favoriler ────────────────────────────────────────
     def _get_favs(self):
         try:
             with open(FAV_FILE,"r",encoding="utf-8") as f: return json.load(f)
@@ -879,12 +1410,13 @@ class MintSkyApp(Gtk.Window):
     def _load_favorite(self, _, fav):
         self.il_entry.set_text(fav.get("il",""))
         self.ilce_entry.set_text(fav.get("ilce",""))
-        self._search()
+        self._search(force=True)  # farklı konum = taze fetch
 
     def _clear_favorites(self, *_):
         with open(FAV_FILE,"w",encoding="utf-8") as f: json.dump([],f)
         self._sync_fav_button()
 
+    # ──────────────────── Temel UI Yardımcıları ────────────────────────────
     def _clear(self):
         for w in self.compact_content.get_children(): self.compact_content.remove(w)
         for w in self.content.get_children():         self.content.remove(w)
@@ -922,13 +1454,32 @@ class MintSkyApp(Gtk.Window):
         if tt: pill.set_has_tooltip(True); pill.set_tooltip_text(tt)
         return pill
 
-    def _search(self, *_):
+    # ──────────────────── Ana Arama ────────────────────────────────────────
+    # ─── ANA ARAMA — Önbellekli ────────────────────────────────────────────
+    def _search(self, *_, force=False):
         il   = self.il_entry.get_text().strip()
         ilce = self.ilce_entry.get_text().strip()
         if not il:
             self._status("Lütfen en az il adı girin.", error=True); return False
+
+        key = f"{il}|{ilce}"
+
+        # Önbellek tazeyse ve aynı konumsa — API atmadan render et
+        if not force and self._cache_is_fresh(key):
+            GLib.idle_add(self._render_from_cache)
+            return False
+
+        # Eş zamanlı fetch varsa yeni istek açma (force değilse)
+        if self._fetch_in_progress and not force:
+            return False
+
         self._status("⏳ Veriler alınıyor…")
-        self._last_api_call = time.time()
+        self._last_api_call     = time.time()
+        self._fetch_in_progress = True
+
+        if self._show_finance and not self._finance_data:
+            threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+
         threading.Thread(target=self._fetch, args=(il, ilce), daemon=True).start()
         return False
 
@@ -937,7 +1488,7 @@ class MintSkyApp(Gtk.Window):
             req  = requests.get(
                 f"{BASE_MGM}/web/merkezler?il={il}" + (f"&ilce={ilce}" if ilce else ""),
                 headers=MGM_HEADERS, timeout=TIMEOUT)
-            merk = safe_json(req)
+            merk = self._safe_json(req)
             if not merk:
                 GLib.idle_add(self._status,
                     f"'{il}' verisi MGM'den alınamadı veya engellendi.\nLütfen tekrar deneyin.", True)
@@ -957,7 +1508,7 @@ class MintSkyApp(Gtk.Window):
             }
             results = {}
             def get_url(key, url):
-                return safe_json(requests.get(f"{BASE_MGM}{url}",
+                return self._safe_json(requests.get(f"{BASE_MGM}{url}",
                                                     headers=MGM_HEADERS, timeout=TIMEOUT))
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
                 fmap = {ex.submit(get_url, k, v): k for k, v in urls.items()}
@@ -970,14 +1521,23 @@ class MintSkyApp(Gtk.Window):
             if self._cur_lat and self._cur_lon:
                 om_data = self._fetch_openmeteo(self._cur_lat, self._cur_lon)
 
-            GLib.idle_add(self._render, m,
-                results.get("sd",  [{}])[0] if results.get("sd")  else {},
-                results.get("gd",  [{}])[0] if results.get("gd")  else {},
-                results.get("sk",  [{}])[0] if results.get("sk")  else {},
-                results.get("alarmlar",[]), results.get("meteoalarm",[]), om_data)
+            sd_data    = results.get("sd",  [{}])[0] if results.get("sd")  else {}
+            gd_data    = results.get("gd",  [{}])[0] if results.get("gd")  else {}
+            sk_data    = results.get("sk",  [{}])[0] if results.get("sk")  else {}
+            alarmlar   = results.get("alarmlar",   [])
+            meteoalarm = results.get("meteoalarm", [])
+
+            # Önbelleğe kaydet
+            self._weather_cache     = (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
+            self._weather_cache_ts  = time.time()
+            self._weather_cache_key = f"{il}|{ilce}"
+
+            GLib.idle_add(self._render, m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
         except Exception as e:
             GLib.idle_add(self._status,
                 f"MGM Bağlantı Hatası — Lütfen Yenileyin.\nDetay: {str(e)[:60]}", True)
+        finally:
+            self._fetch_in_progress = False
 
     def _fetch_openmeteo(self, lat, lon):
         try:
@@ -1004,6 +1564,7 @@ class MintSkyApp(Gtk.Window):
         except Exception: pass
         return {}
 
+    # ──────────────────── Render ───────────────────────────────────────────
     def _render(self, merkez, sd, gd, sk, alarmlar, meteoalarm, om_data):
         self._clear()
         il    = merkez.get("il","")
@@ -1084,6 +1645,7 @@ class MintSkyApp(Gtk.Window):
             "tahmin_3s": tahmin_3s,
         }
 
+        # ── Ana hava kartı ──
         card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self._sc(card,"cur-card")
         top  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -1105,7 +1667,7 @@ class MintSkyApp(Gtk.Window):
             lcol.pack_start(desc, False, False, 0)
 
         src_badge = Gtk.Label(
-            label=("📡 Ana Kaynak: Open-Meteo" if use_om else "📡 Ana Kaynak: MGM") +
+            label=("📡 Open-Meteo" if use_om else "📡 MGM") +
                   ("  +OM" if (not use_om and om_cur) else ""))
         self._sc(src_badge,"om-badge"); src_badge.set_halign(Gtk.Align.START)
         lcol.pack_start(src_badge, False, False, 0)
@@ -1119,7 +1681,6 @@ class MintSkyApp(Gtk.Window):
         if his not in (-9999,None):
             f_lbl = Gtk.Label(label=f"Hissedilen {val(his,suffix='°')}")
             self._sc(f_lbl,"cur-feels"); f_lbl.set_halign(Gtk.Align.END)
-            f_lbl.set_tooltip_text(PILL_TOOLTIPS.get("🌡 Hissedilen",""))
             rcol.pack_start(f_lbl, False, False, 0)
         top.pack_start(rcol, False, False, 0)
         card.pack_start(top, False, False, 0)
@@ -1130,15 +1691,14 @@ class MintSkyApp(Gtk.Window):
 
         self.compact_content.pack_start(card, False, False, 0)
 
+        # ── Widget: 3 saatlik tahmin ──
         if self._is_compact and self._show_saatlik and tahmin_3s:
             w3_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
             w3_box.set_halign(Gtk.Align.CENTER)
-            w3_box.set_margin_top(4); w3_box.set_margin_bottom(8)
-
+            w3_box.set_margin_top(4); w3_box.set_margin_bottom(4)
             for idx, (t_str, em, tmp) in enumerate(tahmin_3s):
                 bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
                 self._sc(bx, "w3-card"); bx.set_halign(Gtk.Align.CENTER)
-
                 tl = Gtk.Label(label=t_str); self._sc(tl,"w3-time"); tl.set_halign(Gtk.Align.CENTER)
                 el = Gtk.Label(label=em);    self._sc(el,"w3-emoji"); el.set_halign(Gtk.Align.CENTER)
                 vl = Gtk.Label(label=tmp);   self._sc(vl,"w3-temp");  vl.set_halign(Gtk.Align.CENTER)
@@ -1146,13 +1706,19 @@ class MintSkyApp(Gtk.Window):
                 bx.pack_start(el, False, False, 0)
                 bx.pack_start(vl, False, False, 0)
                 w3_box.pack_start(bx, False, False, 0)
-
                 if idx < len(tahmin_3s) - 1:
                     sep_lbl = Gtk.Label(label="›"); self._sc(sep_lbl,"w3-sep")
                     w3_box.pack_start(sep_lbl, False, False, 0)
-
             self.compact_content.pack_start(w3_box, False, False, 0)
 
+        # ── Widget: Finans mini panel ──
+        if self._is_compact and self._show_finance:
+            with self._finance_lock:
+                fin_rates = dict(self._finance_data)
+            if fin_rates:
+                self._render_finance_widget(fin_rates)
+
+        # ── Pill kartlar ──
         pills_temel  = []
         pills_ekstra = []
 
@@ -1225,6 +1791,7 @@ class MintSkyApp(Gtk.Window):
             self._sc(ts,"ts-lbl"); ts.set_halign(Gtk.Align.END); ts.set_margin_end(12)
             self.content.pack_start(ts, False, False, 0)
 
+        # ── Uyarılar ──
         aktif_mgm = [a for a in alarmlar if a.get("il","").upper()==il.upper()]
         aktif_ma  = [ma for ma in (meteoalarm or [])
                      if ma.get("il","").upper()==il.upper() and int(ma.get("seviye",1))>=2]
@@ -1236,23 +1803,253 @@ class MintSkyApp(Gtk.Window):
                 seviye   = METEOALARM_SEVIYE.get(str(ma.get("seviye",1)),"")
                 self._add_alert_row(f"{etkinlik} — {seviye} (MeteoAlarm)")
 
+        # ── Saatlik tahmin ──
         if self._show_saatlik:
             if mgm_tahminler:
                 self._render_hourly_mgm(mgm_tahminler)
             elif om_times:
                 self._render_hourly_om(om_hourly, om_times)
 
+        # ── Günlük tahmin ──
         if self._show_gunluk:
             if not use_om and gd:
                 self._render_daily_mgm(gd)
             elif om_data.get("daily"):
                 self._render_daily_om(om_data["daily"])
 
+        # ── Finans bölümü (ana pencere) ──
+        if self._show_finance and not self._is_compact:
+            with self._finance_lock:
+                fin_rates = dict(self._finance_data)
+            self._render_finance_main(fin_rates)
+
         self.compact_content.show_all()
         if not self._is_compact:
             self.content.show_all()
         return False
 
+    # ──────────────────── Finans Render ────────────────────────────────────
+    def _render_finance_widget(self, rates):
+        """Widget modunda mini finans satırı"""
+        codes = self._fin_altin + self._fin_doviz
+        if not codes: return
+
+        wfin = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        wfin.get_style_context().add_class("wfin-box")
+        wfin.set_halign(Gtk.Align.FILL)
+        wfin.set_margin_start(8); wfin.set_margin_end(8)
+        wfin.set_margin_bottom(4)
+
+        shown = 0
+        for kod in codes[:4]:  # widget'ta max 4
+            if kod not in rates: continue
+            r = rates[kod]
+            price = r.get("Buying") or r.get("Selling") or r.get("TRY_Price")
+            if price is None: continue
+            change = r.get("Change", 0) or 0
+            em = ALTIN_EMOJIS.get(kod, DOVIZ_EMOJIS.get(kod,""))
+            short_name = (ALTIN_KODLAR.get(kod, DOVIZ_KODLAR.get(kod, kod)))[:8]
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+            col.set_halign(Gtk.Align.CENTER)
+            nm = Gtk.Label(label=f"{em} {short_name}")
+            nm.get_style_context().add_class("wfin-item")
+            vl = Gtk.Label(label=f"{price:,.0f}₺" if price >= 1 else f"{price:.4f}₺")
+            vl.get_style_context().add_class("wfin-val")
+            col.pack_start(nm, False, False, 0)
+            col.pack_start(vl, False, False, 0)
+            wfin.pack_start(col, True, True, 0)
+            shown += 1
+
+        # Portföy P&L özeti
+        if self._portfolio:
+            _, cur, pnl, pnl_pct, _ = self._calc_portfolio_pnl()
+            if pnl is not None:
+                sep = Gtk.Label(label="│")
+                sep.get_style_context().add_class("wfin-item")
+                wfin.pack_start(sep, False, False, 0)
+                sign  = "+" if pnl >= 0 else ""
+                color = "#3fb950" if pnl >= 0 else "#f85149"
+                pnl_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+                pnl_col.set_halign(Gtk.Align.CENTER)
+                pl = Gtk.Label(label="Portföy")
+                pl.get_style_context().add_class("wfin-item")
+                pv = Gtk.Label()
+                pv.set_markup(f"<span color='{color}'><b>{sign}{pnl_pct:.1f}%</b></span>")
+                pv.set_use_markup(True)
+                pnl_col.pack_start(pl, False, False, 0)
+                pnl_col.pack_start(pv, False, False, 0)
+                wfin.pack_start(pnl_col, False, False, 0)
+
+        if shown > 0:
+            self.compact_content.pack_start(wfin, False, False, 0)
+
+    def _render_finance_main(self, rates):
+        """Ana pencerede tam finans bölümü"""
+        # ── Bölüm başlığı + Yenile butonu ──
+        sec_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        sec_row.set_margin_start(12); sec_row.set_margin_end(12); sec_row.set_margin_top(14)
+        sec_lbl = Gtk.Label(label="💰  FİNANS (Truncgil Finance)")
+        self._sc(sec_lbl, "sec-title"); sec_lbl.set_halign(Gtk.Align.START)
+        sec_row.pack_start(sec_lbl, True, True, 0)
+
+        # Timestamp etiketi
+        ts_lbl = Gtk.Label()
+        self._sc(ts_lbl, "ts-lbl"); ts_lbl.set_halign(Gtk.Align.END)
+        if self._last_finance_fetch > 0:
+            ts_str = datetime.fromtimestamp(self._last_finance_fetch).strftime("%H:%M:%S")
+            ts_lbl.set_text(f"🕐 {ts_str}")
+        else:
+            ts_lbl.set_text("🕐 —")
+        sec_row.pack_start(ts_lbl, False, False, 0)
+
+        # Yenile butonu
+        btn_ref = Gtk.Button(label="🔄 Yenile")
+        self._sc(btn_ref, "btn-fin")
+        btn_ref.set_tooltip_text(f"Finans verilerini şimdi yenile\n"
+                                  f"(Min. yenileme: {FINANCE_CACHE_TTL} sn — "
+                                  f"son istek atılmayacak)")
+        def _on_fin_refresh(*_):
+            btn_ref.set_label("⏳"); btn_ref.set_sensitive(False)
+            with self._finance_lock:
+                self._last_finance_fetch = 0.0  # önbelleği geçersiz kıl
+            def _do():
+                self._fetch_finance_bg(force=True)
+                GLib.idle_add(lambda: (btn_ref.set_label("🔄 Yenile"),
+                                       btn_ref.set_sensitive(True)) or False)
+            threading.Thread(target=_do, daemon=True).start()
+        btn_ref.connect("clicked", _on_fin_refresh)
+        sec_row.pack_start(btn_ref, False, False, 0)
+        self.content.pack_start(sec_row, False, False, 0)
+
+        if not rates:
+            loading = Gtk.Label(label="⏳ Finans verileri yükleniyor…")
+            loading.get_style_context().add_class("status-lbl")
+            loading.set_margin_start(12)
+            self.content.pack_start(loading, False, False, 0)
+            return
+
+        # ── Altın bölümü ──
+        altin_kodlar = [k for k in self._fin_altin if k in rates]
+        if altin_kodlar:
+            fin_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            fin_card.get_style_context().add_class("fin-card")
+            title_lbl = Gtk.Label(label="🥇 ALTIN & GÜMÜŞ")
+            title_lbl.get_style_context().add_class("fin-title")
+            title_lbl.set_halign(Gtk.Align.START)
+            fin_card.pack_start(title_lbl, False, False, 0)
+            for kod in altin_kodlar:
+                self._add_fin_row(fin_card, kod, rates[kod],
+                    ALTIN_EMOJIS.get(kod,"🥇"), ALTIN_KODLAR.get(kod, kod))
+            self.content.pack_start(fin_card, False, False, 0)
+
+        # ── Döviz bölümü ──
+        doviz_kodlar = [k for k in self._fin_doviz if k in rates]
+        if doviz_kodlar:
+            fin_card2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            fin_card2.get_style_context().add_class("fin-card")
+            title_lbl2 = Gtk.Label(label="💵 DÖVİZ KURLARI")
+            title_lbl2.get_style_context().add_class("fin-title")
+            title_lbl2.set_halign(Gtk.Align.START)
+            fin_card2.pack_start(title_lbl2, False, False, 0)
+            for kod in doviz_kodlar:
+                self._add_fin_row(fin_card2, kod, rates[kod],
+                    DOVIZ_EMOJIS.get(kod,"🏳"), DOVIZ_KODLAR.get(kod, kod))
+            self.content.pack_start(fin_card2, False, False, 0)
+
+        # ── Portföy özeti ──
+        if self._portfolio:
+            self._render_portfolio_summary()
+
+    def _add_fin_row(self, container, kod, rate_data, emoji, name):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.get_style_context().add_class("fin-row")
+
+        name_lbl = Gtk.Label(label=f"{emoji} {name}")
+        name_lbl.get_style_context().add_class("fin-name")
+        name_lbl.set_halign(Gtk.Align.START)
+        row.pack_start(name_lbl, True, True, 0)
+
+        buying  = rate_data.get("Buying")
+        selling = rate_data.get("Selling")
+        change  = rate_data.get("Change", 0) or 0
+
+        if buying is not None and buying > 0:
+            price_str = f"{buying:,.2f} ₺" if buying >= 1 else f"{buying:.6f} ₺"
+        elif selling is not None and selling > 0:
+            price_str = f"{selling:,.2f} ₺" if selling >= 1 else f"{selling:.6f} ₺"
+        else:
+            price_str = "—"
+
+        price_lbl = Gtk.Label(label=price_str)
+        price_lbl.get_style_context().add_class("fin-price")
+        row.pack_start(price_lbl, False, False, 0)
+
+        # Değişim yüzdesi
+        if change != 0:
+            sign = "+" if change > 0 else ""
+            cls  = "fin-change-pos" if change > 0 else "fin-change-neg"
+        else:
+            sign, cls = "", "fin-change-neu"
+        chg_lbl = Gtk.Label(label=f"{sign}{change:.2f}%")
+        chg_lbl.get_style_context().add_class(cls)
+        row.pack_start(chg_lbl, False, False, 0)
+
+        container.pack_start(row, False, False, 0)
+
+    def _render_portfolio_summary(self):
+        """Ana pencerede portföy özet kartı"""
+        tc, cur, pnl, pnl_pct, details = self._calc_portfolio_pnl()
+        if not details: return
+
+        pf_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        pf_card.get_style_context().add_class("fin-card")
+
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        pf_title = Gtk.Label(label="📊 PORTFÖYÜm")
+        pf_title.get_style_context().add_class("fin-title")
+        pf_title.set_halign(Gtk.Align.START)
+        header.pack_start(pf_title, True, True, 0)
+
+        if pnl is not None:
+            sign  = "+" if pnl >= 0 else ""
+            color = "#3fb950" if pnl >= 0 else "#f85149"
+            pnl_lbl = Gtk.Label()
+            pnl_lbl.set_markup(
+                f"<span color='{color}'><b>{sign}{fmt_try(pnl)} ({fmt_pct(pnl_pct)})</b></span>")
+            pnl_lbl.set_use_markup(True)
+            header.pack_start(pnl_lbl, False, False, 0)
+        pf_card.pack_start(header, False, False, 0)
+
+        for d in details:
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            row.get_style_context().add_class("fin-row")
+            nm = Gtk.Label(label=f"{d['name']} × {d['amount']:.4g}")
+            nm.get_style_context().add_class("fin-name"); nm.set_halign(Gtk.Align.START)
+            row.pack_start(nm, True, True, 0)
+            if d["cur_price"] is not None:
+                cv = Gtk.Label(label=fmt_try(d["current"]))
+                cv.get_style_context().add_class("fin-price")
+                row.pack_start(cv, False, False, 0)
+                sign = "+" if d["pnl"] >= 0 else ""
+                cls  = "fin-change-pos" if d["pnl"] >= 0 else "fin-change-neg"
+                pl = Gtk.Label(label=f"{sign}{fmt_pct(d['pnl_pct'])}")
+                pl.get_style_context().add_class(cls)
+                row.pack_start(pl, False, False, 0)
+            else:
+                na = Gtk.Label(label="Fiyat bekleniyor")
+                na.get_style_context().add_class("fin-change-neu")
+                row.pack_start(na, False, False, 0)
+            pf_card.pack_start(row, False, False, 0)
+
+        btn_manage = Gtk.Button(label="✏️ Portföyü Düzenle")
+        self._sc(btn_manage, "btn-fin")
+        btn_manage.set_halign(Gtk.Align.END)
+        btn_manage.connect("clicked", self._show_portfolio_dialog)
+        pf_card.pack_start(btn_manage, False, False, 0)
+
+        self.content.pack_start(pf_card, False, False, 0)
+
+    # ──────────────────── Saatlik / Günlük Tahmin ──────────────────────────
     def _render_hourly_mgm(self, tahminler):
         self._section_title("⏰  SAATLİK TAHMİN (Kaynak: MGM)")
         hs = self._make_hscroll()
@@ -1285,7 +2082,7 @@ class MintSkyApp(Gtk.Window):
         start  = next((i for i,t in enumerate(om_times) if t.startswith(now_h[:13])), 0)
         for i in range(start, min(start+24, len(om_times))):
             hc = self._make_hcard()
-            try:   t_str = om_times[i][11:16]
+            try:    t_str = om_times[i][11:16]
             except: t_str = "--"
             tl = Gtk.Label(label=t_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
             em,ks,uz = hadise_wmo(wcodes[i] if i<len(wcodes) else None)
@@ -1300,7 +2097,6 @@ class MintSkyApp(Gtk.Window):
             if i < len(probs) and probs[i] is not None:
                 pl = Gtk.Label(label=f"💧%{probs[i]:.0f}")
                 self._sc(pl,"h-wind"); pl.set_halign(Gtk.Align.CENTER)
-                pl.set_tooltip_text(PILL_TOOLTIPS.get("🌂 Yağış Olas.",""))
                 hc.pack_start(pl, False, False, 0)
             h_box.pack_start(hc, False, False, 0)
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
@@ -1382,6 +2178,7 @@ class MintSkyApp(Gtk.Window):
             fc_box.pack_start(outer, False, False, 0)
         self.content.pack_start(fc_box, False, False, 0)
 
+    # ──────────────────── Yardımcı render ─────────────────────────────────
     def _make_hscroll(self):
         hs = Gtk.ScrolledWindow()
         hs.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
