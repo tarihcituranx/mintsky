@@ -1,0 +1,147 @@
+import os
+
+BASE_MGM = "https://servis.mgm.gov.tr"
+BASE_OM = "https://api.open-meteo.com/v1/forecast"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+
+MGM_HEADERS = {
+    "Origin": "https://www.mgm.gov.tr",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+}
+NOM_HEADERS = {"User-Agent": "MintSkyApp/5.0 (github.com/tarihcituranx)"}
+TIMEOUT = 12
+
+CONFIG_DIR = os.path.expanduser("~/.config")
+FAV_FILE = os.path.join(CONFIG_DIR, "mintsky_favorites.json")
+SETTING_FILE = os.path.join(CONFIG_DIR, "mintsky_settings.json")
+LOC_FILE = os.path.join(CONFIG_DIR, "mintsky_locations.json")
+AUTOSTART_DIR = os.path.expanduser("~/.config/autostart")
+AUTOSTART_FILE = os.path.join(AUTOSTART_DIR, "mintsky.desktop")
+APP_DIR = os.path.expanduser("~/.local/share/applications")
+APP_FILE = os.path.join(APP_DIR, "mintsky.desktop")
+ICON_DIR = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps")
+
+GELISTIRICI = "https://github.com/tarihcituranx"
+MGM_SIMGELER = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
+UYGULAMA_ADI = "MintSky"
+VERSIYON = "5.0"
+
+GROQ_SYSTEM = (
+    "Sen yalnızca meteoroloji ve hava durumu konusunda uzmanlaşmış bir yapay zeka danışmanısın. "
+    "Görevin: sana verilen ANLIK HAVA VERİLERİNE dayanarak kısa, pratik ve doğru Türkçe öneriler sunmak.\n\n"
+    "YANIT VEREBİLECEĞİN KONULAR (yalnızca bunlar):\n"
+    "• Giyim önerileri (sıcaklık, hissedilen, rüzgar)\n"
+    "• Dışarı çıkma zamanlaması ve aktivite önerileri (yağış, fırtına, UV)\n"
+    "• Sağlık uyarıları (aşırı sıcak/soğuk, yüksek nem, UV)\n"
+    "• Araç ve yol koşulu uyarıları (buzlanma, sis, fırtına)\n"
+    "• Açık hava/tarım çalışmalarına yönelik öneriler\n"
+    "• Aktif MGM uyarılarının pratik etkisi\n\n"
+    "YASAK KONULAR: Politika, haberler, tarih, genel bilgi, programlama veya hava durumuyla ilgisiz her şey. "
+    "Bu tür sorularda kesinlikle şöyle de: 'Bu konuda yardımcı olamam. Yalnızca hava durumu ve meteoroloji tavsiyeleri verebilirim.'\n\n"
+    "KURAL: Yalnızca sana verilen hava verilerini kullan. Veride olmayan hiçbir şeyi uydurmadığını belirt. "
+    "Emin değilsen 'Bu veriden anlaşılmıyor.' de.\n\n"
+    "FORMAT: 3-6 madde, kısa ve öz Türkçe, emoji ile. Teknik jargondan kaçın."
+)
+
+HADISE = {
+    "A": ("☀️", "Açık", "Hava tamamen güneşli ve bulutsuz."),
+    "SCK": ("🌡️", "Sıcak", "Hava sıcaklığı mevsim normallerinin üzerinde."),
+    "SGK": ("🧊", "Soğuk", "Hava sıcaklığı mevsim normallerinin altında."),
+    "AB": ("🌤️", "Az Bulutlu", "Gökyüzünün az bir kısmı bulutlu, genelde güneşli."),
+    "PB": ("⛅", "Parçalı Bulutlu", "Gökyüzünün yaklaşık yarısı bulutlu."),
+    "CB": ("☁️", "Çok Bulutlu", "Gökyüzü bulutlarla kaplı, güneş zor görünüyor."),
+    "DMN": ("🌫️", "Duman", "Hava dumanlı, görüş mesafesi azalmış."),
+    "PUS": ("🌫️", "Pus", "Havada ince pus var, görüş hafif kısıtlı."),
+    "SIS": ("🌁", "Sis", "Yoğun sis, görüş mesafesi oldukça düşük."),
+    "HY": ("🌦️", "Hafif Yağmurlu", "Hafif ve aralıklı yağmur bekleniyor."),
+    "Y": ("🌧️", "Yağmurlu", "Sürekli ve orta şiddetli yağmur."),
+    "KY": ("⛈️", "Kuvvetli Yağmurlu", "Şiddetli ve yoğun yağmur."),
+    "HSY": ("🌦️", "Hafif Sağanak Yağışlı", "Kısa süreli, hafif sağanak yağış."),
+    "SY": ("🌧️", "Sağanak Yağışlı", "Kısa süreli fakat kuvvetli sağanak yağış."),
+    "KSY": ("⛈️", "Kuvvetli Sağanak Yağışlı", "Şiddetli ve ani sağanak yağış."),
+    "HKY": ("🌨️", "Hafif Kar Yağışlı", "Hafif şiddette kar yağışı."),
+    "K": ("❄️", "Kar Yağışlı", "Orta şiddetli kar yağışı."),
+    "YKY": ("❄️", "Yoğun Kar Yağışlı", "Çok yoğun kar yağışı ve birikim."),
+    "YYSY": ("🌦️", "Yer Yer Sağanak Yağışlı", "Bölgesel olarak sağanak yağış geçişleri."),
+    "D": ("🌨️", "Dolu", "Bölgesel dolu yağışı."),
+    "GSY": ("⛈️", "Gökgürültülü Sağanak Yağışlı", "Gök gürültüsü ve şimşekle birlikte sağanak."),
+    "KGSY": ("🌩️", "Kuvvetli Gökgürültülü Sağanak Yağışlı", "Şiddetli fırtına, yıldırım ve yoğun sağanak."),
+    "KGY": ("🌩️", "Kuvvetli Gökgürültülü Sağanak Yağışlı", "Şiddetli fırtına, yıldırım ve yoğun sağanak."),
+    "KKY": ("🌨️", "Karla Karışık Yağmurlu", "Yağmur ve kar bir arada yağıyor."),
+    "R": ("💨", "Rüzgarlı", "Kuvvetli rüzgar esiyor."),
+    "KF": ("🌪️", "Toz veya Kum Fırtınası", "Toz ve kum fırtınası nedeniyle görüş çok kısıtlı."),
+    "GKR": ("🎐", "Güneyli Kuvvetli Rüzgar", "Güney yönlerden kuvvetli rüzgar (Lodos vb.)."),
+    "KKR": ("🎐", "Kuzeyli Kuvvetli Rüzgar", "Kuzey yönlerden kuvvetli rüzgar (Poyraz vb.)."),
+}
+
+WMO_HADISE = {
+    0: ("☀️", "Açık", "Hava açık ve güneşli."),
+    1: ("🌤️", "Çoğunlukla Açık", "Gökyüzü büyük ölçüde açık."),
+    2: ("⛅", "Parçalı Bulutlu", "Bulutlanma artıyor."),
+    3: ("☁️", "Kapalı", "Gökyüzü tamamen bulutlu."),
+    45: ("🌫️", "Sisli", "Sis var, görüş kısıtlı."),
+    48: ("🌫️", "Dondurucu Sis", "Buzlanma oluşturan yoğun sis."),
+    51: ("🌦️", "Hafif Çisenti", "Hafif çisenti yağıyor."),
+    53: ("🌦️", "Orta Çisenti", "Orta yoğunlukta çisenti."),
+    55: ("🌦️", "Yoğun Çisenti", "Yoğun çisenti."),
+    61: ("🌧️", "Hafif Yağmur", "Hafif yağmur yağıyor."),
+    63: ("🌧️", "Orta Yağmur", "Orta şiddetli yağmur."),
+    65: ("🌧️", "Kuvvetli Yağmur", "Şiddetli yağmur."),
+    66: ("🌨️", "Dondurucu Hafif Yağmur", "Yüzeyde buz oluşturan hafif yağmur."),
+    67: ("🌨️", "Dondurucu Yağmur", "Yüzeyde buz oluşturan yağmur."),
+    71: ("❄️", "Hafif Kar", "Hafif kar yağışı."),
+    73: ("❄️", "Orta Kar", "Orta şiddetli kar."),
+    75: ("❄️", "Yoğun Kar", "Yoğun kar yağışı ve birikim."),
+    77: ("🌨️", "Kar Taneleri", "Buz kristalleri veya kar taneleri."),
+    80: ("🌦️", "Hafif Sağanak", "Kısa süreli hafif sağanak."),
+    81: ("🌧️", "Orta Sağanak", "Kısa süreli orta sağanak."),
+    82: ("⛈️", "Şiddetli Sağanak", "Şiddetli sağanak yağış."),
+    85: ("❄️", "Hafif Kar Sağanağı", "Kısa süreli hafif kar sağanağı."),
+    86: ("❄️", "Yoğun Kar Sağanağı", "Şiddetli kar sağanağı."),
+    95: ("⛈️", "Fırtına", "Gökgürültülü fırtına."),
+    96: ("⛈️", "Hafif Dolulu Fırtına", "Hafif dolu eşliğinde fırtına."),
+    99: ("⛈️", "Kuvvetli Dolulu Fırtına", "Yoğun dolu ile şiddetli fırtına."),
+}
+
+PILL_TOOLTIPS = {
+    "💧 Nem": "Bağıl Nem (%)\n✦ %40–60 konforlu • %60+ bunaltıcı",
+    "💨 Rüzgar": "Rüzgar Hızı ve Yönü (km/s)",
+    "🔵 Basınç": "Denize İndirgenmiş Basınç (hPa)\n✦ Normal ~1013 hPa",
+    "👁 Görüş": "Yatay Görüş Mesafesi",
+    "🌧 Yağış 1s": "Son 1 Saatlik Yağış (mm)",
+    "🌧 Yağış 24s": "Son 24 Saatlik Toplam Yağış (mm)",
+    "🌊 Deniz": "Deniz Yüzeyi Sıcaklığı (°C)",
+    "☁ Bulutluluk": "Gökyüzü Bulut Örtüsü",
+    "❄ Kar": "Yerde Biriken Kar Kalınlığı (cm)",
+    "🔆 UV İndeksi": "UV Işıma İndeksi",
+    "🌂 Yağış Olas.": "Yağış Olasılığı %",
+    "💨 Rüzgar Gustu": "Anlık En Yüksek Rüzgar Hızı / Gustu",
+    "🌡 Çiğ Noktası": "Çiğ Noktası Sıcaklığı (°C)",
+    "☀ Güneşlenme": "Günlük Güneşlenme Süresi",
+    "🌡 Hissedilen": "Hissedilen (Apparent) Sıcaklık (°C)",
+}
+
+TRAY_ICONS = {
+    "A": "weather-clear", "SCK": "weather-clear", "SGK": "weather-snow",
+    "AB": "weather-few-clouds", "PB": "weather-clouds", "CB": "weather-overcast",
+    "DMN": "weather-fog", "PUS": "weather-fog", "SIS": "weather-fog",
+    "HY": "weather-showers-scattered", "Y": "weather-showers", "KY": "weather-storm",
+    "HSY": "weather-showers-scattered", "SY": "weather-showers", "KSY": "weather-storm",
+    "HKY": "weather-snow", "K": "weather-snow", "YKY": "weather-snow",
+    "YYSY": "weather-showers-scattered", "D": "weather-snow", "GSY": "weather-storm",
+    "KGSY": "weather-storm", "KGY": "weather-storm", "KKY": "weather-showers",
+    "R": "weather-windy", "KF": "weather-fog", "GKR": "weather-windy", "KKR": "weather-windy",
+}
+
+WMO_TRAY = {
+    0: "weather-clear", 1: "weather-few-clouds", 2: "weather-clouds", 3: "weather-overcast",
+    45: "weather-fog", 48: "weather-fog", 51: "weather-showers-scattered",
+    53: "weather-showers-scattered", 55: "weather-showers", 61: "weather-showers-scattered",
+    63: "weather-showers", 65: "weather-storm", 71: "weather-snow", 73: "weather-snow",
+    75: "weather-snow", 80: "weather-showers-scattered", 81: "weather-showers",
+    82: "weather-storm", 95: "weather-storm", 96: "weather-storm", 99: "weather-storm",
+}
+
+YONLER = ["K", "KKD", "KD", "DKD", "D", "DGD", "GD", "GGD", "G", "GGB", "GB", "BGB", "B", "BBK", "BK", "KBK"]
+METEOALARM_SEVIYE = {"1": "Yeşil", "2": "Sarı ⚠", "3": "Turuncu ⚠⚠", "4": "Kırmızı 🔴"}
