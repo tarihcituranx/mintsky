@@ -1,255 +1,210 @@
 def make_css(scale_val, theme="dark"):
     def fs(n): return int(round(n * scale_val))
     if theme == "light":
-        bg,card_bg       = "#f6f8fa","#ffffff"
-        card_grad        = "linear-gradient(135deg,#ffffff 0%,#f0f3f6 100%)"
-        hdr_grad         = "linear-gradient(160deg,#ffffff 0%,#f6f8fa 100%)"
+        bg,card_bg       = "#f0f4f8","#ffffff"
+        card_grad        = "linear-gradient(145deg,#ffffff 0%,#eef2f7 100%)"
+        hdr_grad         = "linear-gradient(160deg,#ffffff 0%,#f0f4f8 100%)"
         border           = "#d0d7de"
-        text_main        = "#24292f"
-        text_sub         = "#57606a"
-        text_mut         = "#8c959f"
+        text_main        = "#1a2233"
+        text_sub         = "#4a5568"
+        text_mut         = "#8c95a0"
         text_accent      = "#0969da"
-        entry_bg,btn_bg  = "#ffffff","#f3f4f6"
-        btn_hover        = "#ebecf0"
-        btn_active       = "#e5e7eb"
-        w3_bg            = "#edf0f3"
+        entry_bg,btn_bg  = "#ffffff","#f0f3f7"
+        btn_hover        = "#e5e9f0"
+        btn_active       = "#dde3eb"
+        w3_bg            = "#e8edf3"
         groq_bg          = "#e8f4fd"
         groq_border      = "#b8d4f0"
         groq_text        = "#0550ae"
+        fin_bg           = "#fff8e7"
+        fin_border       = "#f0d070"
+        fin_profit       = "#22863a"
+        fin_loss         = "#cb2431"
+        fin_title        = "#7a5c00"
+        pill_shadow      = "rgba(0,0,0,0.08)"
     else:
-        bg,card_bg       = "#0d1117","#1c2128"
-        card_grad        = "linear-gradient(135deg,#161b22 0%,#1c2128 100%)"
-        hdr_grad         = "linear-gradient(160deg,#161b22 0%,#0d1117 100%)"
-        border           = "#30363d"
-        text_main        = "#e6edf3"
-        text_sub         = "#c9d1d9"
-        text_mut         = "#8b949e"
-        text_accent      = "#58a6ff"
-        entry_bg,btn_bg  = "#161b22","#21262d"
-        btn_hover        = "#30363d"
-        btn_active       = "#161b22"
-        w3_bg            = "#1a2030"
-        groq_bg          = "#0d2137"
-        groq_border      = "#1f4e7a"
-        groq_text        = "#79c0ff"
+        bg,card_bg       = "#0a0e17","#141b2d"
+        card_grad        = "linear-gradient(145deg,#161e30 0%,#0f1520 100%)"
+        hdr_grad         = "linear-gradient(160deg,#161e30 0%,#0a0e17 100%)"
+        border           = "#253046"
+        text_main        = "#e2e8f8"
+        text_sub         = "#94a3c0"
+        text_mut         = "#5a6a85"
+        text_accent      = "#60a5fa"
+        entry_bg,btn_bg  = "#101828","#1e2d42"
+        btn_hover        = "#253046"
+        btn_active       = "#111c2d"
+        w3_bg            = "#111c2f"
+        groq_bg          = "#0d1f35"
+        groq_border      = "#1e4170"
+        groq_text        = "#7cb9ff"
+        fin_bg           = "#1a1500"
+        fin_border       = "#4a3a00"
+        fin_profit       = "#3fb950"
+        fin_loss         = "#f85149"
+        fin_title        = "#e3b341"
+        pill_shadow      = "rgba(0,0,0,0.35)"
 
     return f"""
-/* ===================== MINTSKY GLOBAL ===================== */
-* {{
-    font-family: "Segoe UI", Ubuntu, Cantarell, sans-serif;
-    font-size: {fs(13)}px;
-    color: {text_main};
-    outline: none;
-    box-shadow: none;
-}}
+* {{ font-family:"Ubuntu","Cantarell",sans-serif; }}
+#main-win {{ background-color:{bg}; }}
 
-/* ===================== ANA PENCERE ===================== */
-window, .main-window {{
-    background-color: {bg};
-    border-radius: 12px;
-}}
+/* ─── Header ─── */
+.hdr {{ background:{hdr_grad}; padding:{fs(14)}px {fs(18)}px {fs(10)}px {fs(18)}px;
+        border-bottom:2px solid {border};
+        box-shadow:0 2px 12px {pill_shadow}; }}
+.hdr-title {{ font-size:{fs(20)}px; font-weight:900; color:{text_accent};
+              letter-spacing:2px; text-shadow:0 1px 4px {pill_shadow}; }}
+.search-row {{ margin-top:{fs(8)}px; }}
 
-/* ===================== HEADER ===================== */
-.header-box {{
-    background: {hdr_grad};
-    border-bottom: 1px solid {border};
-    padding: {fs(12)}px {fs(16)}px;
-    border-radius: 12px 12px 0 0;
-}}
+/* ─── Inputs ─── */
+entry {{ background-color:{entry_bg}; color:{text_main}; border:1px solid {border};
+         border-radius:8px; padding:{fs(7)}px {fs(12)}px; font-size:{fs(14)}px;
+         caret-color:{text_accent}; transition:border-color 0.15s; }}
+entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
+               box-shadow:0 0 0 3px rgba(96,165,250,0.15); }}
 
-.app-title {{
-    font-size: {fs(16)}px;
-    font-weight: bold;
-    color: {text_main};
-}}
+/* ─── Buttons ─── */
+.btn-search {{ background:linear-gradient(135deg,#2ecc71,#27ae60); color:#ffffff;
+               border:none; border-radius:8px; padding:{fs(7)}px {fs(18)}px;
+               font-size:{fs(14)}px; font-weight:bold; min-width:{fs(60)}px;
+               box-shadow:0 3px 8px rgba(39,174,96,0.35); }}
+.btn-search:hover  {{ background:linear-gradient(135deg,#3be07e,#30c26d);
+                      box-shadow:0 4px 12px rgba(39,174,96,0.50); }}
+.btn-search:active {{ background:linear-gradient(135deg,#25a557,#1f8e4d); }}
 
-.app-subtitle {{
-    font-size: {fs(11)}px;
-    color: {text_mut};
-}}
+.btn-tool {{ background-color:{btn_bg}; color:{text_main}; border:1px solid {border};
+             border-radius:8px; padding:{fs(4)}px {fs(6)}px; min-width:{fs(40)}px;
+             box-shadow:0 2px 4px {pill_shadow}; }}
+.btn-tool:hover  {{ background-color:{btn_hover}; border-color:{text_accent}; }}
+.btn-tool:active {{ background-color:{btn_active}; }}
 
-/* ===================== KARTLAR ===================== */
-.card {{
-    background: {card_grad};
-    border: 1px solid {border};
-    border-radius: 8px;
-    padding: {fs(12)}px;
-    margin: {fs(6)}px;
-}}
+.btn-ai  {{ background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff;
+            border:1px solid #8b5cf6; border-radius:8px; padding:{fs(4)}px {fs(6)}px;
+            min-width:{fs(40)}px; box-shadow:0 3px 8px rgba(124,58,237,0.35); }}
+.btn-ai:hover  {{ background:linear-gradient(135deg,#8b5cf6,#6d28d9);
+                  box-shadow:0 4px 12px rgba(124,58,237,0.50); }}
+.btn-ai:active {{ background:linear-gradient(135deg,#6d28d9,#5b21b6); }}
 
-.card-bg {{
-    background-color: {card_bg};
-    border: 1px solid {border};
-    border-radius: 8px;
-    padding: {fs(10)}px;
-}}
+.btn-fin {{ background:linear-gradient(135deg,#d4a017,#b8860b); color:#ffffff;
+            border:1px solid #c9a227; border-radius:8px; padding:{fs(4)}px {fs(6)}px;
+            min-width:{fs(40)}px; box-shadow:0 3px 8px rgba(184,134,11,0.35); }}
+.btn-fin:hover  {{ background:linear-gradient(135deg,#e8b420,#cc9910); }}
+.btn-fin:active {{ background:linear-gradient(135deg,#b87b0a,#9a6508); }}
 
-/* ===================== WEATHER / W3 ===================== */
-.weather-box {{
-    background-color: {w3_bg};
-    border: 1px solid {border};
-    border-radius: 8px;
-    padding: {fs(10)}px {fs(14)}px;
-}}
+.btn-fav-active {{ background:linear-gradient(135deg,#92400e,#78350f); color:#fbbf24;
+                   border:1px solid #d97706; border-radius:8px; padding:{fs(4)}px {fs(6)}px;
+                   min-width:{fs(40)}px; box-shadow:0 3px 8px rgba(217,119,6,0.35); }}
+.btn-fav-active:hover {{ background:linear-gradient(135deg,#a45a0e,#8a3f0f); }}
 
-.weather-temp {{
-    font-size: {fs(32)}px;
-    font-weight: bold;
-    color: {text_accent};
-}}
+/* ─── Ana kart (şimdiki hava) ─── */
+.cur-card {{ background:{card_grad}; border-radius:16px;
+             margin:{fs(12)}px {fs(12)}px {fs(6)}px {fs(12)}px; padding:{fs(20)}px;
+             border:1px solid {border};
+             box-shadow:0 8px 32px {pill_shadow}, 0 2px 8px {pill_shadow}; }}
+.cur-city  {{ font-size:{fs(24)}px; font-weight:800; color:{text_main};
+              text-shadow:0 1px 4px {pill_shadow}; }}
+.cur-cond  {{ font-size:{fs(18)}px; color:{text_sub}; margin-top:{fs(2)}px; font-weight:600; }}
+.cur-desc  {{ font-size:{fs(14)}px; color:{text_sub}; margin-top:{fs(4)}px; }}
+.cur-temp  {{ font-size:{fs(66)}px; font-weight:200; color:{text_main}; letter-spacing:-3px;
+              text-shadow:0 2px 8px {pill_shadow}; }}
+.cur-feels {{ font-size:{fs(14)}px; color:{text_sub}; margin-top:-{fs(4)}px; }}
+.om-badge  {{ font-size:{fs(12)}px; color:{text_accent}; font-weight:bold; margin-top:{fs(6)}px; }}
 
-.weather-desc {{
-    font-size: {fs(12)}px;
-    color: {text_sub};
-    margin-top: {fs(2)}px;
-}}
+/* ─── Pill kartlar ─── */
+.pill-box {{ background:linear-gradient(145deg,{card_bg},{entry_bg});
+             border-radius:12px; padding:{fs(10)}px {fs(14)}px; margin:3px;
+             border:1px solid {border};
+             box-shadow:0 4px 12px {pill_shadow}, inset 0 1px 0 rgba(255,255,255,0.06); }}
+.pill-key {{ font-size:{fs(13)}px; color:{text_sub}; }}
+.pill-val {{ font-size:{fs(15)}px; font-weight:700; color:{text_main}; margin-top:2px; }}
 
-.weather-meta {{
-    font-size: {fs(11)}px;
-    color: {text_mut};
-}}
+/* ─── Bölüm başlıkları ─── */
+.sec-title {{ font-size:{fs(13)}px; font-weight:800; color:{text_mut}; letter-spacing:1.5px;
+              margin:{fs(14)}px {fs(12)}px {fs(6)}px {fs(12)}px; }}
 
-/* ===================== GROQ AI ===================== */
-.groq-box {{
-    background-color: {groq_bg};
-    border: 1px solid {groq_border};
-    border-radius: 8px;
-    padding: {fs(10)}px {fs(14)}px;
-    margin-top: {fs(6)}px;
-}}
+/* ─── Saatlik tahmin ─── */
+.h-card {{ background:linear-gradient(145deg,{entry_bg},{btn_bg}); border-radius:12px;
+           padding:{fs(10)}px; margin:2px; border:1px solid {border};
+           min-width:{fs(75)}px;
+           box-shadow:0 3px 8px {pill_shadow}, inset 0 1px 0 rgba(255,255,255,0.05); }}
+.h-time  {{ font-size:{fs(13)}px; color:{text_sub}; font-weight:700; }}
+.h-emoji {{ font-size:{fs(26)}px; }}
+.h-temp  {{ font-size:{fs(16)}px; font-weight:700; color:{text_main}; }}
+.h-wind  {{ font-size:{fs(12)}px; color:{text_accent}; font-weight:600; }}
 
-.groq-label {{
-    font-size: {fs(12)}px;
-    font-weight: 600;
-    color: {groq_text};
-}}
+/* ─── Günlük tahmin ─── */
+.fc-row  {{ background:linear-gradient(135deg,{entry_bg},{btn_bg});
+            border-radius:12px; padding:{fs(12)}px {fs(14)}px;
+            margin:{fs(3)}px {fs(12)}px; border:1px solid {border};
+            box-shadow:0 3px 8px {pill_shadow}; }}
+.fc-day  {{ font-size:{fs(15)}px; color:{text_main}; font-weight:700; }}
+.fc-cond {{ font-size:{fs(14)}px; color:{text_sub}; }}
+.fc-desc {{ font-size:{fs(13)}px; color:{text_mut}; font-style:italic; margin-top:{fs(3)}px; }}
+.fc-hi   {{ font-size:{fs(17)}px; font-weight:800; color:{text_main}; }}
+.fc-lo   {{ font-size:{fs(15)}px; color:{text_sub}; }}
 
-.groq-response {{
-    font-size: {fs(13)}px;
-    color: {text_main};
-    margin-top: {fs(4)}px;
-}}
+/* ─── Uyarılar ─── */
+.alert-row {{ background:linear-gradient(135deg,rgba(248,81,73,0.10),rgba(248,81,73,0.05));
+              border-radius:10px; padding:{fs(10)}px {fs(14)}px;
+              margin:{fs(3)}px {fs(12)}px; border:1px solid rgba(248,81,73,0.30);
+              box-shadow:0 3px 8px rgba(248,81,73,0.12); }}
+.alert-txt {{ font-size:{fs(14)}px; color:#ff7b72; font-weight:600; }}
 
-/* ===================== BUTONLAR ===================== */
-button {{
-    background-color: {btn_bg};
-    border: 1px solid {border};
-    border-radius: 6px;
-    color: {text_main};
-    font-size: {fs(13)}px;
-    padding: {fs(5)}px {fs(12)}px;
-    transition: background-color 150ms ease;
-}}
+/* ─── Güncelleme bildirimi ─── */
+.update-row {{ background:linear-gradient(135deg,rgba(96,165,250,0.10),rgba(96,165,250,0.05));
+               border-radius:10px; padding:{fs(10)}px {fs(14)}px;
+               margin:{fs(3)}px {fs(12)}px; border:1px solid rgba(96,165,250,0.30); }}
+.update-txt {{ font-size:{fs(14)}px; color:{text_accent}; font-weight:600; }}
 
-button:hover {{
-    background-color: {btn_hover};
-    border-color: {text_accent};
-    color: {text_accent};
-}}
+/* ─── Finans bölümü ─── */
+.fin-card {{ background:linear-gradient(145deg,{fin_bg},{entry_bg});
+             border-radius:14px; padding:{fs(12)}px {fs(14)}px;
+             margin:{fs(4)}px {fs(12)}px {fs(4)}px {fs(12)}px;
+             border:1px solid {fin_border};
+             box-shadow:0 4px 16px rgba(212,160,23,0.15),inset 0 1px 0 rgba(255,255,255,0.05); }}
+.fin-title {{ font-size:{fs(13)}px; font-weight:800; color:{fin_title}; letter-spacing:1px; }}
+.fin-row   {{ border-radius:8px; padding:{fs(6)}px {fs(8)}px; margin-top:{fs(3)}px; }}
+.fin-name  {{ font-size:{fs(13)}px; color:{text_sub}; }}
+.fin-price {{ font-size:{fs(15)}px; font-weight:700; color:{text_main}; }}
+.fin-change-pos {{ font-size:{fs(12)}px; color:{fin_profit}; font-weight:700; }}
+.fin-change-neg {{ font-size:{fs(12)}px; color:{fin_loss};   font-weight:700; }}
+.fin-change-neu {{ font-size:{fs(12)}px; color:{text_mut};   font-weight:600; }}
+.profit-lbl {{ font-size:{fs(15)}px; font-weight:800; color:{fin_profit}; }}
+.loss-lbl   {{ font-size:{fs(15)}px; font-weight:800; color:{fin_loss};   }}
 
-button:active {{
-    background-color: {btn_active};
-}}
+/* ─── Widget 3-saatlik ─── */
+.w3-card  {{ background:linear-gradient(145deg,{w3_bg},{entry_bg});
+             border-radius:12px; padding:{fs(8)}px {fs(12)}px; margin:4px;
+             border:1px solid {border}; min-width:{fs(65)}px;
+             box-shadow:0 4px 12px {pill_shadow}, inset 0 1px 0 rgba(255,255,255,0.05); }}
+.w3-time  {{ font-size:{fs(13)}px; color:{text_sub}; font-weight:700; }}
+.w3-emoji {{ font-size:{fs(24)}px; }}
+.w3-temp  {{ font-size:{fs(16)}px; font-weight:700; color:{text_main}; }}
+.w3-sep   {{ color:{text_mut}; font-size:{fs(20)}px; margin-top:{fs(8)}px; }}
 
-button.accent {{
-    background-color: {text_accent};
-    border-color: {text_accent};
-    color: #ffffff;
-    font-weight: 600;
-}}
+/* ─── Widget finans ─── */
+.wfin-box {{ background:linear-gradient(135deg,{fin_bg},{entry_bg});
+             border-radius:10px; padding:{fs(6)}px {fs(10)}px; margin:{fs(3)}px;
+             border:1px solid {fin_border};
+             box-shadow:0 3px 8px rgba(212,160,23,0.12); }}
+.wfin-item {{ font-size:{fs(12)}px; color:{text_sub}; }}
+.wfin-val  {{ font-size:{fs(14)}px; font-weight:700; color:{fin_title}; }}
 
-button.accent:hover {{
-    opacity: 0.85;
-}}
+/* ─── Groq AI ─── */
+.groq-panel {{ background:linear-gradient(145deg,{groq_bg},{entry_bg});
+               border-radius:12px; padding:{fs(14)}px {fs(16)}px;
+               margin:{fs(8)}px {fs(12)}px;
+               border:1px solid {groq_border};
+               box-shadow:0 4px 16px rgba(91,33,182,0.15); }}
+.groq-title {{ font-size:{fs(14)}px; font-weight:800; color:{groq_text}; }}
+.groq-text  {{ font-size:{fs(14)}px; color:{text_main}; }}
 
-/* ===================== ENTRY ===================== */
-entry {{
-    background-color: {entry_bg};
-    border: 1px solid {border};
-    border-radius: 6px;
-    color: {text_main};
-    font-size: {fs(13)}px;
-    padding: {fs(6)}px {fs(10)}px;
-    caret-color: {text_accent};
-}}
-
-entry:focus {{
-    border-color: {text_accent};
-}}
-
-entry placeholder {{
-    color: {text_mut};
-}}
-
-/* ===================== SCROLLBAR ===================== */
-scrollbar {{
-    background-color: transparent;
-    border: none;
-}}
-
-scrollbar slider {{
-    background-color: {border};
-    border-radius: 4px;
-    min-width: 5px;
-    min-height: 5px;
-    margin: 2px;
-}}
-
-scrollbar slider:hover {{
-    background-color: {text_mut};
-}}
-
-/* ===================== ETİKETLER ===================== */
-.label-main {{
-    font-size: {fs(14)}px;
-    color: {text_main};
-}}
-
-.label-sub {{
-    font-size: {fs(12)}px;
-    color: {text_sub};
-}}
-
-.label-muted {{
-    font-size: {fs(11)}px;
-    color: {text_mut};
-}}
-
-.label-accent {{
-    font-size: {fs(13)}px;
-    font-weight: 600;
-    color: {text_accent};
-}}
-
-/* ===================== AYIRICI ===================== */
-separator {{
-    background-color: {border};
-    min-height: 1px;
-    margin: {fs(4)}px 0;
-}}
-
-/* ===================== CHECKBUTTON / SWITCH ===================== */
-checkbutton, radiobutton {{
-    color: {text_main};
-    font-size: {fs(13)}px;
-    padding: {fs(2)}px;
-}}
-
-switch {{
-    border-radius: 14px;
-}}
-
-switch:checked {{
-    background-color: {text_accent};
-}}
-
-/* ===================== TOOLTIP ===================== */
-tooltip {{
-    background-color: {card_bg};
-    border: 1px solid {border};
-    border-radius: 6px;
-    color: {text_sub};
-    font-size: {fs(12)}px;
-    padding: {fs(4)}px {fs(8)}px;
-}}
+/* ─── Status / hata ─── */
+.status-lbl {{ font-size:{fs(15)}px; color:{text_sub}; }}
+.err-lbl    {{ font-size:{fs(14)}px; color:#f85149; }}
+.ts-lbl     {{ font-size:{fs(13)}px; color:{text_mut}; font-style:italic; margin-top:{fs(6)}px; }}
+separator   {{ background-color:{border}; margin:{fs(8)}px 0; }}
+scrolledwindow {{ background-color:transparent; }}
+viewport {{ background-color:transparent; }}
 """
