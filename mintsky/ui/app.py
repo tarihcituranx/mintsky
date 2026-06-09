@@ -1,0 +1,1404 @@
+import sys
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, GLib, Gdk
+
+try:
+    gi.require_version("Notify", "0.7")
+    from gi.repository import Notify
+    HAS_NOTIFY = True
+except Exception:
+    HAS_NOTIFY = False
+
+try:
+    gi.require_version("AppIndicator3", "0.1")
+    from gi.repository import AppIndicator3
+    HAS_INDICATOR = True
+except Exception:
+    try:
+        gi.require_version("AyatanaAppIndicator3", "0.1")
+        from gi.repository import AyatanaAppIndicator3 as AppIndicator3
+        HAS_INDICATOR = True
+    except Exception:
+        HAS_INDICATOR = False
+
+import requests
+import threading
+import json
+import os
+import shutil
+import time
+import webbrowser
+import concurrent.futures
+from datetime import datetime
+
+from mintsky.constants import *
+from mintsky.utils import _safe_icon, yon, fmt_date, fmt_time, fmt_dt, val, hadise_mgm, hadise_wmo, safe_json
+from mintsky.ui.styles import make_css
+
+class MintSkyApp(Gtk.Window):
+    def __init__(self):
+        super().__init__(title=UYGULAMA_ADI)
+        self.set_name("main-win")
+
+        self.script_path = os.path.abspath(sys.argv[0])
+        self.icon_path   = os.path.join(os.path.dirname(self.script_path), "mintsky.png")
+        if os.path.exists(self.icon_path):
+            self.set_icon_from_file(self.icon_path)
+
+        self._start_as_widget = "--autostart" in sys.argv
+        self._load_settings()
+
+        self._provider = Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), self._provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        self._apply_css()
+        self._apply_autostart_logic()
+
+        self.set_default_size(int(500*self._get_scale()), int(860*self._get_scale()))
+        self.set_resizable(True)
+        self.set_border_width(0)
+
+        self._cur_il         = ""
+        self._cur_ilce       = ""
+        self._cur_lat        = None
+        self._cur_lon        = None
+        self._location_data  = {}
+        self._last_api_call  = 0
+        self._is_compact     = False
+        self._tray_busy      = False
+        self._last_bg_hadise = None
+        self._last_bg_alarms = []
+        self._last_render_data = {}
+
+        self._build_ui()
+        self._build_tray()
+
+        self.connect("key-press-event", self._on_key_press)
+        self.connect("delete-event",    self._on_delete)
+
+        self.il_entry.set_text(self._def_il)
+        self.ilce_entry.set_text(self._def_ilce)
+
+        threading.Thread(target=self._fetch_turkiye_api, daemon=True).start()
+
+        self.show_all()
+        GLib.idle_add(self._initial_search)
+        self._tray_update_loop()
+        GLib.timeout_add_seconds(1800, self._tray_update_loop)
+
+    def _initial_search(self):
+        self._search()
+        if self._start_as_widget and not self._is_compact:
+            GLib.timeout_add(400, self._toggle_compact)
+        return False
+
+    def _on_key_press(self, widget, event):
+        keyval = event.keyval
+        ctrl   = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
+        if keyval == Gdk.KEY_Escape:      self.hide(); return True
+        if keyval == Gdk.KEY_F5 or (ctrl and keyval in (Gdk.KEY_r, Gdk.KEY_R)):
+            self._manual_refresh(); return True
+        if ctrl and keyval in (Gdk.KEY_f, Gdk.KEY_F):
+            self.il_entry.grab_focus(); return True
+        return False
+
+    def _on_compact_button_press(self, widget, event):
+        if self._is_compact:
+            if event.button == 1:
+                self._toggle_compact()
+            elif event.button == 3:
+                self.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
+
+    def _toggle_compact(self, *_):
+        self._is_compact = not self._is_compact
+        if self._is_compact:
+            self.unmaximize()
+            self.hdr.hide()
+            self.scroll_win.hide()
+            self.set_decorated(False)
+            self.set_keep_above(True)
+            self.set_skip_taskbar_hint(True)
+            self.stick()
+            self.set_opacity(0.88)
+            GLib.idle_add(self._apply_widget_geometry)
+        else:
+            self.set_opacity(1.0)
+            self.hdr.show()
+            self.scroll_win.show()
+            self.set_decorated(True)
+            self.set_keep_above(False)
+            self.set_skip_taskbar_hint(False)
+            self.unstick()
+            self.resize(int(500*self._get_scale()), int(860*self._get_scale()))
+        GLib.idle_add(self._search)
+
+    def _apply_widget_geometry(self):
+        self.resize(1, 1)
+        GLib.timeout_add(60, self._move_to_corner)
+        return False
+
+    def _move_to_corner(self):
+        screen  = self.get_screen()
+        monitor = screen.get_monitor_at_window(self.get_window())
+        if monitor:
+            geom   = monitor.get_geometry()
+            w, h   = self.get_size()
+            if w > 450: w = 360
+            self.move(geom.x + geom.width - w - 20, geom.y + 40)
+        return False
+
+    def _fetch_turkiye_api(self):
+        for attempt in [self._try_mgm_ililce, self._try_cache, self._try_turkiyeapi]:
+            if attempt(): return
+
+    def _try_mgm_ililce(self):
+        try:
+            r = requests.get(f"{BASE_MGM}/web/merkezler/ililcesi", headers=MGM_HEADERS, timeout=TIMEOUT)
+            if r.status_code == 200:
+                locs = {}
+                for item in r.json():
+                    il = item.get("il",""); ilce = item.get("ilce","")
+                    if il:
+                        locs.setdefault(il,[])
+                        if ilce and ilce not in locs[il]: locs[il].append(ilce)
+                for il in locs: locs[il].sort()
+                self._save_locs(locs); GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
+                return True
+        except Exception: pass
+        return False
+
+    def _try_cache(self):
+        try:
+            if os.path.exists(LOC_FILE):
+                with open(LOC_FILE,"r",encoding="utf-8") as f: locs = json.load(f)
+                GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
+                return True
+        except Exception: pass
+        return False
+
+    def _try_turkiyeapi(self):
+        try:
+            r = requests.get("https://api.turkiyeapi.dev/v1/provinces", timeout=10)
+            if r.status_code == 200:
+                locs = {p.get("name"):sorted([d.get("name") for d in p.get("districts",[])])
+                        for p in r.json().get("data",[])}
+                self._save_locs(locs); GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
+                return True
+        except Exception: pass
+        return False
+
+    def _save_locs(self, locs):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(LOC_FILE,"w",encoding="utf-8") as f: json.dump(locs,f,ensure_ascii=False,indent=2)
+
+    def _apply_turkiye_api(self, sorted_provinces, locs):
+        self._location_data = locs
+        cur_il, cur_ilce = self.il_entry.get_text(), self.ilce_entry.get_text()
+        self.il_combo.remove_all()
+        for p in sorted_provinces: self.il_combo.append_text(p)
+        self.il_entry.set_text(cur_il)
+        self._on_il_changed(self.il_combo)
+        self.ilce_entry.set_text(cur_ilce)
+
+    def _on_il_changed(self, combo):
+        il = self.il_entry.get_text().strip()
+        cur_ilce = self.ilce_entry.get_text()
+        self.ilce_combo.remove_all()
+        if il in self._location_data:
+            for d in self._location_data[il]: self.ilce_combo.append_text(d)
+        self.ilce_entry.set_text(cur_ilce)
+
+    def _load_settings(self):
+        try:
+            with open(SETTING_FILE,"r",encoding="utf-8") as f: d = json.load(f)
+            self._theme          = d.get("theme",         "dark")
+            self._manual_scale   = d.get("scale",         1.2)
+            self._autostart      = d.get("autostart",     False)
+            self._def_il         = d.get("def_il",        "Samsun")
+            self._def_ilce       = d.get("def_ilce",      "Atakum")
+            self._notify_enabled = d.get("notify",        True)
+            self._api_source     = d.get("api_source",    "mgm")
+            self._show_extra     = d.get("show_extra",    False)
+            self._show_saatlik   = d.get("show_saatlik",  True)
+            self._show_gunluk    = d.get("show_gunluk",   True)
+            self._groq_api_key   = d.get("groq_api_key",  "")
+        except Exception:
+            self._theme, self._manual_scale, self._autostart = "dark", 1.2, False
+            self._def_il, self._def_ilce  = "Samsun", "Atakum"
+            self._notify_enabled          = True
+            self._api_source              = "mgm"
+            self._show_extra              = False
+            self._show_saatlik            = True
+            self._show_gunluk             = True
+            self._groq_api_key            = ""
+
+    def _save_settings(self):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(SETTING_FILE,"w",encoding="utf-8") as f:
+            json.dump({"theme":self._theme,"scale":self._manual_scale,
+                       "autostart":self._autostart,"def_il":self._def_il,
+                       "def_ilce":self._def_ilce,"notify":self._notify_enabled,
+                       "api_source":self._api_source,"show_extra":self._show_extra,
+                       "show_saatlik":self._show_saatlik,"show_gunluk":self._show_gunluk,
+                       "groq_api_key":self._groq_api_key}, f)
+
+    def _apply_autostart_logic(self):
+        try:
+            if self._autostart:
+                os.makedirs(AUTOSTART_DIR, exist_ok=True)
+                with open(AUTOSTART_FILE,"w") as f:
+                    f.write(f"[Desktop Entry]\nType=Application\n"
+                            f"Exec=python3 \"{self.script_path}\" --autostart\n"
+                            f"Hidden=false\nNoDisplay=false\n"
+                            f"X-GNOME-Autostart-enabled=true\n"
+                            f"Name={UYGULAMA_ADI}\nIcon=mintsky\n"
+                            f"Comment=MintSky Hava Durumu\n")
+            else:
+                if os.path.exists(AUTOSTART_FILE): os.remove(AUTOSTART_FILE)
+        except Exception as e: print("Autostart hatası:", e)
+
+    def _install_as_app(self, *_):
+        try:
+            if os.path.exists(self.icon_path):
+                os.makedirs(ICON_DIR, exist_ok=True)
+                shutil.copy2(self.icon_path, os.path.join(ICON_DIR, "mintsky.png"))
+            os.makedirs(APP_DIR, exist_ok=True)
+            with open(APP_FILE,"w") as f:
+                f.write(f"[Desktop Entry]\nVersion=1.0\nType=Application\n"
+                        f"Name={UYGULAMA_ADI}\nComment=MintSky Hava Durumu ve Tahmini\n"
+                        f"Exec=python3 \"{self.script_path}\"\nIcon=mintsky\n"
+                        f"Terminal=false\nCategories=Utility;Weather;\nStartupNotify=true\n")
+            os.system("gtk-update-icon-cache -f ~/.local/share/icons/hicolor/ 2>/dev/null &")
+            self._status("🚀 Uygulama Linux menüsüne eklendi!\nUygulama listesinden 'MintSky' yazarak açabilirsin.")
+        except Exception as e: self._status(f"Hata: {e}", True)
+
+    def _get_scale(self):  return self._manual_scale
+    def _apply_css(self):  self._provider.load_from_data(make_css(self._get_scale(), self._theme).encode("utf-8"))
+
+    def _create_tool_btn(self, icon, text, tooltip, cb, css_class="btn-tool"):
+        btn = Gtk.Button()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        box.set_margin_top(2); box.set_margin_bottom(2)
+        l1 = Gtk.Label(label=f"<span size='large'>{icon}</span>", use_markup=True)
+        l2 = Gtk.Label(label=f"<span size='small' color='#8b949e'>{text}</span>", use_markup=True)
+        box.pack_start(l1, True, True, 0); box.pack_start(l2, True, True, 0)
+        btn.add(box)
+        self._sc(btn, css_class)
+        btn.set_tooltip_text(tooltip)
+        btn.connect("clicked", cb)
+        return btn
+
+    def _build_ui(self):
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.add(root)
+
+        self.hdr = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.hdr.get_style_context().add_class("hdr")
+
+        title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        title = Gtk.Label(label=UYGULAMA_ADI.upper())
+        self._sc(title,"hdr-title"); title.set_halign(Gtk.Align.START)
+        title_row.pack_start(title, True, True, 0)
+
+        for icon, text, tooltip, cb in [
+            ("🔽","Widget",  "Widget Moduna Geç",        self._toggle_compact),
+            ("🔄","Yenile",  "Yenile (F5)",               self._manual_refresh),
+            ("📜","Sürüm",   "Sürüm Notları",             self._show_changelog),
+            ("ℹ️","Simgeler","Hava Simgeleri Rehberi",    self._open_mgm_simgeler),
+            ("⚙️","Ayarlar", "Uygulama Ayarları",         self._show_settings),
+        ]:
+            title_row.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
+
+        self.btn_ai = self._create_tool_btn("🤖","AI","Groq AI Hava Danışmanı",
+                                             self._show_ai_dialog, "btn-ai")
+        self.btn_ai.set_tooltip_text("Groq AI Hava Danışmanı\n(Ayarlar'dan API anahtarınızı girin)")
+        title_row.pack_start(self.btn_ai, False, False, 0)
+        self.hdr.pack_start(title_row, False, False, 0)
+
+        srow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        srow.get_style_context().add_class("search-row")
+        self.il_combo   = Gtk.ComboBoxText.new_with_entry()
+        self.il_entry   = self.il_combo.get_child()
+        self.il_entry.set_placeholder_text("İl Seç / Yaz")
+        self.il_entry.connect("activate", lambda *_: self._search())
+        self.il_combo.connect("changed",  self._on_il_changed)
+        self.ilce_combo = Gtk.ComboBoxText.new_with_entry()
+        self.ilce_entry = self.ilce_combo.get_child()
+        self.ilce_entry.set_placeholder_text("İlçe Seç / Yaz")
+        self.ilce_entry.connect("activate", lambda *_: self._search())
+        btn_ara = Gtk.Button(label="Ara")
+        self._sc(btn_ara,"btn-search"); btn_ara.connect("clicked", lambda *_: self._search())
+        srow.pack_start(self.il_combo,   True, True, 0)
+        srow.pack_start(self.ilce_combo, True, True, 0)
+        srow.pack_start(btn_ara,         False, False, 0)
+        self.hdr.pack_start(srow, False, False, 0)
+
+        arow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        arow.set_margin_top(5)
+        for icon, text, tooltip, cb in [
+            ("📍","GPS Bul", "GPS ile konumu bul",         lambda *_: self._fetch_location()),
+            ("🏠","Sabitle", "Bu konumu varsayılan yap",   self._make_default),
+        ]:
+            arow.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
+
+        self.btn_fav = self._create_tool_btn("⭐","Favorile","Bu konumu favorilere ekle/çıkar",
+                                              self._toggle_favorite)
+        arow.pack_start(self.btn_fav, False, False, 0)
+        arow.pack_start(self._create_tool_btn("📋","Liste","Favori listesi",
+                                               self._show_favorites_menu), False, False, 0)
+        self.hdr.pack_start(arow, False, False, 0)
+        root.pack_start(self.hdr, False, False, 0)
+
+        self.compact_event_box = Gtk.EventBox()
+        self.compact_event_box.connect("button-press-event", self._on_compact_button_press)
+        self.compact_event_box.set_tooltip_text(
+            "Widget Modu\n• SOL TIK: Büyüt\n• SAĞ TIK (Basılı Tut): Sürükle")
+        self.compact_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.compact_event_box.add(self.compact_content)
+        root.pack_start(self.compact_event_box, False, False, 0)
+
+        self.scroll_win = Gtk.ScrolledWindow()
+        self.scroll_win.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.scroll_win.add(self.content)
+        root.pack_start(self.scroll_win, True, True, 0)
+
+        self._status("İl ve ilçe seçerek veya yazarak arama yapın.")
+
+    def _open_mgm_simgeler(self, *_): webbrowser.open(MGM_SIMGELER)
+
+    def _manual_refresh(self, *_):
+        now = time.time()
+        if now - self._last_api_call < 10:
+            self._status(f"Lütfen {10-int(now-self._last_api_call)} saniye bekleyin.", error=True)
+            return
+        self._search()
+
+    def _make_default(self, *_):
+        if not self._cur_il: return
+        self._def_il, self._def_ilce = self._cur_il, self._cur_ilce
+        self._save_settings()
+        self._tray_update_loop()
+        self._status(f"Varsayılan konum:\n{self._def_il} / {self._def_ilce}\n\n"
+                     "Görev çubuğu bu konumu takip edecek.")
+        GLib.timeout_add(1500, self._search)
+
+    def _show_settings(self, *_):
+        dlg = Gtk.Dialog(title="Ayarlar", transient_for=self, flags=0)
+        dlg.add_buttons("İptal", Gtk.ResponseType.CANCEL, "Kaydet", Gtk.ResponseType.OK)
+        dlg.set_default_size(480, -1)
+        box = dlg.get_content_area()
+        box.set_spacing(10); box.set_margin_top(14); box.set_margin_bottom(14)
+        box.set_margin_start(16); box.set_margin_end(16)
+
+        btn_install = Gtk.Button(label="🚀 Menüye Kısayol Ekle (Uygulama Olarak Kur)")
+        self._sc(btn_install,"btn-search"); btn_install.connect("clicked", self._install_as_app)
+        box.pack_start(btn_install, False, False, 0)
+        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+
+        self._lbl_section(box, "Veri Kaynağı")
+        cb_src = Gtk.ComboBoxText()
+        cb_src.append("mgm",       "🇹🇷 MGM — Meteoroloji Genel Müdürlüğü (resmi, Türkiye)")
+        cb_src.append("openmeteo", "🌍 Open-Meteo — Uluslararası açık kaynak model")
+        cb_src.set_active_id(self._api_source)
+        box.pack_start(cb_src, False, False, 0)
+
+        note = Gtk.Label()
+        note.set_markup("<small><i>MGM seçiliyken de 'Ekstra Detaylar' açıksa Open-Meteo'dan\n"
+                        "UV, yağış olasılığı, rüzgar gustu, çiğ noktası otomatik eklenir.</i></small>")
+        note.set_halign(Gtk.Align.START); note.set_line_wrap(True)
+        box.pack_start(note, False, False, 0)
+        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+
+        self._lbl_section(box, "Gösterilecek Bölümler")
+        chk_extra = Gtk.CheckButton.new_with_label("🔬 Ekstra Detaylar (UV, yağış, kar, deniz, bulut, çiğ noktası…)")
+        chk_saat  = Gtk.CheckButton.new_with_label("⏰ Saatlik Tahmin (48 saat)")
+        chk_gun   = Gtk.CheckButton.new_with_label("📅 5 Günlük Tahmin")
+        chk_extra.set_active(self._show_extra)
+        chk_saat.set_active(self._show_saatlik)
+        chk_gun.set_active(self._show_gunluk)
+        for w in (chk_extra, chk_saat, chk_gun): box.pack_start(w, False, False, 0)
+        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+
+        self._lbl_section(box, "🤖 Groq AI Hava Danışmanı")
+        groq_note = Gtk.Label()
+        groq_note.set_markup(
+            "<small>Ücretsiz API anahtarı için: "
+            "<a href='https://console.groq.com'>console.groq.com</a></small>")
+        groq_note.set_halign(Gtk.Align.START); groq_note.set_use_markup(True)
+        box.pack_start(groq_note, False, False, 0)
+
+        key_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        groq_entry = Gtk.Entry()
+        groq_entry.set_placeholder_text("gsk_xxxxxxxxxxxxxxxxxxxx")
+        groq_entry.set_visibility(False)
+        groq_entry.set_text(self._groq_api_key)
+        groq_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-conceal-symbolic")
+        groq_entry.set_icon_tooltip_text(Gtk.EntryIconPosition.SECONDARY, "Göster/Gizle")
+        def _toggle_vis(e, *_): e.set_visibility(not e.get_visibility())
+        groq_entry.connect("icon-press", _toggle_vis)
+        key_box.pack_start(groq_entry, True, True, 0)
+
+        btn_test = Gtk.Button(label="Test Et")
+        self._sc(btn_test, "btn-tool")
+        def _test_groq(*_):
+            k = groq_entry.get_text().strip()
+            if not k:
+                self._msg_dialog(dlg, "API Anahtarı Eksik", "Lütfen bir Groq API anahtarı girin."); return
+            btn_test.set_label("…")
+            btn_test.set_sensitive(False)
+            
+            def _do_test():
+                ok, msg = self._test_groq_key(k)
+                def _ui_guncelle():
+                    btn_test.set_label("Test Et")
+                    btn_test.set_sensitive(True)
+                    self._msg_dialog(dlg, "Groq Bağlantı Testi", msg)
+                    return False
+                GLib.idle_add(_ui_guncelle)
+                
+            threading.Thread(target=_do_test, daemon=True).start()
+            
+        btn_test.connect("clicked", _test_groq)
+        key_box.pack_start(btn_test, False, False, 0)
+        box.pack_start(key_box, False, False, 0)
+        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+
+        self._lbl_section(box, "Görünüm")
+        theme_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        theme_box.pack_start(Gtk.Label(label="Tema:"), False, False, 0)
+        cb_theme = Gtk.ComboBoxText()
+        cb_theme.append("dark","Karanlık"); cb_theme.append("light","Aydınlık")
+        cb_theme.set_active_id(self._theme)
+        theme_box.pack_start(cb_theme, True, True, 0)
+        box.pack_start(theme_box, False, False, 0)
+
+        box.pack_start(Gtk.Label(label="Büyüklük"), False, False, 0)
+        adj = Gtk.Adjustment(value=self._manual_scale, lower=0.5, upper=3.0,
+                             step_increment=0.1, page_increment=0.5)
+        scale_sl = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
+        scale_sl.set_digits(1); scale_sl.set_value_pos(Gtk.PositionType.RIGHT)
+        box.pack_start(scale_sl, False, False, 0)
+        box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 2)
+
+        self._lbl_section(box, "Sistem")
+        chk_notify = Gtk.CheckButton.new_with_label("Masaüstü bildirimleri gönder")
+        chk_auto   = Gtk.CheckButton.new_with_label("Sistem açılışında otomatik (Widget olarak) başlat")
+        chk_notify.set_active(self._notify_enabled)
+        chk_auto.set_active(self._autostart)
+        box.pack_start(chk_notify, False, False, 0)
+        box.pack_start(chk_auto,   False, False, 0)
+
+        box.show_all()
+        if dlg.run() == Gtk.ResponseType.OK:
+            self._api_source     = cb_src.get_active_id()
+            self._theme          = cb_theme.get_active_id()
+            self._autostart      = chk_auto.get_active()
+            self._notify_enabled = chk_notify.get_active()
+            self._manual_scale   = scale_sl.get_value()
+            self._show_extra     = chk_extra.get_active()
+            self._show_saatlik   = chk_saat.get_active()
+            self._show_gunluk    = chk_gun.get_active()
+            self._groq_api_key   = groq_entry.get_text().strip()
+            self._save_settings()
+            self._apply_css()
+            self._apply_autostart_logic()
+            GLib.idle_add(self._search)
+        dlg.destroy()
+
+    def _lbl_section(self, box, text):
+        lbl = Gtk.Label()
+        lbl.set_markup(f"<b>{text}</b>"); lbl.set_halign(Gtk.Align.START)
+        box.pack_start(lbl, False, False, 0)
+
+    def _msg_dialog(self, parent, title, msg):
+        d = Gtk.MessageDialog(transient_for=parent, flags=0,
+                              message_type=Gtk.MessageType.INFO,
+                              buttons=Gtk.ButtonsType.OK, text=title)
+        d.format_secondary_text(msg); d.run(); d.destroy()
+
+    def _show_changelog(self, *_):
+        dlg = Gtk.MessageDialog(transient_for=self, flags=0,
+                                message_type=Gtk.MessageType.INFO,
+                                buttons=Gtk.ButtonsType.OK, text="Sürüm Notları")
+        dlg.format_secondary_markup(
+            "<b>v5.0 (Bu Sürüm):</b>\n"
+            "• 🤖 <b>Groq AI Hava Danışmanı</b> eklendi — hava verilerine dayalı\n"
+            "  pratik Türkçe öneriler (giyim, aktivite, sağlık, yol uyarısı).\n"
+            "• Widget modundaki 3 saatlik tahmin düzeltildi — artık düzgün\n"
+            "  görünüyor, sadece widget modunda gösteriliyor.\n"
+            "• Menüye kurulan uygulamanın ikonunu hicolor'a kopyalar;\n"
+            "  menüde küçük/yanlış ikon sorunu giderildi.\n"
+            "• Open-Meteo ek verileri (UV, gustu, çiğ noktası…) MGM seçiliyken\n"
+            "  de 'Ekstra Detaylar' açıksa görünür.\n\n"
+            "<b>v4.4:</b> MGM bypass, thread fix, yenileme 10s.\n"
+            "<b>v4.x:</b> Concurrent fetch, Open-Meteo hybrid.\n"
+            "<b>v3.x:</b> Widget modu, Tray, MeteoAlarm, Session havuzu."
+        )
+        dlg.run(); dlg.destroy()
+
+    def _show_about(self, *_):
+        dlg = Gtk.AboutDialog()
+        dlg.set_transient_for(self); dlg.set_modal(True)
+        dlg.set_program_name(UYGULAMA_ADI); dlg.set_version(VERSIYON)
+        dlg.set_comments("MintSky by tarihcituranx (Turan Kaya)\n"
+                         "MGM resmi API + Open-Meteo + Groq AI.")
+        dlg.set_website(GELISTIRICI); dlg.set_website_label("GitHub: tarihcituranx")
+        dlg.set_license_type(Gtk.License.MIT_X11); dlg.set_authors(["Turan Kaya"])
+        dlg.run(); dlg.destroy()
+
+    def _test_groq_key(self, key):
+        try:
+            r = requests.post(
+                GROQ_API_URL,
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": GROQ_MODEL,
+                      "messages": [{"role":"user","content":"Merhaba, çalışıyor musun?"}],
+                      "max_tokens": 20},
+                timeout=10
+            )
+            if r.status_code == 200:
+                return True, "✅ Bağlantı başarılı! API anahtarı geçerli."
+            elif r.status_code == 401:
+                return False, "❌ Geçersiz API anahtarı. Lütfen kontrol edin."
+            else:
+                return False, f"❌ API hatası: {r.status_code} — {r.text[:80]}"
+        except Exception as e:
+            return False, f"❌ Bağlantı hatası: {str(e)[:80]}"
+
+    def _build_weather_context(self, custom_q=""):
+        d = self._last_render_data
+        if not d:
+            return ""
+        now_str = datetime.now().strftime("%d %B %Y, %H:%M")
+        lines = [
+            f"Konum: {d.get('sehir', '?')}",
+            f"Tarih/Saat: {now_str}",
+            f"Hava Durumu: {d.get('kisa', '?')}",
+            f"Sıcaklık: {d.get('sicak_str', '?')}",
+        ]
+        if d.get("his_str"):   lines.append(f"Hissedilen: {d['his_str']}")
+        if d.get("nem"):       lines.append(f"Nem: %{d['nem']:.0f}")
+        if d.get("ruzgar"):    lines.append(f"Rüzgar: {d['ruzgar']}")
+        if d.get("basinc"):    lines.append(f"Basınç: {d['basinc']:.0f} hPa")
+        if d.get("gorus"):
+            g = d["gorus"]
+            lines.append(f"Görüş Mesafesi: {g/1000:.1f} km" if g >= 1000 else f"Görüş: {g:.0f} m")
+        if d.get("uv") is not None:
+            lines.append(f"UV İndeksi: {d['uv']:.1f}")
+        if d.get("yagis_olas") is not None:
+            lines.append(f"Yağış Olasılığı: %{d['yagis_olas']:.0f}")
+        if d.get("gustu") is not None:
+            lines.append(f"Rüzgar Gustu: {d['gustu']:.0f} km/s")
+        if d.get("uyarilar"):
+            lines.append(f"Aktif Meteorolojik Uyarılar: {', '.join(d['uyarilar'])}")
+        else:
+            lines.append("Aktif Meteorolojik Uyarı: Yok")
+        if d.get("tahmin_3s"):
+            lines.append("Önümüzdeki 3 Saat:")
+            for t_str, em, tmp in d["tahmin_3s"]:
+                lines.append(f"  {t_str} — {em} {tmp}")
+
+        context = "\n".join(lines)
+        context += f"\n\n{'Kullanıcı Sorusu: ' + custom_q if custom_q else 'Lütfen bu hava koşullarına göre pratik tavsiyeler ver.'}"
+        return context
+
+    def _call_groq(self, context):
+        r = requests.post(
+            GROQ_API_URL,
+            headers={"Authorization": f"Bearer {self._groq_api_key}",
+                     "Content-Type": "application/json"},
+            json={"model": GROQ_MODEL,
+                  "messages": [
+                      {"role": "system", "content": GROQ_SYSTEM},
+                      {"role": "user",   "content": context},
+                  ],
+                  "max_tokens": 600,
+                  "temperature": 0.25},
+            timeout=20
+        )
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"].strip()
+        elif r.status_code == 401:
+            raise PermissionError("Geçersiz Groq API anahtarı.")
+        else:
+            raise RuntimeError(f"Groq API hatası {r.status_code}: {r.text[:120]}")
+
+    def _show_ai_dialog(self, *_):
+        if not self._groq_api_key:
+            self._msg_dialog(self, "API Anahtarı Yok",
+                             "Groq API anahtarını Ayarlar → Groq AI bölümünden ekleyin.\n"
+                             "Ücretsiz anahtar: https://console.groq.com")
+            return
+        if not self._last_render_data:
+            self._msg_dialog(self, "Veri Yok",
+                             "Önce bir konum arayın; AI veriyi okuyarak tavsiye üretir.")
+            return
+
+        dlg = Gtk.Dialog(title="🤖 Groq AI Hava Danışmanı", transient_for=self, flags=0)
+        dlg.add_button("Kapat", Gtk.ResponseType.CLOSE)
+        dlg.set_default_size(460, 420)
+        box = dlg.get_content_area()
+        box.set_margin_start(16); box.set_margin_end(16)
+        box.set_margin_top(14); box.set_margin_bottom(14); box.set_spacing(8)
+
+        sehir_lbl = Gtk.Label(label=f"📍 {self._last_render_data.get('sehir','')}")
+        sehir_lbl.set_halign(Gtk.Align.START)
+        box.pack_start(sehir_lbl, False, False, 0)
+
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_min_content_height(200)
+        self._ai_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
+        self._ai_lbl.set_halign(Gtk.Align.START); self._ai_lbl.set_valign(Gtk.Align.START)
+        self._ai_lbl.set_line_wrap(True)
+        self._ai_lbl.set_selectable(True)
+        scroll.add(self._ai_lbl)
+        box.pack_start(scroll, True, True, 0)
+
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        box.pack_start(sep, False, False, 0)
+
+        q_lbl = Gtk.Label(label="Özel soru (boş bırakırsanız genel tavsiye üretir):")
+        q_lbl.set_halign(Gtk.Align.START); box.pack_start(q_lbl, False, False, 0)
+        q_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        q_entry = Gtk.Entry()
+        q_entry.set_placeholder_text("Ör: Bugün bisiklet için uygun mu?")
+        q_row.pack_start(q_entry, True, True, 0)
+        btn_sor = Gtk.Button(label="Sor")
+        self._sc(btn_sor, "btn-search"); q_row.pack_start(btn_sor, False, False, 0)
+        box.pack_start(q_row, False, False, 0)
+        box.show_all()
+
+        def _run_ai(custom_q=""):
+            btn_sor.set_sensitive(False)
+            self._ai_lbl.set_text("⏳ AI danışılıyor, lütfen bekleyin…")
+            context = self._build_weather_context(custom_q)
+            
+            def _do():
+                try:
+                    result = self._call_groq(context)
+                except Exception as e:
+                    result = f"❌ Hata: {e}"
+                    
+                def _ui_guncelle():
+                    self._ai_lbl.set_text(result)
+                    btn_sor.set_sensitive(True)
+                    return False
+                    
+                GLib.idle_add(_ui_guncelle)
+                
+            threading.Thread(target=_do, daemon=True).start()
+
+        def _on_sor(*_): _run_ai(q_entry.get_text().strip())
+        btn_sor.connect("clicked", _on_sor)
+        q_entry.connect("activate", _on_sor)
+
+        threading.Thread(target=lambda: _run_ai(""), daemon=True).start()
+
+        dlg.run(); dlg.destroy()
+
+    def _build_tray(self):
+        if HAS_INDICATOR:
+            self._indicator = AppIndicator3.Indicator.new(
+                "mintsky-hava", _safe_icon("weather-clear"),
+                AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+            )
+            self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+            self._indicator.set_menu(self._build_tray_menu())
+        else:
+            self._tray = Gtk.StatusIcon()
+            self._tray.set_from_icon_name(_safe_icon("weather-clear"))
+            self._tray.connect("activate",   self._tray_toggle)
+            self._tray.connect("popup-menu", self._tray_popup)
+
+    def _build_tray_menu(self):
+        menu = Gtk.Menu()
+        show = Gtk.MenuItem.new_with_label("Pencereyi Göster / Gizle")
+        show.connect("activate", self._tray_toggle); menu.append(show)
+        menu.append(Gtk.SeparatorMenuItem())
+        ab = Gtk.MenuItem.new_with_label("Hakkında"); ab.connect("activate", self._show_about); menu.append(ab)
+        q  = Gtk.MenuItem.new_with_label("Çıkış");   q.connect("activate",  self._quit);       menu.append(q)
+        menu.show_all(); return menu
+
+    def _apply_tray_data(self, emoji, temp_txt, sehir, icon_key, kisa_desc):
+        if isinstance(icon_key, int):
+            raw = WMO_TRAY.get(icon_key, "weather-clear")
+        else:
+            raw = TRAY_ICONS.get(icon_key, "weather-clear")
+        icon_name    = _safe_icon(raw)
+        tooltip_text = f"Lokasyon: {sehir}\nSıcaklık: {temp_txt}°\nDurum: {kisa_desc}"
+        if HAS_INDICATOR:
+            self._indicator.set_icon_full(icon_name, kisa_desc)
+            self._indicator.set_title(tooltip_text)
+        else:
+            self._tray.set_from_icon_name(icon_name)
+            self._tray.set_tooltip_text(tooltip_text)
+
+    def _tray_toggle(self, *_):
+        if self.get_visible(): self.hide()
+        else: self.show(); self.present()
+
+    def _tray_popup(self, icon, button, t):
+        self._build_tray_menu().popup(None, None, Gtk.StatusIcon.position_menu, icon, button, t)
+
+    def _on_delete(self, *_): self.hide(); return True
+    def _quit(self, *_):      Gtk.main_quit()
+
+    def _tray_update_loop(self):
+        if not self._tray_busy:
+            threading.Thread(target=self._fetch_tray_bg, daemon=True).start()
+        return True
+
+    def _fetch_tray_bg(self):
+        self._tray_busy = True
+        il, ilce = self._def_il, self._def_ilce
+        if not il: self._tray_busy = False; return
+        try:
+            merk = safe_json(requests.get(
+                f"{BASE_MGM}/web/merkezler?il={il}" + (f"&ilce={ilce}" if ilce else ""),
+                headers=MGM_HEADERS, timeout=TIMEOUT))
+            if not merk: self._tray_busy = False; return
+
+            merkez_id = merk[0]["merkezId"]
+            sondur    = safe_json(requests.get(
+                f"{BASE_MGM}/web/sondurumlar?merkezid={merkez_id}",
+                headers=MGM_HEADERS, timeout=TIMEOUT))
+            alarmlar_r= safe_json(requests.get(
+                f"{BASE_MGM}/web/alarmlar", headers=MGM_HEADERS, timeout=TIMEOUT))
+            meteoalarm= safe_json(requests.get(
+                f"{BASE_MGM}/web/meteoalarm/today", headers=MGM_HEADERS, timeout=TIMEOUT))
+            if not sondur: self._tray_busy = False; return
+
+            sd     = sondur[0]
+            h_kod  = sd.get("hadiseKodu","")
+            emoji, kisa, _ = hadise_mgm(h_kod)
+            sicak  = sd.get("sicaklik",-9999)
+            ttxt   = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
+            sehir  = f"{il} / {ilce}" if ilce else il
+            GLib.idle_add(self._apply_tray_data, emoji, ttxt, sehir, h_kod, kisa)
+
+            aktif = [a.get("baslik") for a in alarmlar_r
+                     if a.get("il","").upper() == il.upper()]
+            for ma in (meteoalarm or []):
+                if ma.get("il","").upper()==il.upper() and int(ma.get("seviye",1))>=2:
+                    aktif.append(f"{ma.get('etkinlik') or 'MeteoAlarm'} (MeteoAlarm)")
+
+            if self._last_bg_hadise is None:
+                self._last_bg_hadise = h_kod; self._last_bg_alarms = aktif
+                self._tray_busy = False; return
+
+            msgs = []
+            if self._last_bg_hadise != h_kod: msgs.append(f"Hava durumu {kisa} olarak değişti.")
+            yeni = [a for a in aktif if a not in self._last_bg_alarms]
+            if yeni: msgs.append("Yeni uyarı: " + ", ".join(yeni))
+            if msgs and self._notify_enabled and HAS_NOTIFY:
+                icon = _safe_icon("weather-storm" if yeni else TRAY_ICONS.get(h_kod,"weather-clear"))
+                n = Notify.Notification.new(UYGULAMA_ADI, f"{sehir} için " + " ".join(msgs), icon)
+                GLib.idle_add(n.show)
+            self._last_bg_hadise = h_kod; self._last_bg_alarms = aktif
+        except Exception: pass
+        finally: self._tray_busy = False
+
+    def _fetch_location(self):
+        self._status("📡 Konum alınıyor…")
+        threading.Thread(target=self._location_thread, daemon=True).start()
+
+    def _location_thread(self):
+        try:
+            data = requests.get("http://ip-api.com/json/?lang=tr", timeout=8).json()
+            lat, lon = data.get("lat"), data.get("lon")
+            if not (lat and lon):
+                GLib.idle_add(self._apply_location, data.get("city",""), ""); return
+            addr = requests.get("https://nominatim.openstreetmap.org/reverse",
+                params={"lat":lat,"lon":lon,"format":"json","accept-language":"tr","zoom":10},
+                headers=NOM_HEADERS, timeout=8).json().get("address",{})
+            il   = (addr.get("province") or addr.get("state") or
+                    data.get("regionName","") or data.get("city","")
+                    ).replace(" ili","").replace(" İli","").strip()
+            ilce = (addr.get("county") or addr.get("town") or
+                    addr.get("city_district") or ""
+                    ).replace(" İlçesi","").replace(" ilçesi","").replace(" Merkez","").strip()
+            GLib.idle_add(self._apply_location, il, ilce)
+        except Exception as e:
+            GLib.idle_add(self._status, f"Konum hatası: {e}", True)
+
+    def _apply_location(self, il, ilce):
+        self.il_entry.set_text(il); self.ilce_entry.set_text(ilce); self._search()
+
+    def _get_favs(self):
+        try:
+            with open(FAV_FILE,"r",encoding="utf-8") as f: return json.load(f)
+        except Exception: return []
+
+    def _toggle_favorite(self, *_):
+        if not self._cur_il: return
+        favs  = self._get_favs()
+        entry = {"il":self._cur_il,"ilce":self._cur_ilce}
+        exists = any(f["il"]==entry["il"] and f.get("ilce","")==entry["ilce"] for f in favs)
+        favs   = ([f for f in favs if not (f["il"]==entry["il"] and f.get("ilce","")==entry["ilce"])]
+                  if exists else favs + [entry])
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(FAV_FILE,"w",encoding="utf-8") as f: json.dump(favs,f,ensure_ascii=False,indent=2)
+        self._refresh_fav_button(not exists)
+
+    def _refresh_fav_button(self, is_fav):
+        ctx = self.btn_fav.get_style_context()
+        lbl = self.btn_fav.get_child().get_children()[1]
+        if is_fav:
+            ctx.remove_class("btn-tool"); ctx.add_class("btn-fav-active")
+            lbl.set_markup("<span size='small'>Fav'dan Çıkar</span>")
+        else:
+            ctx.remove_class("btn-fav-active"); ctx.add_class("btn-tool")
+            lbl.set_markup("<span size='small' color='#8b949e'>Favorile</span>")
+
+    def _sync_fav_button(self):
+        self._refresh_fav_button(any(
+            f["il"]==self._cur_il and f.get("ilce","")==self._cur_ilce
+            for f in self._get_favs()))
+
+    def _show_favorites_menu(self, widget):
+        favs = self._get_favs()
+        menu = Gtk.Menu()
+        if not favs:
+            it = Gtk.MenuItem.new_with_label("Henüz favori yok"); it.set_sensitive(False); menu.append(it)
+        else:
+            for f in favs:
+                lbl = f"{f['il']} / {f['ilce']}" if f.get("ilce") else f["il"]
+                it  = Gtk.MenuItem.new_with_label(lbl)
+                it.connect("activate", self._load_favorite, f); menu.append(it)
+            menu.append(Gtk.SeparatorMenuItem())
+            clr = Gtk.MenuItem.new_with_label("🗑 Tüm Favorileri Sil")
+            clr.connect("activate", self._clear_favorites); menu.append(clr)
+        menu.show_all()
+        menu.popup_at_widget(widget, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, None)
+
+    def _load_favorite(self, _, fav):
+        self.il_entry.set_text(fav.get("il",""))
+        self.ilce_entry.set_text(fav.get("ilce",""))
+        self._search()
+
+    def _clear_favorites(self, *_):
+        with open(FAV_FILE,"w",encoding="utf-8") as f: json.dump([],f)
+        self._sync_fav_button()
+
+    def _clear(self):
+        for w in self.compact_content.get_children(): self.compact_content.remove(w)
+        for w in self.content.get_children():         self.content.remove(w)
+
+    def _status(self, msg, error=False):
+        self._clear()
+        lbl = Gtk.Label(label=msg)
+        self._sc(lbl, "err-lbl" if error else "status-lbl")
+        lbl.set_halign(Gtk.Align.CENTER); lbl.set_margin_top(60)
+        lbl.set_line_wrap(True); lbl.set_max_width_chars(40)
+        self.compact_content.pack_start(lbl, False, False, 0)
+        self.compact_content.show_all()
+
+    @staticmethod
+    def _sc(widget, *classes):
+        for c in classes: widget.get_style_context().add_class(c)
+
+    def _section_title(self, text):
+        lbl = Gtk.Label(label=text); self._sc(lbl,"sec-title"); lbl.set_halign(Gtk.Align.START)
+        self.content.pack_start(lbl, False, False, 0)
+
+    @staticmethod
+    def _safe_json(resp, default=None):
+        try: return resp.json() if resp.text.strip() else (default if default is not None else [])
+        except Exception: return default if default is not None else []
+
+    def _make_pill(self, key, value, tooltip=None):
+        pill = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        self._sc(pill, "pill-box")
+        kl = Gtk.Label(label=key);   self._sc(kl, "pill-key"); kl.set_halign(Gtk.Align.START)
+        vl = Gtk.Label(label=value); self._sc(vl, "pill-val"); vl.set_halign(Gtk.Align.START)
+        pill.pack_start(kl, False, False, 0)
+        pill.pack_start(vl, False, False, 0)
+        tt = tooltip or PILL_TOOLTIPS.get(key)
+        if tt: pill.set_has_tooltip(True); pill.set_tooltip_text(tt)
+        return pill
+
+    def _search(self, *_):
+        il   = self.il_entry.get_text().strip()
+        ilce = self.ilce_entry.get_text().strip()
+        if not il:
+            self._status("Lütfen en az il adı girin.", error=True); return False
+        self._status("⏳ Veriler alınıyor…")
+        self._last_api_call = time.time()
+        threading.Thread(target=self._fetch, args=(il, ilce), daemon=True).start()
+        return False
+
+    def _fetch(self, il, ilce):
+        try:
+            req  = requests.get(
+                f"{BASE_MGM}/web/merkezler?il={il}" + (f"&ilce={ilce}" if ilce else ""),
+                headers=MGM_HEADERS, timeout=TIMEOUT)
+            merk = safe_json(req)
+            if not merk:
+                GLib.idle_add(self._status,
+                    f"'{il}' verisi MGM'den alınamadı veya engellendi.\nLütfen tekrar deneyin.", True)
+                return
+
+            m = merk[0]
+            self._cur_lat = m.get("enlem") or m.get("lat")
+            self._cur_lon = m.get("boylam") or m.get("lon")
+            mid = m["merkezId"]
+
+            urls = {
+                "sd":         f"/web/sondurumlar?merkezid={mid}",
+                "gd":         f"/web/tahminler/gunluk?istno={m.get('gunlukTahminIstNo')}",
+                "sk":         f"/web/tahminler/saatlik?istno={m.get('saatlikTahminIstNo')}",
+                "alarmlar":   "/web/alarmlar",
+                "meteoalarm": "/web/meteoalarm/today",
+            }
+            results = {}
+            def get_url(key, url):
+                return safe_json(requests.get(f"{BASE_MGM}{url}",
+                                                    headers=MGM_HEADERS, timeout=TIMEOUT))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
+                fmap = {ex.submit(get_url, k, v): k for k, v in urls.items()}
+                for fut in concurrent.futures.as_completed(fmap):
+                    k = fmap[fut]
+                    try:    results[k] = fut.result()
+                    except: results[k] = []
+
+            om_data = {}
+            if self._cur_lat and self._cur_lon:
+                om_data = self._fetch_openmeteo(self._cur_lat, self._cur_lon)
+
+            GLib.idle_add(self._render, m,
+                results.get("sd",  [{}])[0] if results.get("sd")  else {},
+                results.get("gd",  [{}])[0] if results.get("gd")  else {},
+                results.get("sk",  [{}])[0] if results.get("sk")  else {},
+                results.get("alarmlar",[]), results.get("meteoalarm",[]), om_data)
+        except Exception as e:
+            GLib.idle_add(self._status,
+                f"MGM Bağlantı Hatası — Lütfen Yenileyin.\nDetay: {str(e)[:60]}", True)
+
+    def _fetch_openmeteo(self, lat, lon):
+        try:
+            params = {
+                "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 5,
+                "current": ",".join([
+                    "temperature_2m","apparent_temperature","relative_humidity_2m",
+                    "precipitation","weather_code","surface_pressure",
+                    "wind_speed_10m","wind_direction_10m","wind_gusts_10m",
+                    "uv_index","visibility","cloud_cover","dew_point_2m",
+                ]),
+                "hourly": ",".join([
+                    "temperature_2m","precipitation_probability",
+                    "wind_speed_10m","uv_index","weather_code",
+                ]),
+                "daily": ",".join([
+                    "temperature_2m_max","temperature_2m_min","precipitation_sum",
+                    "precipitation_probability_max","uv_index_max",
+                    "wind_speed_10m_max","sunshine_duration","weather_code",
+                ]),
+            }
+            r = requests.get(BASE_OM, params=params, timeout=TIMEOUT)
+            if r.status_code == 200: return r.json()
+        except Exception: pass
+        return {}
+
+    def _render(self, merkez, sd, gd, sk, alarmlar, meteoalarm, om_data):
+        self._clear()
+        il    = merkez.get("il","")
+        ilce  = merkez.get("ilce","")
+        sehir = f"{il} / {ilce}" if ilce else il
+        self._cur_il, self._cur_ilce = il, ilce
+        self._sync_fav_button()
+
+        om_cur = om_data.get("current", {}) if om_data else {}
+        use_om = (self._api_source == "openmeteo" and om_cur)
+
+        if use_om:
+            wmo_kod = om_cur.get("weather_code")
+            emoji, kisa, uzun = hadise_wmo(wmo_kod)
+            sicak = om_cur.get("temperature_2m", -9999)
+            his   = om_cur.get("apparent_temperature", -9999)
+            h_kod_for_tray = wmo_kod or 0
+        else:
+            h_kod  = sd.get("hadiseKodu","")
+            emoji, kisa, uzun = hadise_mgm(h_kod)
+            sicak = sd.get("sicaklik", -9999)
+            his   = sd.get("hissedilenSicaklik", -9999)
+            h_kod_for_tray = h_kod
+
+        uyarilar = [a.get("baslik","") for a in alarmlar
+                    if a.get("il","").upper() == il.upper()]
+        for ma in (meteoalarm or []):
+            if ma.get("il","").upper() == il.upper() and int(ma.get("seviye",1)) >= 2:
+                uyarilar.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
+
+        mgm_tahminler = sk.get("tahmin",[]) if not use_om else []
+        om_hourly     = om_data.get("hourly",{}) if om_data else {}
+        om_times      = om_hourly.get("time",[])
+
+        tahmin_3s = []
+        if mgm_tahminler:
+            for item in mgm_tahminler[:3]:
+                em, _, _ = hadise_mgm(item.get("hadise",""))
+                tahmin_3s.append((fmt_time(item.get("tarih","")), em,
+                                  val(item.get("sicaklik",-9999),suffix="°")))
+        elif om_times:
+            now_h = datetime.now().strftime("%Y-%m-%dT%H:")
+            st = next((i for i,t in enumerate(om_times) if t.startswith(now_h[:13])), 0)
+            temps_h  = om_hourly.get("temperature_2m",[])
+            wcodes_h = om_hourly.get("weather_code",[])
+            for i in range(st, min(st+3, len(om_times))):
+                em,_,_ = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None)
+                tahmin_3s.append((om_times[i][11:16], em,
+                                  val(temps_h[i] if i<len(temps_h) else -9999, suffix="°")))
+
+        uv_val   = om_cur.get("uv_index")
+        yag_olas = (om_hourly.get("precipitation_probability",[None])[0]
+                    if om_hourly.get("precipitation_probability") else None)
+        gustu    = om_cur.get("wind_gusts_10m")
+        nem_val  = (sd.get("nem") if not use_om else om_cur.get("relative_humidity_2m"))
+        ruzgar_hiz = (sd.get("ruzgarHiz") if not use_om else om_cur.get("wind_speed_10m"))
+        ruzgar_yon = (yon(sd.get("ruzgarYon",-9999)) if not use_om
+                      else yon(om_cur.get("wind_direction_10m")))
+        basinc   = (sd.get("denizeIndirgenmisBasinc") if not use_om
+                    else om_cur.get("surface_pressure"))
+        gorus_v  = (sd.get("gorus") if not use_om else om_cur.get("visibility"))
+
+        self._last_render_data = {
+            "sehir":     sehir,
+            "kisa":      kisa,
+            "h_kod":     h_kod_for_tray,
+            "sicak_str": val(sicak, suffix="°C"),
+            "his_str":   (val(his, suffix="°C") if his not in (-9999,None) else ""),
+            "nem":       nem_val,
+            "ruzgar":    (f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()
+                          if ruzgar_hiz not in (-9999,None) else None),
+            "basinc":    basinc if basinc not in (-9999,None) else None,
+            "gorus":     gorus_v if gorus_v not in (-9999,None) else None,
+            "uv":        uv_val,
+            "yagis_olas":yag_olas,
+            "gustu":     gustu,
+            "uyarilar":  uyarilar,
+            "tahmin_3s": tahmin_3s,
+        }
+
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self._sc(card,"cur-card")
+        top  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        lcol = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+
+        city_lbl = Gtk.Label(label=sehir)
+        self._sc(city_lbl,"cur-city"); city_lbl.set_halign(Gtk.Align.START)
+        lcol.pack_start(city_lbl, False, False, 0)
+
+        cond = Gtk.Label(label=f"{emoji}  {kisa}")
+        self._sc(cond,"cur-cond"); cond.set_halign(Gtk.Align.START)
+        if uzun: cond.set_tooltip_text(uzun)
+        lcol.pack_start(cond, False, False, 0)
+
+        if uzun:
+            desc = Gtk.Label(label=uzun)
+            self._sc(desc,"cur-desc"); desc.set_halign(Gtk.Align.START)
+            desc.set_line_wrap(True); desc.set_max_width_chars(38)
+            lcol.pack_start(desc, False, False, 0)
+
+        src_badge = Gtk.Label(
+            label=("📡 Ana Kaynak: Open-Meteo" if use_om else "📡 Ana Kaynak: MGM") +
+                  ("  +OM" if (not use_om and om_cur) else ""))
+        self._sc(src_badge,"om-badge"); src_badge.set_halign(Gtk.Align.START)
+        lcol.pack_start(src_badge, False, False, 0)
+        top.pack_start(lcol, True, True, 0)
+
+        rcol = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); rcol.set_halign(Gtk.Align.END)
+        t_lbl = Gtk.Label(label=val(sicak,suffix="°"))
+        self._sc(t_lbl,"cur-temp"); t_lbl.set_halign(Gtk.Align.END)
+        t_lbl.set_tooltip_text(f"Anlık Sıcaklık: {val(sicak,suffix='°C')}")
+        rcol.pack_start(t_lbl, False, False, 0)
+        if his not in (-9999,None):
+            f_lbl = Gtk.Label(label=f"Hissedilen {val(his,suffix='°')}")
+            self._sc(f_lbl,"cur-feels"); f_lbl.set_halign(Gtk.Align.END)
+            f_lbl.set_tooltip_text(PILL_TOOLTIPS.get("🌡 Hissedilen",""))
+            rcol.pack_start(f_lbl, False, False, 0)
+        top.pack_start(rcol, False, False, 0)
+        card.pack_start(top, False, False, 0)
+
+        if self._cur_il == self._def_il and self._cur_ilce == self._def_ilce:
+            ttxt = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
+            self._apply_tray_data(emoji, ttxt, sehir, h_kod_for_tray, kisa)
+
+        self.compact_content.pack_start(card, False, False, 0)
+
+        if self._is_compact and self._show_saatlik and tahmin_3s:
+            w3_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            w3_box.set_halign(Gtk.Align.CENTER)
+            w3_box.set_margin_top(4); w3_box.set_margin_bottom(8)
+
+            for idx, (t_str, em, tmp) in enumerate(tahmin_3s):
+                bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+                self._sc(bx, "w3-card"); bx.set_halign(Gtk.Align.CENTER)
+
+                tl = Gtk.Label(label=t_str); self._sc(tl,"w3-time"); tl.set_halign(Gtk.Align.CENTER)
+                el = Gtk.Label(label=em);    self._sc(el,"w3-emoji"); el.set_halign(Gtk.Align.CENTER)
+                vl = Gtk.Label(label=tmp);   self._sc(vl,"w3-temp");  vl.set_halign(Gtk.Align.CENTER)
+                bx.pack_start(tl, False, False, 0)
+                bx.pack_start(el, False, False, 0)
+                bx.pack_start(vl, False, False, 0)
+                w3_box.pack_start(bx, False, False, 0)
+
+                if idx < len(tahmin_3s) - 1:
+                    sep_lbl = Gtk.Label(label="›"); self._sc(sep_lbl,"w3-sep")
+                    w3_box.pack_start(sep_lbl, False, False, 0)
+
+            self.compact_content.pack_start(w3_box, False, False, 0)
+
+        pills_temel  = []
+        pills_ekstra = []
+
+        if not use_om:
+            if nem_val not in (-9999,None):
+                pills_temel.append(("💧 Nem", f"%{nem_val:.0f}"))
+            if ruzgar_hiz not in (-9999,None):
+                pills_temel.append(("💨 Rüzgar", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
+            if basinc not in (-9999,None):
+                pills_temel.append(("🔵 Basınç", f"{basinc:.0f} hPa"))
+            if gorus_v not in (-9999,None):
+                pills_temel.append(("👁 Görüş", f"{gorus_v/1000:.0f} km" if gorus_v >= 1000 else f"{gorus_v} m"))
+            for key,fld,fmt,sfx in [
+                ("🌧 Yağış 1s","yagis1Saat",   "{:.1f}"," mm"),
+                ("🌧 Yağış 24s","yagis24Saat",  "{:.1f}"," mm"),
+                ("🌊 Deniz",    "denizSicaklik", "{:.0f}","°C"),
+                ("☁ Bulutluluk","kapalilik",     "{:.0f}","/8 okta"),
+                ("❄ Kar",       "karYukseklik",  "{:.0f}"," cm"),
+            ]:
+                v2 = sd.get(fld,-9999)
+                if v2 not in (-9999,None) and v2 > 0:
+                    pills_ekstra.append((key, f"{fmt.format(v2)}{sfx}"))
+        else:
+            if nem_val is not None:
+                pills_temel.append(("💧 Nem", f"%{nem_val:.0f}"))
+            if om_cur.get("wind_speed_10m") is not None:
+                ws = om_cur["wind_speed_10m"]
+                pills_temel.append(("💨 Rüzgar", f"{ws:.0f} km/s {ruzgar_yon}".strip()))
+            if om_cur.get("surface_pressure") is not None:
+                pills_temel.append(("🔵 Basınç", f"{om_cur['surface_pressure']:.0f} hPa"))
+            if om_cur.get("visibility") is not None:
+                gv = om_cur["visibility"]
+                pills_temel.append(("👁 Görüş", f"{gv/1000:.0f} km" if gv >= 1000 else f"{gv:.0f} m"))
+
+        if om_cur and self._show_extra:
+            if uv_val is not None:
+                uv_lbl = f"{uv_val:.1f}"
+                if uv_val <= 2:    uv_lbl += " (Düşük)"
+                elif uv_val <= 5:  uv_lbl += " (Orta)"
+                elif uv_val <= 7:  uv_lbl += " (Yüksek)"
+                elif uv_val <= 10: uv_lbl += " (Çok Yüksek)"
+                else:               uv_lbl += " (Aşırı)"
+                pills_ekstra.append(("🔆 UV İndeksi", uv_lbl))
+            if gustu is not None:
+                pills_ekstra.append(("💨 Rüzgar Gustu", f"{gustu:.0f} km/s"))
+            if om_cur.get("dew_point_2m") is not None:
+                pills_ekstra.append(("🌡 Çiğ Noktası", f"{om_cur['dew_point_2m']:.1f}°C"))
+            if om_cur.get("cloud_cover") is not None:
+                pills_ekstra.append(("☁ Bulutluluk", f"%{om_cur['cloud_cover']:.0f}"))
+            if om_cur.get("precipitation") is not None and om_cur["precipitation"] > 0:
+                pills_ekstra.append(("🌧 Yağış (anlık)", f"{om_cur['precipitation']:.1f} mm"))
+            if yag_olas is not None:
+                pills_ekstra.append(("🌂 Yağış Olas.", f"%{yag_olas:.0f}"))
+            sun_list = (om_data.get("daily",{}).get("sunshine_duration",[]) if om_data else [])
+            if sun_list and sun_list[0] is not None:
+                pills_ekstra.append(("☀ Güneşlenme", f"{sun_list[0]/3600:.1f} saat"))
+
+        all_pills = pills_temel + (pills_ekstra if self._show_extra else [])
+        if all_pills:
+            grid = Gtk.Grid()
+            grid.set_column_spacing(4); grid.set_row_spacing(4)
+            grid.set_column_homogeneous(True)
+            grid.set_margin_start(12); grid.set_margin_end(12)
+            for i,(k,v2) in enumerate(all_pills):
+                grid.attach(self._make_pill(k, v2), i%3, i//3, 1, 1)
+            self.content.pack_start(grid, False, False, 0)
+
+        if not use_om and sd.get("veriZamani",""):
+            ts = Gtk.Label(label=f"Son ölçüm: {fmt_dt(sd['veriZamani'])}")
+            self._sc(ts,"ts-lbl"); ts.set_halign(Gtk.Align.END); ts.set_margin_end(12)
+            self.content.pack_start(ts, False, False, 0)
+
+        aktif_mgm = [a for a in alarmlar if a.get("il","").upper()==il.upper()]
+        aktif_ma  = [ma for ma in (meteoalarm or [])
+                     if ma.get("il","").upper()==il.upper() and int(ma.get("seviye",1))>=2]
+        if aktif_mgm or aktif_ma:
+            self._section_title("⚠  AKTİF UYARILAR (Kaynak: MGM)")
+            for a in aktif_mgm[:4]:  self._add_alert_row(a.get("baslik",""))
+            for ma in aktif_ma[:2]:
+                etkinlik = ma.get("etkinlik") or ma.get("tip") or "MeteoAlarm"
+                seviye   = METEOALARM_SEVIYE.get(str(ma.get("seviye",1)),"")
+                self._add_alert_row(f"{etkinlik} — {seviye} (MeteoAlarm)")
+
+        if self._show_saatlik:
+            if mgm_tahminler:
+                self._render_hourly_mgm(mgm_tahminler)
+            elif om_times:
+                self._render_hourly_om(om_hourly, om_times)
+
+        if self._show_gunluk:
+            if not use_om and gd:
+                self._render_daily_mgm(gd)
+            elif om_data.get("daily"):
+                self._render_daily_om(om_data["daily"])
+
+        self.compact_content.show_all()
+        if not self._is_compact:
+            self.content.show_all()
+        return False
+
+    def _render_hourly_mgm(self, tahminler):
+        self._section_title("⏰  SAATLİK TAHMİN (Kaynak: MGM)")
+        hs = self._make_hscroll()
+        h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        h_box.set_margin_bottom(4)
+        for item in tahminler[:16]:
+            hc = self._make_hcard()
+            tl = Gtk.Label(label=fmt_time(item.get("tarih",""))); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
+            em,ks,uz = hadise_mgm(item.get("hadise",""))
+            el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
+            if uz: el.set_tooltip_text(f"{ks}\n{uz}")
+            ttl = Gtk.Label(label=val(item.get("sicaklik",-9999),suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
+            rh  = item.get("ruzgarHizi",-9999)
+            wl  = Gtk.Label(label=f"{rh:.0f} km/s" if rh not in (-9999,None) else ""); self._sc(wl,"h-wind"); wl.set_halign(Gtk.Align.CENTER)
+            hc.pack_start(tl,False,False,0); hc.pack_start(el,False,False,0)
+            hc.pack_start(ttl,False,False,0); hc.pack_start(wl,False,False,0)
+            h_box.pack_start(hc, False, False, 0)
+        hs.add(h_box); self.content.pack_start(hs, False, False, 0)
+
+    def _render_hourly_om(self, om_hourly, om_times):
+        self._section_title("⏰  SAATLİK TAHMİN (Kaynak: Open-Meteo)")
+        hs = self._make_hscroll()
+        h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        h_box.set_margin_bottom(4)
+        temps  = om_hourly.get("temperature_2m",[])
+        winds  = om_hourly.get("wind_speed_10m",[])
+        wcodes = om_hourly.get("weather_code",[])
+        probs  = om_hourly.get("precipitation_probability",[])
+        now_h  = datetime.now().strftime("%Y-%m-%dT%H:")
+        start  = next((i for i,t in enumerate(om_times) if t.startswith(now_h[:13])), 0)
+        for i in range(start, min(start+24, len(om_times))):
+            hc = self._make_hcard()
+            try:   t_str = om_times[i][11:16]
+            except: t_str = "--"
+            tl = Gtk.Label(label=t_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
+            em,ks,uz = hadise_wmo(wcodes[i] if i<len(wcodes) else None)
+            el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
+            if uz: el.set_tooltip_text(f"{ks}\n{uz}")
+            tmp  = temps[i] if i<len(temps) else -9999
+            ttl  = Gtk.Label(label=val(tmp,suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
+            wsp  = winds[i] if i<len(winds) else -9999
+            wl   = Gtk.Label(label=f"{wsp:.0f} km/s" if wsp not in (-9999,None) else ""); self._sc(wl,"h-wind"); wl.set_halign(Gtk.Align.CENTER)
+            hc.pack_start(tl,False,False,0); hc.pack_start(el,False,False,0)
+            hc.pack_start(ttl,False,False,0); hc.pack_start(wl,False,False,0)
+            if i < len(probs) and probs[i] is not None:
+                pl = Gtk.Label(label=f"💧%{probs[i]:.0f}")
+                self._sc(pl,"h-wind"); pl.set_halign(Gtk.Align.CENTER)
+                pl.set_tooltip_text(PILL_TOOLTIPS.get("🌂 Yağış Olas.",""))
+                hc.pack_start(pl, False, False, 0)
+            h_box.pack_start(hc, False, False, 0)
+        hs.add(h_box); self.content.pack_start(hs, False, False, 0)
+
+    def _render_daily_mgm(self, gd):
+        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: MGM)")
+        fc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        fc_box.set_margin_bottom(20)
+        for i in range(1,6):
+            tarih = gd.get(f"tarihGun{i}")
+            if not tarih: continue
+            outer   = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self._sc(outer,"fc-row")
+            top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            dl  = Gtk.Label(label=fmt_date(tarih)); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
+            em,ksa,uzn = hadise_mgm(gd.get(f"hadiseGun{i}",""))
+            cl  = Gtk.Label(label=f"{em} {ksa}"); self._sc(cl,"fc-cond"); cl.set_halign(Gtk.Align.START)
+            if uzn: cl.set_tooltip_text(uzn)
+            rh2 = gd.get(f"ruzgarHizGun{i}",-9999)
+            rl  = Gtk.Label(label=f"💨 {rh2:.0f} km/s" if rh2 not in (-9999,None) else "")
+            self._sc(rl,"fc-cond"); rl.set_halign(Gtk.Align.END)
+            tb  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            hl  = Gtk.Label(label=val(gd.get(f"enYuksekGun{i}",-9999),suffix="°")); self._sc(hl,"fc-hi")
+            ll  = Gtk.Label(label=val(gd.get(f"enDusukGun{i}", -9999),suffix="°")); self._sc(ll,"fc-lo")
+            tb.pack_start(hl,False,False,0); tb.pack_start(ll,False,False,0)
+            top_row.pack_start(dl,False,False,0); top_row.pack_start(cl,True,True,0)
+            top_row.pack_start(rl,False,False,0); top_row.pack_start(tb,False,False,0)
+            outer.pack_start(top_row,False,False,0)
+            if uzn:
+                dl2 = Gtk.Label(label=uzn); self._sc(dl2,"fc-desc")
+                dl2.set_halign(Gtk.Align.START)
+                dl2.set_line_wrap(True); dl2.set_max_width_chars(60)
+                outer.pack_start(dl2,False,False,0)
+            fc_box.pack_start(outer, False, False, 0)
+        self.content.pack_start(fc_box, False, False, 0)
+
+    def _render_daily_om(self, daily):
+        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: Open-Meteo)")
+        fc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        fc_box.set_margin_bottom(20)
+        dates  = daily.get("time",[])
+        hi_arr = daily.get("temperature_2m_max",[])
+        lo_arr = daily.get("temperature_2m_min",[])
+        wc_arr = daily.get("weather_code",[])
+        rh_arr = daily.get("wind_speed_10m_max",[])
+        pr_arr = daily.get("precipitation_sum",[])
+        pp_arr = daily.get("precipitation_probability_max",[])
+        uv_arr = daily.get("uv_index_max",[])
+        for i,tarih in enumerate(dates[:5]):
+            outer   = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self._sc(outer,"fc-row")
+            top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            try:   dt_fmt = fmt_date(tarih+"T00:00:00")
+            except: dt_fmt = tarih
+            dl  = Gtk.Label(label=dt_fmt); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
+            em,ksa,uzn = hadise_wmo(wc_arr[i] if i<len(wc_arr) else None)
+            cl  = Gtk.Label(label=f"{em} {ksa}"); self._sc(cl,"fc-cond"); cl.set_halign(Gtk.Align.START)
+            if uzn: cl.set_tooltip_text(uzn)
+            rh2 = rh_arr[i] if i<len(rh_arr) else None
+            rl  = Gtk.Label(label=f"💨 {rh2:.0f} km/s" if rh2 is not None else "")
+            self._sc(rl,"fc-cond"); rl.set_halign(Gtk.Align.END)
+            tb  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            hl  = Gtk.Label(label=val(hi_arr[i] if i<len(hi_arr) else -9999, suffix="°")); self._sc(hl,"fc-hi")
+            ll  = Gtk.Label(label=val(lo_arr[i] if i<len(lo_arr) else -9999, suffix="°")); self._sc(ll,"fc-lo")
+            tb.pack_start(hl,False,False,0); tb.pack_start(ll,False,False,0)
+            top_row.pack_start(dl,False,False,0); top_row.pack_start(cl,True,True,0)
+            top_row.pack_start(rl,False,False,0); top_row.pack_start(tb,False,False,0)
+            outer.pack_start(top_row,False,False,0)
+            extras = []
+            pr = pr_arr[i] if i<len(pr_arr) else None
+            pp = pp_arr[i] if i<len(pp_arr) else None
+            uv = uv_arr[i] if i<len(uv_arr) else None
+            if pr is not None and pr > 0: extras.append(f"🌧 {pr:.1f} mm")
+            if pp is not None:            extras.append(f"🌂 %{pp:.0f}")
+            if uv is not None:            extras.append(f"🔆 UV {uv:.1f}")
+            if extras:
+                ex_lbl = Gtk.Label(label="  ".join(extras))
+                self._sc(ex_lbl,"fc-desc"); ex_lbl.set_halign(Gtk.Align.START)
+                ex_lbl.set_tooltip_text("Yağış (mm) / Yağış olasılığı (%) / UV İndeksi maks")
+                outer.pack_start(ex_lbl,False,False,0)
+            fc_box.pack_start(outer, False, False, 0)
+        self.content.pack_start(fc_box, False, False, 0)
+
+    def _make_hscroll(self):
+        hs = Gtk.ScrolledWindow()
+        hs.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        hs.set_min_content_height(int(115 * self._get_scale()))
+        hs.set_margin_start(12); hs.set_margin_end(12)
+        return hs
+
+    def _make_hcard(self):
+        hc = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        self._sc(hc,"h-card"); hc.set_halign(Gtk.Align.CENTER)
+        return hc
+
+    def _add_alert_row(self, metin):
+        arow = Gtk.Box(orientation=Gtk.Orientation.VERTICAL); self._sc(arow,"alert-row")
+        lbl  = Gtk.Label(label=metin); self._sc(lbl,"alert-txt")
+        lbl.set_halign(Gtk.Align.START); lbl.set_line_wrap(True); lbl.set_max_width_chars(55)
+        arow.pack_start(lbl, False, False, 0)
+        self.content.pack_start(arow, False, False, 0)
+
+
