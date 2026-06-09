@@ -1,0 +1,76 @@
+name: 🧠 brain.md Otomatik Güncelle
+
+on:
+  workflow_run:
+    workflows: ["MintSky CI"]
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: skill-update
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-skill:
+    name: 🤖 Brain.md Dokümantasyonunu Güncelle
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: 📦 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🧠 API Çağrısı (Curl ile Doğrudan YAML İçinden)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          DIFF_CONTENT=$(git diff HEAD~1)
+          
+          jq -n --arg diff "$DIFF_CONTENT" '{
+            "system_instruction": {
+              "parts": [{
+                "text": "Sen MintSky Masaüstü Hava Durumu uygulaması projesinin teknik dokümantasyon sorumlususun. Görevin, yapılan kod değişikliklerine (git diff) göre projenin ana dokümantasyon dosyası olan brain.md dosyasını otomatik güncellemektir. Kurallar: (1) Sadece mantıksal olarak değişen bölümlere dokun, geri kalan yapıyı koru. (2) Yanıt olarak SADECE ve tamamen güncellenmiş brain.md içeriğini Markdown formatında döndür, ekstra hiçbir yorum yazma."
+              }]
+            },
+            "contents": [
+              {
+                "role": "user",
+                "parts": [
+                  { "text": $diff }
+                ]
+              }
+            ],
+            "generationConfig": {
+              "temperature": 0.1
+            }
+          }' > payload.json
+
+          curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @payload.json > api_response.json
+
+          jq -r '.candidates[0].content.parts[0].text // empty' api_response.json > brain.md
+
+      - name: 💾 Değişiklikleri Commit Et
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add brain.md
+
+          if git diff --staged --quiet; then
+            echo "ℹ️  Değişiklik yok — commit atlanıyor."
+          else
+            HASH=$(git rev-parse --short HEAD)
+            git commit -m "🧠 auto: brain.md güncellendi ← ${HASH} [skip ci]"
+            git push
+            echo "✅ Commit & push tamamlandı."
+          fi
