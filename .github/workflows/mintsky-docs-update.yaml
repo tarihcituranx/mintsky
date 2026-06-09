@@ -50,23 +50,19 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          # Prompt metnini Bash değişkenine atıyoruz (Tırnak hatalarını önlemek için)
+          SYSTEM_INSTRUCTION=$(cat << 'EOF'
+          Sen MintSky projesinin teknik dokümantasyon sorumlususun. MintSky; Linux için Python/GTK3 ile yazılmış, sistem tepsisi destekli (AppIndicator3), Groq AI entegrasyonlu, gerçek zamanlı hava durumu gösteren bir masaüstü uygulamasıdır. brain.md projenin teknik hafızasıdır. Şu bölümleri içermeli: ## Mimari, ## Modüller, ## Bilinen Sorunlar, ## TODO, ## Sürüm Notu (otomatik ekle). Kural: (1) Sadece değişen bölümlere dokun. (2) YALNIZCA güncellenmiş brain.md içeriğini Markdown olarak döndür. (3) Herhangi bir açıklama, yorum veya kod bloğu etiketi ekleme.
+          EOF
+          )
+
           jq -n \
             --rawfile diff         diff.txt \
             --rawfile current_doc  brain_current.md \
+            --arg     sys_inst     "$SYSTEM_INSTRUCTION" \
             '{
               "system_instruction": {
-                "parts": [{
-                  "text": (
-                    "Sen MintSky projesinin teknik dokümantasyon sorumlususun. "
-                    + "MintSky; Linux için Python/GTK3 ile yazılmış, sistem tepsisi destekli (AppIndicator3), "
-                    + "Groq AI entegrasyonlu, gerçek zamanlı hava durumu gösteren bir masaüstü uygulamasıdır. "
-                    + "brain.md projenin teknik hafızasıdır. Şu bölümleri içermeli: "
-                    + "## Mimari, ## Modüller, ## Bilinen Sorunlar, ## TODO, ## Sürüm Notu (otomatik ekle). "
-                    + "Kural: (1) Sadece değişen bölümlere dokun. "
-                    + "(2) YALNIZCA güncellenmiş brain.md içeriğini Markdown olarak döndür. "
-                    + "(3) Herhangi bir açıklama, yorum veya kod bloğu etiketi ekleme."
-                  )
-                }]
+                "parts": [{ "text": $sys_inst }]
               },
               "contents": [{
                 "role": "user",
@@ -107,49 +103,45 @@ jobs:
         run: |
           REPO_OWNER="${{ github.repository_owner }}"
           REPO_NAME_FULL="${{ github.repository }}"
-          REPO_SLUG=$(echo "$REPO_NAME_FULL" | cut -d'/' -f2)
+
+          # Değişkenlerin çalışması için tırnaksız EOF kullanıyoruz
+          SYSTEM_INSTRUCTION=$(cat << EOF
+          Sen profesyonel bir GitHub README yazarısın. MintSky projesinin README.md dosyasını aşağıdaki stilden ilham alarak oluşturacaksın.
+
+          == PROJE BİLGİSİ ==
+          Ad: MintSky
+          Açıklama: Linux için GTK3 tabanlı, sistem tepsisi destekli (AppIndicator3), Groq AI entegrasyonlu gerçek zamanlı hava durumu masaüstü uygulaması.
+          Dil: Python 3
+          Bağımlılıklar: PyGObject (GTK3), gir1.2-appindicator3, libnotify, python-requests, Groq API
+
+          == ZORUNLU BÖLÜMLER (bu sırayla) ==
+          1. BAŞLIK BANI — capsule-render.vercel.app (type=waving, color=0:667eea,100:764ba2, height=200), altında: CI badge (shields.io, workflow=MintSky CI, repo=${REPO_NAME_FULL}), Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge.
+          2. TYPING SVG — readme-typing-svg.demolab.com, font=Fira Code, color=764BA2, satırlar: 'MintSky — Linux Hava Durumu 🌤️', 'GTK3 + Groq AI 🤖', 'Sistem Tepsisinden Takip Et 🔔', 'Açık Kaynak & Ücretsiz ❤️'
+          3. ÖZELLİKLER — emoji'li madde listesi
+          4. EKRAN GÖRÜNTÜLERİ — placeholder ()
+          5. KURULUM — adım adım bash blokları (apt bağımlılıkları + git clone + python çalıştır)
+          6. YAPILANDIRMA — API key, tema, şehir ayarları hakkında kısa bilgi
+          7. TEKNOLOJİ YIĞINI — tablo formatında
+          8. KATKIDA BULUNMA — kısa paragraf + PR linki
+          9. FOOTER BANI — capsule-render.vercel.app (type=waving, color=0:764ba2,100:667eea, height=120, section=footer)
+
+          == KURALLAR ==
+          - Tüm badge URL'leri gerçek ve çalışır olsun.
+          - Türkçe içerik, İngilizce badge label'ları.
+          - Sadece değişen bölümleri yeniden yaz, diff'e göre içeriği güncelle.
+          - YALNIZCA README.md içeriğini döndür. Açıklama veya kod bloğu etiketi ekleme.
+          EOF
+          )
 
           jq -n \
             --rawfile diff         diff.txt \
             --rawfile current_doc  readme_current.md \
             --arg     owner        "$REPO_OWNER" \
-            --arg     repo         "$REPO_SLUG" \
             --arg     repo_full    "$REPO_NAME_FULL" \
+            --arg     sys_inst     "$SYSTEM_INSTRUCTION" \
             '{
               "system_instruction": {
-                "parts": [{
-                  "text": (
-                    "Sen profesyonel bir GitHub README yazarısın. "
-                    + "MintSky projesinin README.md dosyasını aşağıdaki stilden ilham alarak oluşturacaksın. "
-                    + "\n\n"
-                    + "== PROJE BİLGİSİ ==\n"
-                    + "Ad: MintSky\n"
-                    + "Açıklama: Linux için GTK3 tabanlı, sistem tepsisi destekli (AppIndicator3), Groq AI entegrasyonlu gerçek zamanlı hava durumu masaüstü uygulaması.\n"
-                    + "Dil: Python 3\n"
-                    + "Bağımlılıklar: PyGObject (GTK3), gir1.2-appindicator3, libnotify, python-requests, Groq API\n"
-                    + "\n"
-                    + "== ZORUNLU BÖLÜMLER (bu sırayla) ==\n"
-                    + "1. BAŞLIK BANI — capsule-render.vercel.app (type=waving, color=0:667eea,100:764ba2, height=200), "
-                    + "   altında: CI badge (shields.io, workflow=MintSky CI, repo=" + $repo_full + "), "
-                    + "   Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge.\n"
-                    + "2. TYPING SVG — readme-typing-svg.demolab.com, font=Fira Code, color=764BA2, "
-                    + "   satırlar: 'MintSky — Linux Hava Durumu 🌤️', 'GTK3 + Groq AI 🤖', "
-                    + "   'Sistem Tepsisinden Takip Et 🔔', 'Açık Kaynak & Ücretsiz ❤️'\n"
-                    + "3. ÖZELLİKLER — emoji'li madde listesi\n"
-                    + "4. EKRAN GÖRÜNTÜLERİ — placeholder (<!-- screenshot here -->)\n"
-                    + "5. KURULUM — adım adım bash blokları (apt bağımlılıkları + git clone + python çalıştır)\n"
-                    + "6. YAPILANDIRMA — API key, tema, şehir ayarları hakkında kısa bilgi\n"
-                    + "7. TEKNOLOJİ YIĞINI — tablo formatında\n"
-                    + "8. KATKIDA BULUNMA — kısa paragraf + PR linki\n"
-                    + "9. FOOTER BANI — capsule-render.vercel.app (type=waving, color=0:764ba2,100:667eea, height=120, section=footer)\n"
-                    + "\n"
-                    + "== KURALLAR ==\n"
-                    + "- Tüm badge URL'leri gerçek ve çalışır olsun.\n"
-                    + "- Türkçe içerik, İngilizce badge label'ları.\n"
-                    + "- Sadece değişen bölümleri yeniden yaz, diff'e göre içeriği güncelle.\n"
-                    + "- YALNIZCA README.md içeriğini döndür. Açıklama veya kod bloğu etiketi ekleme."
-                  )
-                }]
+                "parts": [{ "text": $sys_inst }]
               },
               "contents": [{
                 "role": "user",
