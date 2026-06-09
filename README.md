@@ -1,4 +1,6 @@
-https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff
+[🇬🇧 English](README_en.md)
+
+![MintSky Başlık](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
 
 [![MintSky CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-docs-update.yaml?branch=main&label=MintSky%20CI)](https://github.com/tarihcituranx/mintsky/actions)
 [![Python 3](https://img.shields.io/badge/Python-3-blue.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/)
@@ -64,4 +66,4 @@ python3 main.py
 
 MintSky projesine katkıda bulunmak isterseniz, lütfen bir [Pull Request (PR)](https://github.com/tarihcituranx/mintsky/pulls) açın veya karşılaştığınız hataları bildirmek için bir issue oluşturun. Her türlü katkı, hata bildirimi ve özellik önerisi projenin gelişimi için çok değerlidir!
 
-https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer
+![MintSky Footer](https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer)
