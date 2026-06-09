@@ -1,0 +1,203 @@
+name: 📚 Dokümantasyon Otomatik Güncelle
+
+on:
+  workflow_run:
+    workflows: ["MintSky CI"]
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: docs-update
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-docs:
+    name: 🤖 Brain.md + README Güncelle
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # ─────────────────────────────────────────────
+      # 1. CHECKOUT
+      # ─────────────────────────────────────────────
+      - name: 📦 Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ─────────────────────────────────────────────
+      # 2. HAZIRLIK — diff + mevcut dosyaları oku
+      # ─────────────────────────────────────────────
+      - name: 🔍 Diff & Mevcut Dosyaları Hazırla
+        run: |
+          git diff HEAD~1 > diff.txt
+
+          [ -f brain.md  ] && cp brain.md  brain_current.md  || echo "# MintSky Brain" > brain_current.md
+          [ -f README.md ] && cp README.md readme_current.md || echo "# MintSky"       > readme_current.md
+
+          echo "Diff boyutu: $(wc -c < diff.txt) byte"
+
+      # ─────────────────────────────────────────────
+      # 3. BRAIN.MD — teknik hafıza
+      # ─────────────────────────────────────────────
+      - name: 🧠 Brain.md Güncelle
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          jq -n \
+            --rawfile diff         diff.txt \
+            --rawfile current_doc  brain_current.md \
+            '{
+              "system_instruction": {
+                "parts": [{
+                  "text": (
+                    "Sen MintSky projesinin teknik dokümantasyon sorumlususun. "
+                    + "MintSky; Linux için Python/GTK3 ile yazılmış, sistem tepsisi destekli (AppIndicator3), "
+                    + "Groq AI entegrasyonlu, gerçek zamanlı hava durumu gösteren bir masaüstü uygulamasıdır. "
+                    + "brain.md projenin teknik hafızasıdır. Şu bölümleri içermeli: "
+                    + "## Mimari, ## Modüller, ## Bilinen Sorunlar, ## TODO, ## Sürüm Notu (otomatik ekle). "
+                    + "Kural: (1) Sadece değişen bölümlere dokun. "
+                    + "(2) YALNIZCA güncellenmiş brain.md içeriğini Markdown olarak döndür. "
+                    + "(3) Herhangi bir açıklama, yorum veya kod bloğu etiketi ekleme."
+                  )
+                }]
+              },
+              "contents": [{
+                "role": "user",
+                "parts": [
+                  { "text": "=== MEVCUT BRAIN.MD ===\n" },
+                  { "text": $current_doc },
+                  { "text": "\n\n=== YENİ GIT DIFF ===\n" },
+                  { "text": $diff }
+                ]
+              }],
+              "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 4096
+              }
+            }' > brain_payload.json
+
+          curl -sf -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @brain_payload.json > brain_response.json
+
+          OUTPUT=$(jq -r '.candidates[0].content.parts[0].text // empty' brain_response.json)
+
+          if [ -z "$OUTPUT" ]; then
+            echo "⚠️  Gemini boş yanıt döndürdü — brain.md değiştirilmedi."
+            cp brain_current.md brain.md
+          else
+            echo "$OUTPUT" > brain.md
+            echo "✅ brain.md güncellendi."
+          fi
+
+      # ─────────────────────────────────────────────
+      # 4. README.MD — profil tarzı proje tanıtımı
+      # ─────────────────────────────────────────────
+      - name: 📖 README.md Güncelle
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME_FULL="${{ github.repository }}"
+          REPO_SLUG=$(echo "$REPO_NAME_FULL" | cut -d'/' -f2)
+
+          jq -n \
+            --rawfile diff         diff.txt \
+            --rawfile current_doc  readme_current.md \
+            --arg     owner        "$REPO_OWNER" \
+            --arg     repo         "$REPO_SLUG" \
+            --arg     repo_full    "$REPO_NAME_FULL" \
+            '{
+              "system_instruction": {
+                "parts": [{
+                  "text": (
+                    "Sen profesyonel bir GitHub README yazarısın. "
+                    + "MintSky projesinin README.md dosyasını aşağıdaki stilden ilham alarak oluşturacaksın. "
+                    + "\n\n"
+                    + "== PROJE BİLGİSİ ==\n"
+                    + "Ad: MintSky\n"
+                    + "Açıklama: Linux için GTK3 tabanlı, sistem tepsisi destekli (AppIndicator3), Groq AI entegrasyonlu gerçek zamanlı hava durumu masaüstü uygulaması.\n"
+                    + "Dil: Python 3\n"
+                    + "Bağımlılıklar: PyGObject (GTK3), gir1.2-appindicator3, libnotify, python-requests, Groq API\n"
+                    + "\n"
+                    + "== ZORUNLU BÖLÜMLER (bu sırayla) ==\n"
+                    + "1. BAŞLIK BANI — capsule-render.vercel.app (type=waving, color=0:667eea,100:764ba2, height=200), "
+                    + "   altında: CI badge (shields.io, workflow=MintSky CI, repo=" + $repo_full + "), "
+                    + "   Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge.\n"
+                    + "2. TYPING SVG — readme-typing-svg.demolab.com, font=Fira Code, color=764BA2, "
+                    + "   satırlar: 'MintSky — Linux Hava Durumu 🌤️', 'GTK3 + Groq AI 🤖', "
+                    + "   'Sistem Tepsisinden Takip Et 🔔', 'Açık Kaynak & Ücretsiz ❤️'\n"
+                    + "3. ÖZELLİKLER — emoji'li madde listesi\n"
+                    + "4. EKRAN GÖRÜNTÜLERİ — placeholder (<!-- screenshot here -->)\n"
+                    + "5. KURULUM — adım adım bash blokları (apt bağımlılıkları + git clone + python çalıştır)\n"
+                    + "6. YAPILANDIRMA — API key, tema, şehir ayarları hakkında kısa bilgi\n"
+                    + "7. TEKNOLOJİ YIĞINI — tablo formatında\n"
+                    + "8. KATKIDA BULUNMA — kısa paragraf + PR linki\n"
+                    + "9. FOOTER BANI — capsule-render.vercel.app (type=waving, color=0:764ba2,100:667eea, height=120, section=footer)\n"
+                    + "\n"
+                    + "== KURALLAR ==\n"
+                    + "- Tüm badge URL'leri gerçek ve çalışır olsun.\n"
+                    + "- Türkçe içerik, İngilizce badge label'ları.\n"
+                    + "- Sadece değişen bölümleri yeniden yaz, diff'e göre içeriği güncelle.\n"
+                    + "- YALNIZCA README.md içeriğini döndür. Açıklama veya kod bloğu etiketi ekleme."
+                  )
+                }]
+              },
+              "contents": [{
+                "role": "user",
+                "parts": [
+                  { "text": ("Repo: " + $repo_full + " | Owner: " + $owner + "\n\n") },
+                  { "text": "=== MEVCUT README.MD ===\n" },
+                  { "text": $current_doc },
+                  { "text": "\n\n=== YENİ GIT DIFF ===\n" },
+                  { "text": $diff }
+                ]
+              }],
+              "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": 8192
+              }
+            }' > readme_payload.json
+
+          curl -sf -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @readme_payload.json > readme_response.json
+
+          OUTPUT=$(jq -r '.candidates[0].content.parts[0].text // empty' readme_response.json)
+
+          if [ -z "$OUTPUT" ]; then
+            echo "⚠️  Gemini boş yanıt döndürdü — README.md değiştirilmedi."
+            cp readme_current.md README.md
+          else
+            echo "$OUTPUT" > README.md
+            echo "✅ README.md güncellendi."
+          fi
+
+      # ─────────────────────────────────────────────
+      # 5. COMMIT & PUSH
+      # ─────────────────────────────────────────────
+      - name: 💾 Commit & Push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add brain.md README.md
+
+          if git diff --staged --quiet; then
+            echo "ℹ️  Değişiklik yok — commit atlanıyor."
+          else
+            HASH=$(git rev-parse --short HEAD)
+            CHANGED=$(git diff --staged --name-only | tr '\n' ' ')
+            git commit -m "📚 auto: ${CHANGED}güncellendi ← ${HASH} [skip ci]"
+            git push
+            echo "✅ Commit & push tamamlandı: ${CHANGED}"
+          fi
