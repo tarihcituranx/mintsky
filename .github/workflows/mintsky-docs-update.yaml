@@ -109,7 +109,7 @@ jobs:
           == ZORUNLU BÖLÜMLER (bu sırayla) ==
           1. BAŞLIK BANI — Mutlaka Markdown görsel formatında ekle: ![MintSky Başlık](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
              Hemen altında CI badge (shields.io, workflow=MintSky CI, repo=${REPO_NAME_FULL}), Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge. En tepeye ayrıca bir dil seçeneği ekle: [🇬🇧 English](README_en.md)
-          2. TYPING SVG — ![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=435&lines=MintSky+—+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F)
+          2. TYPING SVG — URL içeriğini KESİNLİKLE değiştirmeden (URL Decode yapmadan) tam olarak şu HTML etiketini kullan: <p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
           3. ÖZELLİKLER — emoji'li madde listesi
           4. EKRAN GÖRÜNTÜLERİ — placeholder ()
           5. KURULUM — adım adım bash blokları (apt bağımlılıkları + git clone + python çalıştır)
