@@ -8,9 +8,7 @@
 [![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://opensource.org/licenses/GPL-3.0)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg?style=flat&logo=linux)](https://www.linux.org/)
 
-<p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=435&lines=MintSky+—+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" />
-</p>
+<p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
 
 ## 🌟 Özellikler
 
