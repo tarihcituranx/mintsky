@@ -31,3 +31,7 @@ MintSky, Linux masaüstü ortamları için tasarlanmış, hafif ve modüler bir 
 ### [Oto-Güncelleme] Dokümantasyon ve CI/CD İyileştirmeleri
 - **README Şablon Güncellemesi:** Otomatik oluşturulan README dosyasındaki "Typing SVG" başlığı, daha iyi görsel düzen için ortalanmış HTML `<p align="center"><img ... /></p>` yapısına dönüştürüldü.
 - **CI/CD Rebase Stratejisi:** `mintsky-docs-update.yaml` iş akışındaki otomatik commit süreçlerinde olası çakışmaları (conflict) önlemek adına `git pull --rebase` yöntemi entegre edildi.
+
+## Çalışma Prensipleri (Agent Kuralları)
+
+- **Hata Ayıklama ve Geliştirme (Agent Skills):** Yapay zeka asistanları, proje üzerinde hata düzeltmeleri (bug fixes) yaparken, mimariyi incelerken veya yeni özellik eklerken KESİNLİKLE **Addy Osmani agent-skills** prensiplerini ve dizindeki (`AGENT_SKILLS.md`, `.claude/`, `skills/`) yetenekleri kullanmalıdır (Örn: hata çözümlerinde *test-driven-development*, *debugging-and-error-recovery*).
