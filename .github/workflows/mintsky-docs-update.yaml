@@ -177,7 +177,7 @@ jobs:
           == MANDATORY SECTIONS (in this order) ==
           1. HEADER BANNER — Strictly use Markdown image format: ![MintSky Header](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
              Right below it: CI badge (shields.io, workflow=MintSky CI, repo=${REPO_NAME_FULL}), Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge. At the very top, add a language toggle: [🇹🇷 Türkçe](README.md)
-          2. TYPING SVG — ![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=435&lines=MintSky+—+Linux+Weather+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Track+from+System+Tray+%F0%9F%94%94;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F)
+          2. TYPING SVG — Strictly use centered HTML tag: <p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Weather+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Track+from+System+Tray+%F0%9F%94%94;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
           3. FEATURES — bullet list with emojis
           4. SCREENSHOTS — placeholder ()
           5. INSTALLATION — step-by-step bash blocks (apt dependencies + git clone + run python)
@@ -240,7 +240,7 @@ jobs:
             CHANGED=$(git diff --staged --name-only | tr '\n' ' ')
             git commit -m "📚 auto: ${CHANGED}güncellendi ← ${HASH} [skip ci]"
             
-            # Uzak sunucudaki olası yeni değişiklikleri çek ve bizim commit'i onun üstüne koy
+            # Olası conflict/çakışmaları çözmek için rebase ile pull yapıyoruz
             git pull --rebase origin main
             
             git push
