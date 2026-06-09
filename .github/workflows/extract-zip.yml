@@ -1,0 +1,29 @@
+name: Auto Extract Modular Source
+    on:
+      push:
+        paths:
+          - 'mintsky_source.zip'
+  
+    jobs:
+      extract-and-commit:
+        runs-on: ubuntu-latest
+        permissions:
+          contents: write
+        steps:
+          - name: Checkout Repository
+            uses: actions/checkout@v6
+  
+          - name: Extract ZIP File
+            run: |
+              if [ -f "mintsky_source.zip" ]; then
+                unzip -o mintsky_source.zip -d .
+                rm mintsky_source.zip
+              fi          
+  
+          - name: Commit and Push Extracted Files
+            run: |
+              git config --global user.name "github-actions[bot]"
+              git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add -A
+              git diff-index --quiet HEAD || git commit -m "Auto-extract modular MintSky architecture"
+              git push          
