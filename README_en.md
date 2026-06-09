@@ -2,21 +2,21 @@
 
 ![MintSky Header](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-docs-update.yaml?branch=main&label=CI)](https://github.com/tarihcituranx/mintsky/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-docs-update.yaml?branch=main&label=MintSky%20CI)](https://github.com/tarihcituranx/mintsky/actions)
 ![Python 3](https://img.shields.io/badge/Python-3-3776AB?style=flat&logo=python&logoColor=white)
 ![GTK3](https://img.shields.io/badge/GTK-3-7FE717?style=flat&logo=gnome&logoColor=white)
 ![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-E34F26?style=flat&logo=linux&logoColor=white)
 
-![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=435&lines=MintSky+—+Linux+Weather+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Track+from+System+Tray+%F0%9F%94%94;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F)
+<p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Weather+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Track+from+System+Tray+%F0%9F%94%94;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
 
 ## 🌟 Features
 
-*   🌤️ **Real-Time Weather:** Track current weather conditions, temperature, and forecasts for your city.
-*   🤖 **Groq AI Integration:** Get smart, AI-generated weather summaries, outdoor activity suggestions, and clothing recommendations.
-*   🔔 **System Tray Support:** Runs quietly in the background using `AppIndicator3` with native system tray integration.
-*   💬 **Desktop Notifications:** Receive instant weather alerts and updates via `libnotify`.
-*   🎨 **Modern GTK3 Interface:** A clean, lightweight, and native user interface designed specifically for Linux desktop environments.
+* 🌤️ **Real-Time Weather:** Track current weather conditions, temperature, and forecasts for your city.
+* 🤖 **Groq AI Integration:** Get smart, AI-generated weather summaries, outdoor activity suggestions, and clothing recommendations.
+* 🔔 **System Tray Support:** Runs quietly in the background using `AppIndicator3` with native system tray integration.
+* 💬 **Desktop Notifications:** Receive instant weather alerts and updates via `libnotify`.
+* 🎨 **Modern GTK3 Interface:** A clean, lightweight, and native user interface designed specifically for Linux desktop environments.
 
 ## 📸 Screenshots
 
@@ -62,9 +62,9 @@ python3 main.py
 
 Upon the first launch, MintSky will generate a configuration file where you can customize your experience:
 
-*   **API Key:** Insert your Groq API key to enable AI-powered weather insights.
-*   **City Settings:** Set your default location for localized weather reports.
-*   **Theme Preferences:** Toggle between light and dark modes to match your system theme.
+* **API Key:** Insert your Groq API key to enable AI-powered weather insights.
+* **City Settings:** Set your default location for localized weather reports.
+* **Theme Preferences:** Toggle between light and dark modes to match your system theme.
 
 ## 🛠️ Technology Stack
 
