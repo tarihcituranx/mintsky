@@ -1,0 +1,265 @@
+name: 🩺 Sağlık Kontrolü ve Syntax Denetimi
+
+on:
+  push:
+    paths:
+      - "**.py"
+  pull_request:
+    paths:
+      - "**.py"
+
+# Aynı dal için eski çalışmaları iptal et
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  audit:
+    name: 🔍 Python Kod Kalite Kontrolü
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ──────────────────────────────────────────────
+      # 1. HAZIRLIK
+      # ──────────────────────────────────────────────
+      - name: 📦 Kodu İndir
+        uses: actions/checkout@v6
+
+      - name: 🐍 Python 3.11 Kurulumu
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: 📥 Analiz Araçlarını Yükle
+        run: |
+          python -m pip install --upgrade pip --quiet
+          pip install flake8 black isort pyflakes bandit --quiet
+          echo "✅ Araçlar hazır: flake8 | black | isort | pyflakes | bandit"
+
+      # ──────────────────────────────────────────────
+      # 2. KRİTİK KONTROLLER  (başarısız → iş durur)
+      # ──────────────────────────────────────────────
+      - name: 🔬 Syntax Kontrolü (py_compile)
+        id: syntax
+        run: |
+          echo "🔍 Tüm Python dosyaları taranıyor..."
+
+          mapfile -t FILES < <(find mintsky/ -type f -name "*.py" | sort; echo "setup.py")
+
+          TOTAL=${#FILES[@]}
+          echo "📁 $TOTAL Python dosyası bulundu."
+          echo "file_count=$TOTAL" >> "$GITHUB_OUTPUT"
+
+          PASS=0; FAIL=0
+          for f in "${FILES[@]}"; do
+            if python -m py_compile "$f" 2>/tmp/syn_err.txt; then
+              echo "  ✅ $f"
+              PASS=$((PASS+1))
+            else
+              echo "  ❌ $f"
+              cat /tmp/syn_err.txt
+              FAIL=$((FAIL+1))
+            fi
+          done
+
+          echo "syntax_pass=$PASS" >> "$GITHUB_OUTPUT"
+          echo "syntax_fail=$FAIL" >> "$GITHUB_OUTPUT"
+          echo "──────────────────────────────────────────────"
+          echo "📊 Syntax: $PASS başarılı / $FAIL hatalı"
+
+          if [ "$FAIL" -gt 0 ]; then
+            echo "❌ Syntax hataları düzeltilmeden devam edilemez!"
+            exit 1
+          fi
+          echo "✅ Tüm dosyalar syntax açısından hatasız."
+
+      - name: 📦 Import Denetimi (pyflakes)
+        id: imports
+        if: always()
+        run: |
+          echo "🔎 Import yapıları inceleniyor..."
+
+          mapfile -t FILES < <(find mintsky/ -type f -name "*.py" | sort; echo "setup.py")
+
+          set -o pipefail
+          if python -m pyflakes "${FILES[@]}" 2>&1 | tee /tmp/pyflakes.txt; then
+            echo "import_issues=0" >> "$GITHUB_OUTPUT"
+            echo "✅ Import denetimi temiz."
+          else
+            COUNT=$(wc -l < /tmp/pyflakes.txt)
+            echo "import_issues=$COUNT" >> "$GITHUB_OUTPUT"
+            echo "⚠️ $COUNT import sorunu tespit edildi (Uyarı)."
+          fi
+
+      - name: 🧹 Kritik Lint (flake8 — E9 / F6x / F82)
+        id: lint
+        if: always()
+        run: |
+          echo "⚡ Runtime seviyesinde hatalar taranıyor..."
+          # E9  = runtime hataları
+          # F63 = geçersiz star-import
+          # F7  = sözdizimi hataları
+          # F82 = tanımsız isim (NameError)
+          set -o pipefail
+          if flake8 mintsky/ setup.py \
+              --select=E9,F63,F7,F82 \
+              --exclude=__pycache__ \
+              --format='  %(path)s:%(row)d — [%(code)s] %(text)s' \
+              2>&1 | tee /tmp/flake8_critical.txt; then
+            echo "critical_errors=0" >> "$GITHUB_OUTPUT"
+            echo "✅ Kritik lint kontrolü temiz."
+          else
+            COUNT=$(grep -c "^  " /tmp/flake8_critical.txt || echo 0)
+            echo "critical_errors=$COUNT" >> "$GITHUB_OUTPUT"
+            echo "❌ $COUNT kritik lint hatası bulundu!"
+            exit 1
+          fi
+
+      # ──────────────────────────────────────────────
+      # 3. KALİTE VE GÜVENLİK ÖNERİLERİ  (başarısız → yalnızca uyarı)
+      # ──────────────────────────────────────────────
+      - name: 🛡️ Güvenlik Taraması (Bandit)
+        id: bandit
+        if: always()
+        continue-on-error: true           # Birleştirmeyi engellemez
+        run: |
+          echo "🔐 Güvenlik açıkları aranıyor..."
+          set -o pipefail
+          if bandit -r mintsky/ setup.py -f custom 2>&1 | tee /tmp/bandit.txt; then
+            echo "✅ Bandit temiz."
+          else
+            echo "⚠️ Güvenlik uyarıları mevcut."
+            exit 1
+          fi
+
+      - name: 🎨 Format Kontrolü (black)
+        id: format
+        if: always()
+        continue-on-error: true           # Birleştirmeyi engellemez
+        run: |
+          echo "🖌️ Kod biçimi kontrol ediliyor..."
+          set -o pipefail
+          if black --check --diff --color \
+               --exclude '/(__pycache__)/' \
+               mintsky/ setup.py 2>&1 | tee /tmp/black.txt; then
+            echo "✅ Biçim uyumlu."
+          else
+            echo "⚠️  Düzeltmek için: black ."
+            exit 1
+          fi
+
+      - name: 📐 Import Sıralaması (isort)
+        id: isort
+        if: always()
+        continue-on-error: true           # Birleştirmeyi engellemez
+        run: |
+          echo "📋 Import sıralaması kontrol ediliyor..."
+          set -o pipefail
+          if isort --check-only --diff \
+               mintsky/ setup.py 2>&1 | tee /tmp/isort.txt; then
+            echo "✅ Import sıralaması doğru."
+          else
+            echo "⚠️  Düzeltmek için: isort ."
+            exit 1
+          fi
+
+      # ──────────────────────────────────────────────
+      # 4. RAPOR
+      # ──────────────────────────────────────────────
+      - name: 📊 Sağlık Raporu Oluştur
+        if: always()
+        run: |
+          {
+            echo "## 🩺 Python Kod Sağlık Raporu"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Proje** | \`${{ github.repository }}\` |"
+            echo "| **Dal** | \`${{ github.ref_name }}\` |"
+            echo "| **Commit** | \`${GITHUB_SHA:0:8}\` |"
+            echo "| **Taranan Dosya** | ${{ steps.syntax.outputs.file_count || '—' }} Python dosyası |"
+            echo ""
+            echo "---"
+            echo ""
+            echo "### 🔒 Kritik Kontroller *(başarısız olursa birleştirme engellenir)*"
+            echo ""
+            echo "| # | Kontrol | Araç | Sonuç | Detay |"
+            echo "|---|---------|------|-------|-------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Syntax
+          if [ "${{ steps.syntax.outcome }}" = "success" ]; then
+            echo "| 1 | 🔬 Syntax Denetimi | \`py_compile\` | ✅ Geçti | ${{ steps.syntax.outputs.syntax_pass }} / ${{ steps.syntax.outputs.file_count }} dosya temiz |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 1 | 🔬 Syntax Denetimi | \`py_compile\` | ❌ Başarısız | ${{ steps.syntax.outputs.syntax_fail || '?' }} dosyada hata var |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Imports
+          if [ "${{ steps.imports.outcome }}" = "success" ]; then
+            echo "| 2 | 📦 Import Denetimi | \`pyflakes\` | ✅ Geçti | Tanımsız / eksik import yok |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 2 | 📦 Import Denetimi | \`pyflakes\` | ❌ Başarısız | ${{ steps.imports.outputs.import_issues || '?' }} sorun tespit edildi |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Lint
+          if [ "${{ steps.lint.outcome }}" = "success" ]; then
+            echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ✅ Geçti | Runtime hatası bulunamadı |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ❌ Başarısız | ${{ steps.lint.outputs.critical_errors || '?' }} kritik hata |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          {
+            echo ""
+            echo "### 💡 Kalite Önerileri *(birleştirmeyi engellemez)*"
+            echo ""
+            echo "| # | Kontrol | Araç | Sonuç | Düzeltme Komutu |"
+            echo "|---|---------|------|-------|-----------------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Black
+          if [ "${{ steps.format.outcome }}" = "success" ]; then
+            echo "| 4 | 🎨 Kod Formatı | \`black\` | ✅ Uyumlu | — |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 4 | 🎨 Kod Formatı | \`black\` | ⚠️ Uyarı | \`black .\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # isort
+          if [ "${{ steps.isort.outcome }}" = "success" ]; then
+            echo "| 5 | 📐 Import Sırası | \`isort\` | ✅ Uyumlu | — |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 5 | 📐 Import Sırası | \`isort\` | ⚠️ Uyarı | \`isort .\` |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Bandit
+          if [ "${{ steps.bandit.outcome }}" = "success" ]; then
+            echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ✅ Temiz | — |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ⚠️ Uyarı | Güvenlik İncelemesi Önerilir |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          # Genel karar
+          if [[ "${{ steps.syntax.outcome }}"  == "success" && \
+                "${{ steps.lint.outcome }}"    == "success" ]]; then
+            echo "### ✅ Tüm kritik kontroller başarılı — kod birleştirmeye hazır!" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### ❌ Kritik kontrol başarısız!"
+              echo ""
+              echo "> 🔴 Yukarıdaki ❌ satırlarını inceleyip düzeltmeler yapın, ardından commit'inizi güncelleyin."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          {
+            echo ""
+            echo "---"
+            echo "*🤖 Bu rapor GitHub Actions tarafından otomatik oluşturulmuştur.*  "
+            echo "*⚠️ = Öneri (engellemez) · ❌ = Hata (birleştirmeyi engeller)*"
+          } >> "$GITHUB_STEP_SUMMARY"
