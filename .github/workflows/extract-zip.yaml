@@ -1,26 +1,26 @@
- name: Extract ZIP
-  
-    "on":
-      push:
-        branches:
-          - main
-  
-    jobs:
-      build:
-        runs-on: ubuntu-latest
-        permissions:
-          contents: write
-        steps:
-          - uses: actions/checkout@v6
-          
-          - name: Extract and commit
-            run: |
-              if [ -f "mintsky_source.zip" ]; then
-                unzip -o mintsky_source.zip -d .
-                rm mintsky_source.zip
-                git config --global user.name "github-actions"
-                git config --global user.email "github-actions@github.com"
-                git add -A
-                git commit -m "Auto-extract modular source"
-                git push
-              fi          
+name: Extract ZIP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Extract and commit
+        run: |
+          if [ -f "mintsky_source.zip" ]; then
+            unzip -o mintsky_source.zip -d .
+            rm mintsky_source.zip
+            git config --global user.name "github-actions"
+            git config --global user.email "github-actions@github.com"
+            git add -A
+            git commit -m "Auto-extract modular source"
+            git push
+          fi
