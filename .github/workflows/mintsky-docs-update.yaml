@@ -16,9 +16,9 @@ permissions:
 
 jobs:
   update-docs:
-    name: 🤖 Brain.md + README Güncelle
+    name: 🤖 Brain.md + README (TR/EN) Güncelle
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
@@ -38,8 +38,9 @@ jobs:
         run: |
           git diff HEAD~1 > diff.txt
 
-          [ -f brain.md  ] && cp brain.md  brain_current.md  || echo "# MintSky Brain" > brain_current.md
-          [ -f README.md ] && cp README.md readme_current.md || echo "# MintSky"       > readme_current.md
+          [ -f brain.md ] && cp brain.md brain_current.md || echo "# MintSky Brain" > brain_current.md
+          [ -f README.md ] && cp README.md readme_current.md || echo "# MintSky" > readme_current.md
+          [ -f README_en.md ] && cp README_en.md readme_en_current.md || echo "# MintSky" > readme_en_current.md
 
           echo "Diff boyutu: $(wc -c < diff.txt) byte"
 
@@ -50,7 +51,6 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          # Prompt metnini Bash değişkenine atıyoruz (Tırnak hatalarını önlemek için)
           SYSTEM_INSTRUCTION=$(cat << 'EOF'
           Sen MintSky projesinin teknik dokümantasyon sorumlususun. MintSky; Linux için Python/GTK3 ile yazılmış, sistem tepsisi destekli (AppIndicator3), Groq AI entegrasyonlu, gerçek zamanlı hava durumu gösteren bir masaüstü uygulamasıdır. brain.md projenin teknik hafızasıdır. Şu bölümleri içermeli: ## Mimari, ## Modüller, ## Bilinen Sorunlar, ## TODO, ## Sürüm Notu (otomatik ekle). Kural: (1) Sadece değişen bölümlere dokun. (2) YALNIZCA güncellenmiş brain.md içeriğini Markdown olarak döndür. (3) Herhangi bir açıklama, yorum veya kod bloğu etiketi ekleme.
           EOF
@@ -61,9 +61,7 @@ jobs:
             --rawfile current_doc  brain_current.md \
             --arg     sys_inst     "$SYSTEM_INSTRUCTION" \
             '{
-              "system_instruction": {
-                "parts": [{ "text": $sys_inst }]
-              },
+              "system_instruction": { "parts": [{ "text": $sys_inst }] },
               "contents": [{
                 "role": "user",
                 "parts": [
@@ -73,21 +71,16 @@ jobs:
                   { "text": $diff }
                 ]
               }],
-              "generationConfig": {
-                "temperature": 0.1,
-                "maxOutputTokens": 4096
-              }
+              "generationConfig": { "temperature": 0.1, "maxOutputTokens": 4096 }
             }' > brain_payload.json
 
-          curl -sf -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d @brain_payload.json > brain_response.json
+          curl -sf -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" -d @brain_payload.json > brain_response.json
 
           OUTPUT=$(jq -r '.candidates[0].content.parts[0].text // empty' brain_response.json)
 
           if [ -z "$OUTPUT" ]; then
-            echo "⚠️  Gemini boş yanıt döndürdü — brain.md değiştirilmedi."
+            echo "⚠️ Gemini boş yanıt döndürdü — brain.md değiştirilmedi."
             cp brain_current.md brain.md
           else
             echo "$OUTPUT" > brain.md
@@ -95,18 +88,17 @@ jobs:
           fi
 
       # ─────────────────────────────────────────────
-      # 4. README.MD — profil tarzı proje tanıtımı
+      # 4. README.MD (TÜRKÇE) — profil tarzı proje tanıtımı
       # ─────────────────────────────────────────────
-      - name: 📖 README.md Güncelle
+      - name: 📖 README.md (TR) Güncelle
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           REPO_OWNER="${{ github.repository_owner }}"
           REPO_NAME_FULL="${{ github.repository }}"
 
-          # Değişkenlerin çalışması için tırnaksız EOF kullanıyoruz
           SYSTEM_INSTRUCTION=$(cat << EOF
-          Sen profesyonel bir GitHub README yazarısın. MintSky projesinin README.md dosyasını aşağıdaki stilden ilham alarak oluşturacaksın.
+          Sen profesyonel bir GitHub README yazarısın. MintSky projesinin README.md dosyasını aşağıdaki stilden ilham alarak TÜRKÇE oluşturacaksın.
 
           == PROJE BİLGİSİ ==
           Ad: MintSky
@@ -115,15 +107,16 @@ jobs:
           Bağımlılıklar: PyGObject (GTK3), gir1.2-appindicator3, libnotify, python-requests, Groq API
 
           == ZORUNLU BÖLÜMLER (bu sırayla) ==
-          1. BAŞLIK BANI — capsule-render.vercel.app (type=waving, color=0:667eea,100:764ba2, height=200), altında: CI badge (shields.io, workflow=MintSky CI, repo=${REPO_NAME_FULL}), Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge.
-          2. TYPING SVG — readme-typing-svg.demolab.com, font=Fira Code, color=764BA2, satırlar: 'MintSky — Linux Hava Durumu 🌤️', 'GTK3 + Groq AI 🤖', 'Sistem Tepsisinden Takip Et 🔔', 'Açık Kaynak & Ücretsiz ❤️'
+          1. BAŞLIK BANI — Mutlaka Markdown görsel formatında ekle: ![MintSky Başlık](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
+             Hemen altında CI badge (shields.io, workflow=MintSky CI, repo=${REPO_NAME_FULL}), Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge. En tepeye ayrıca bir dil seçeneği ekle: [🇬🇧 English](README_en.md)
+          2. TYPING SVG — ![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=435&lines=MintSky+—+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F)
           3. ÖZELLİKLER — emoji'li madde listesi
           4. EKRAN GÖRÜNTÜLERİ — placeholder ()
           5. KURULUM — adım adım bash blokları (apt bağımlılıkları + git clone + python çalıştır)
           6. YAPILANDIRMA — API key, tema, şehir ayarları hakkında kısa bilgi
           7. TEKNOLOJİ YIĞINI — tablo formatında
           8. KATKIDA BULUNMA — kısa paragraf + PR linki
-          9. FOOTER BANI — capsule-render.vercel.app (type=waving, color=0:764ba2,100:667eea, height=120, section=footer)
+          9. FOOTER BANI — Mutlaka Markdown görsel formatında ekle: ![MintSky Footer](https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer)
 
           == KURALLAR ==
           - Tüm badge URL'leri gerçek ve çalışır olsun.
@@ -136,38 +129,26 @@ jobs:
           jq -n \
             --rawfile diff         diff.txt \
             --rawfile current_doc  readme_current.md \
-            --arg     owner        "$REPO_OWNER" \
-            --arg     repo_full    "$REPO_NAME_FULL" \
             --arg     sys_inst     "$SYSTEM_INSTRUCTION" \
             '{
-              "system_instruction": {
-                "parts": [{ "text": $sys_inst }]
-              },
+              "system_instruction": { "parts": [{ "text": $sys_inst }] },
               "contents": [{
                 "role": "user",
                 "parts": [
-                  { "text": ("Repo: " + $repo_full + " | Owner: " + $owner + "\n\n") },
-                  { "text": "=== MEVCUT README.MD ===\n" },
-                  { "text": $current_doc },
-                  { "text": "\n\n=== YENİ GIT DIFF ===\n" },
-                  { "text": $diff }
+                  { "text": "=== MEVCUT README.MD ===\n" }, { "text": $current_doc },
+                  { "text": "\n\n=== YENİ GIT DIFF ===\n" }, { "text": $diff }
                 ]
               }],
-              "generationConfig": {
-                "temperature": 0.3,
-                "maxOutputTokens": 8192
-              }
+              "generationConfig": { "temperature": 0.3, "maxOutputTokens": 8192 }
             }' > readme_payload.json
 
-          curl -sf -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d @readme_payload.json > readme_response.json
+          curl -sf -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" -d @readme_payload.json > readme_response.json
 
           OUTPUT=$(jq -r '.candidates[0].content.parts[0].text // empty' readme_response.json)
 
           if [ -z "$OUTPUT" ]; then
-            echo "⚠️  Gemini boş yanıt döndürdü — README.md değiştirilmedi."
+            echo "⚠️ Gemini boş yanıt döndürdü — README.md değiştirilmedi."
             cp readme_current.md README.md
           else
             echo "$OUTPUT" > README.md
@@ -175,17 +156,85 @@ jobs:
           fi
 
       # ─────────────────────────────────────────────
-      # 5. COMMIT & PUSH
+      # 5. README_en.MD (İNGİLİZCE) — profil tarzı proje tanıtımı
+      # ─────────────────────────────────────────────
+      - name: 🌍 README_en.md (EN) Güncelle
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME_FULL="${{ github.repository }}"
+
+          SYSTEM_INSTRUCTION=$(cat << EOF
+          You are a professional GitHub README writer. Create the README_en.md file for the MintSky project in ENGLISH, inspired by the following style.
+
+          == PROJECT INFO ==
+          Name: MintSky
+          Description: A GTK3-based desktop weather application for Linux with system tray support (AppIndicator3) and Groq AI integration.
+          Language: Python 3
+          Dependencies: PyGObject (GTK3), gir1.2-appindicator3, libnotify, python-requests, Groq API
+
+          == MANDATORY SECTIONS (in this order) ==
+          1. HEADER BANNER — Strictly use Markdown image format: ![MintSky Header](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
+             Right below it: CI badge (shields.io, workflow=MintSky CI, repo=${REPO_NAME_FULL}), Python 3 badge, GTK3 badge, GPL-3.0 badge, platform: Linux badge. At the very top, add a language toggle: [🇹🇷 Türkçe](README.md)
+          2. TYPING SVG — ![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=435&lines=MintSky+—+Linux+Weather+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Track+from+System+Tray+%F0%9F%94%94;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F)
+          3. FEATURES — bullet list with emojis
+          4. SCREENSHOTS — placeholder ()
+          5. INSTALLATION — step-by-step bash blocks (apt dependencies + git clone + run python)
+          6. CONFIGURATION — brief info about API key, theme, city settings
+          7. TECHNOLOGY STACK — in table format
+          8. CONTRIBUTING — short paragraph + PR link
+          9. FOOTER BANNER — Strictly use Markdown image format: ![MintSky Footer](https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer)
+
+          == RULES ==
+          - All output MUST be in English.
+          - All badge URLs must be real and functional.
+          - Rewrite only the changed sections, update the content based on the diff.
+          - ONLY return the README_en.md content. Do not add any explanations or markdown code block tags.
+          EOF
+          )
+
+          jq -n \
+            --rawfile diff         diff.txt \
+            --rawfile current_doc  readme_en_current.md \
+            --arg     sys_inst     "$SYSTEM_INSTRUCTION" \
+            '{
+              "system_instruction": { "parts": [{ "text": $sys_inst }] },
+              "contents": [{
+                "role": "user",
+                "parts": [
+                  { "text": "=== CURRENT README_en.MD ===\n" }, { "text": $current_doc },
+                  { "text": "\n\n=== NEW GIT DIFF ===\n" }, { "text": $diff }
+                ]
+              }],
+              "generationConfig": { "temperature": 0.3, "maxOutputTokens": 8192 }
+            }' > readme_en_payload.json
+
+          curl -sf -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" -d @readme_en_payload.json > readme_en_response.json
+
+          OUTPUT=$(jq -r '.candidates[0].content.parts[0].text // empty' readme_en_response.json)
+
+          if [ -z "$OUTPUT" ]; then
+            echo "⚠️ Gemini boş yanıt döndürdü — README_en.md değiştirilmedi."
+            cp readme_en_current.md README_en.md
+          else
+            echo "$OUTPUT" > README_en.md
+            echo "✅ README_en.md güncellendi."
+          fi
+
+      # ─────────────────────────────────────────────
+      # 6. COMMIT & PUSH
       # ─────────────────────────────────────────────
       - name: 💾 Commit & Push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add brain.md README.md
+          git add brain.md README.md README_en.md
 
           if git diff --staged --quiet; then
-            echo "ℹ️  Değişiklik yok — commit atlanıyor."
+            echo "ℹ️ Değişiklik yok — commit atlanıyor."
           else
             HASH=$(git rev-parse --short HEAD)
             CHANGED=$(git diff --staged --name-only | tr '\n' ' ')
