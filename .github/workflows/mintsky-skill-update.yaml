@@ -32,9 +32,9 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          DIFF_CONTENT=$(git diff HEAD~1)
+          git diff HEAD~1 > diff.txt
           
-          jq -n --arg diff "$DIFF_CONTENT" '{
+          jq -n --rawfile diff diff.txt '{
             "system_instruction": {
               "parts": [{
                 "text": "Sen MintSky Masaüstü Hava Durumu uygulaması projesinin teknik dokümantasyon sorumlususun. Görevin, yapılan kod değişikliklerine (git diff) göre projenin ana dokümantasyon dosyası olan brain.md dosyasını otomatik güncellemektir. Kurallar: (1) Sadece mantıksal olarak değişen bölümlere dokun, geri kalan yapıyı koru. (2) Yanıt olarak SADECE ve tamamen güncellenmiş brain.md içeriğini Markdown formatında döndür, ekstra hiçbir yorum yazma."
