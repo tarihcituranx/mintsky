@@ -12,7 +12,7 @@
 
 ## 🌟 Features
 
-* 🌤️ **Real-Time Weather:** Track current weather conditions, temperature, and forecasts for your city.
+* 🌤️ **Real-Time Weather:** Track current weather conditions, temperature, and forecasts for Turkish cities using MGM API.
 * 🤖 **Groq AI Integration:** Get smart, AI-generated weather summaries, outdoor activity suggestions, and clothing recommendations.
 * 🔔 **System Tray Support:** Runs quietly in the background using `AppIndicator3` with native system tray integration.
 * 💬 **Desktop Notifications:** Receive instant weather alerts and updates via `libnotify`.

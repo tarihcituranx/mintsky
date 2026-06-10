@@ -12,10 +12,11 @@
 
 ## 🌟 Özellikler
 
-* 🌤️ **Gerçek Zamanlı Hava Durumu:** Belirlediğiniz konuma göre anlık ve doğru hava durumu verileri.
-* 🤖 **Groq AI Entegrasyonu:** Hava durumuna göre yapay zeka destekli giyim, aktivite ve gün planlama önerileri.
+* 🌤️ **Gerçek Zamanlı Hava Durumu:** Belirlediğiniz konuma göre anlık ve doğru hava durumu verileri (MGM ve Open-Meteo entegrasyonu).
+* 🤖 **Groq AI Entegrasyonu:** Hava durumuna göre yapay zeka destekli giyim, aktivite, sağlık ve yol koşulları hakkında pratik öneriler (emoji destekli, kısa ve öz maddeler halinde).
 * 🔔 **Sistem Tepsisi (AppIndicator3):** Arka planda hafif ve sessizce çalışarak sistem tepsisinden anlık durum takibi sunar.
 * 💬 **Masaüstü Bildirimleri:** `libnotify` entegrasyonu ile kritik hava durumu değişimlerinde anlık bildirimler gönderir.
+* 📈 **Finans Modülü:** Canlı altın, döviz ve kripto para takibi ile portföy kar/zarar yönetimi.
 * 🎨 **GTK3 Arayüzü:** Linux masaüstü ortamlarıyla tam uyumlu, modern, sade ve kullanıcı dostu arayüz.
 
 ## 📸 Ekran Görüntüleri
@@ -46,7 +47,7 @@ python3 main.py
 ## 🛠️ Yapılandırma
 
 * **Groq API Anahtarı:** Yapay zeka destekli hava durumu yorumları ve önerileri alabilmek için geçerli bir Groq API anahtarına ihtiyacınız vardır. API anahtarınızı uygulama arayüzündeki ayarlar bölümünden tanımlayabilirsiniz.
-* **Şehir Ayarları:** Takip etmek istediğiniz şehri arayüz üzerinden aratıp varsayılan olarak kaydedebilirsiniz.
+* **Şehir Ayarları:** Takip etmek istediğiniz şehri ve ilçeyi arayüz üzerinden aratıp varsayılan olarak kaydedebilirsiniz.
 * **Tema:** Uygulama, sisteminizin mevcut GTK3 temasıyla otomatik olarak uyumlu şekilde çalışır.
 
 ## 💻 Teknoloji Yığını
