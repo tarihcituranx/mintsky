@@ -121,6 +121,7 @@ jobs:
           == KURALLAR ==
           - Tüm badge URL'leri gerçek ve çalışır olsun.
           - Türkçe içerik, İngilizce badge label'ları.
+          - DİKKAT: Mevcut README.md dosyasındaki özellikleri (Dünya şehirleri, finans, Edge-TTS, i18n, Erişilebilirlik vs.) ve Teknoloji Yığınını ASLA silme veya atlama! Mevcut listeyi koru, sadece eğer git diff'te yeni bir özellik eklendiyse onu listeye ilave et.
           - Sadece değişen bölümleri yeniden yaz, diff'e göre içeriği güncelle.
           - YALNIZCA README.md içeriğini döndür. Açıklama veya kod bloğu etiketi ekleme.
           EOF
@@ -187,9 +188,10 @@ jobs:
           9. FOOTER BANNER — Strictly use Markdown image format: ![MintSky Footer](https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer)
 
           == RULES ==
-          - All output MUST be in English.
-          - All badge URLs must be real and functional.
-          - Rewrite only the changed sections, update the content based on the diff.
+          - All badge URLs must be real and working.
+          - English content and English badge labels.
+          - CAUTION: NEVER delete or skip the existing features (World cities, finance, Edge-TTS, i18n, A11y etc.) or Technology Stack from the current README_en.md! Preserve the existing list and only ADD new features if they are found in the git diff.
+          - Only rewrite the sections that changed, update the content based on the diff.
           - ONLY return the README_en.md content. Do not add any explanations or markdown code block tags.
           EOF
           )

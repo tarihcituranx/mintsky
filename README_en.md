@@ -12,11 +12,13 @@
 
 ## 🌟 Features
 
-* 🌤️ **Real-Time Weather:** Track current weather conditions, temperature, and forecasts for Turkish cities using MGM API.
-* 🤖 **Groq AI Integration:** Get smart, AI-generated weather summaries, outdoor activity suggestions, and clothing recommendations.
-* 🔔 **System Tray Support:** Runs quietly in the background using `AppIndicator3` with native system tray integration.
-* 💬 **Desktop Notifications:** Receive instant weather alerts and updates via `libnotify`.
-* 🎨 **Modern GTK3 Interface:** A clean, lightweight, and native user interface designed specifically for Linux desktop environments.
+* 🌍 **Global Weather (World Cities):** Automatically fetches weather data for any city worldwide using Open-Meteo, with localized MGM data for Turkey.
+* 🤖 **Groq AI & Edge-TTS Assistant:** AI-powered recommendations (e.g., "should I take an umbrella?"). Reads the suggestions aloud using realistic **Edge-TTS** voices!
+* 💰 **Finance & Portfolio Tracker:** Real-time prices for Gold, Currencies, and Crypto via Truncgil API. Track your portfolio to see live Profit/Loss calculations.
+* ♿ **Accessibility (A11y):** Full support for Linux Screen Readers (e.g., Orca). All UI elements (buttons, search bars, tabs) are properly labeled via `Atk` for 100% keyboard navigability.
+* 🌐 **Multi-Language (i18n):** Supports English and Turkish out-of-the-box using modular `.json` locale files, similar to Telegram.
+* 🔔 **System Tray & Notifications:** Runs quietly in the background (`AppIndicator3`) and delivers desktop notifications via `libnotify` for sudden weather changes.
+* 🎨 **Modern GTK3 Interface:** A clean, lightweight, native UI with Dark/Light mode support tailored for Linux desktop environments.
 
 ## 📸 Screenshots
 
@@ -73,9 +75,11 @@ Upon the first launch, MintSky will generate a configuration file where you can 
 | **Python 3** | Language | Core application logic |
 | **GTK3 (PyGObject)** | GUI Framework | Native Linux user interface |
 | **AppIndicator3** | System Tray | Background execution and tray icon management |
+| **Groq AI & LLaMA 3** | AI Engine | LLM-powered personalized weather summaries |
+| **Edge-TTS** | Text-To-Speech | Realistic and natural human AI voice integration |
+| **MGM & Open-Meteo** | APIs | Global and local weather data providers |
+| **Truncgil API** | Finance | Live market rates for currencies and gold |
 | **libnotify** | Notifications | Native desktop notification delivery |
-| **Groq API** | AI Engine | LLM-powered personalized weather summaries |
-| **Requests** | Networking | API communication and data fetching |
 
 ## 🤝 Contributing
 
