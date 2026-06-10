@@ -13,7 +13,7 @@
 - Oturum gereklilikleri başarıyla uygulandı, şu an proje bekleme / inceleme durumunda.
 
 ## ⏭️ Sıradaki Adım
-- `mintsky/ui/app.py` dosyasındaki devasa God Class yapısının modüler hale getirilmesi (Kullanıcı onayına bağlı olarak).
+- [SABAH SEANSINDA YAPILACAK]: `mintsky/ui/app.py` dosyasındaki devasa God Class yapısının modüler hale getirilmesi ve `api/` ile `core/` klasörlerine ayrıştırılması.
 
 ## 🚧 Açık Kararlar
 - Yeni `api/` ve `core/` klasörlerinin ne zaman oluşturulacağı ve hangi yöntemle refactor edileceği.
