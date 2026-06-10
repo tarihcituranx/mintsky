@@ -12,11 +12,13 @@
 
 ## 🌟 Özellikler
 
-* 🌤️ **Gerçek Zamanlı Hava Durumu:** Belirlediğiniz konuma göre anlık ve doğru hava durumu verileri (MGM ve Open-Meteo entegrasyonu).
-* 🤖 **Groq AI Entegrasyonu:** Hava durumuna göre yapay zeka destekli giyim, aktivite, sağlık ve yol koşulları hakkında pratik öneriler (emoji destekli, kısa ve öz maddeler halinde).
+* 🌍 **Dünya Şehirleri (Global API):** Hem MGM üzerinden Türkiye verilerini hem de Open-Meteo üzerinden dünyadaki tüm şehirleri otomatik tanır ve hava durumunu anlık çeker.
+* 🤖 **Groq AI & Edge-TTS Asistan:** Hava durumuna göre "bugün ne giymelisin", "şemsiye almalı mısın" gibi yapay zeka tavsiyeleri verir. **Edge-TTS** altyapısıyla bu tavsiyeleri doğal bir insan sesiyle okur!
+* 📈 **Finans Modülü:** Canlı altın, döviz ve kripto para takibi ile portföy kar/zarar yönetimi.
+* ♿ **Görme Engelli Erişilebilirliği:** Arayüzdeki tüm elementler (butonlar, arama çubukları, sekmeler) `Atk` kütüphanesiyle işaretlenmiş olup Linux Ekran Okuyucuları (Örn: Orca) ile %100 uyumludur. Sadece klavye kullanarak uygulamada gezebilirsiniz.
+* 🌐 **Çoklu Dil Desteği (i18n):** Türkçe ve İngilizce başta olmak üzere Telegram tarzı `.json` uzantılı modüler dil dosyaları ile anında dil değiştirebilirsiniz.
 * 🔔 **Sistem Tepsisi (AppIndicator3):** Arka planda hafif ve sessizce çalışarak sistem tepsisinden anlık durum takibi sunar.
 * 💬 **Masaüstü Bildirimleri:** `libnotify` entegrasyonu ile kritik hava durumu değişimlerinde anlık bildirimler gönderir.
-* 📈 **Finans Modülü:** Canlı altın, döviz ve kripto para takibi ile portföy kar/zarar yönetimi.
 * 🎨 **GTK3 Arayüzü:** Linux masaüstü ortamlarıyla tam uyumlu, modern, sade ve kullanıcı dostu arayüz.
 
 ## 📸 Ekran Görüntüleri
@@ -57,9 +59,10 @@ python3 main.py
 | **Python 3** | Ana programlama dili |
 | **GTK3 (PyGObject)** | Kullanıcı arayüzü kütüphanesi |
 | **AppIndicator3** | Sistem tepsisi (System Tray) entegrasyonu |
-| **Groq API** | Yapay zeka destekli hava durumu yorumlama ve asistanlık |
+| **Groq AI & Edge-TTS** | Yapay zeka destekli hava durumu yorumlama ve asistanlık |
+| **MGM & Open-Meteo** | Hava Durumu API'leri |
+| **Truncgil Finance API**| Anlık finans ve borsa verileri |
 | **libnotify** | Masaüstü bildirim sistemi |
-| **Requests** | API entegrasyonları için HTTP kütüphanesi |
 
 ## 🤝 Katkıda Bulunma
 
