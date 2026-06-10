@@ -50,3 +50,29 @@ MintSky, Linux masaüstü ortamları için tasarlanmış, hafif ve modüler bir 
 - **Yapılandırılmış Çıktı (JSON Mode):** `constants.py` içindeki `GROQ_SYSTEM` promptu güncellenerek, Groq API'sinden yanıtların düz metin yerine kesin bir JSON formatında gelmesi sağlandı. API isteğine `response_format: {"type": "json_object"}` parametresi eklendi.
 - **Arayüz Modernizasyonu:** `app.py` içerisindeki Groq diyalog ekranı baştan aşağı yenilendi. Artık düz bir `Gtk.Label` yerine dinamik oluşturulan `Gtk.Frame` kartları (Giyim, Sağlık, Aktivite vb.) ikonlarıyla birlikte ekrana basılarak çok daha premium ve okunabilir bir görünüm elde edildi.
 - **Sesli Asistan (Text-to-Speech):** Groq'un yeni `/v1/audio/speech` yeteneği entegre edildi. Arayüze "🔊 Dinle" butonu eklendi. JSON olarak alınan veriler doğal bir konuşma metnine dönüştürülüp, "playai-tts" (Fritz-PlayAI) modeli kullanılarak sesli okunabilir hale getirildi (Linux `aplay` aracı ile oynatılıyor).
+
+## 📚 Kullanım Kılavuzu (MintSky V7.0)
+
+MintSky uygulamasındaki tüm özelliklerin kullanımı:
+
+**1. Dünya Şehirleri ve Hava Durumu Arama**
+- Üstteki arama kutusuna hem Türkiye'den (Örn: `Ankara`, `Kadıköy`) hem de dünyadan (Örn: `London`, `Tokyo`, `New York`) istediğiniz şehri yazıp **Ara** butonuna basabilirsiniz. 
+- Sistem Türkiye için anlık MGM verisini, dünya şehirleri için otomatik olarak Open-Meteo verisini çeker.
+
+**2. Finans, Döviz ve Kripto Modülü**
+- Sağ üstteki **"💰 Finans"** butonuna tıklayarak piyasaları açabilirsiniz.
+- Hangi kurların (Altın, Dolar, Euro, Bitcoin vs.) görüneceğini seçmek için **"⚙️ Ayarlar"** menüsüne girin ve **"Finans"** sekmesine tıklayın. Oradan dilediğiniz birimleri işaretleyip kaydedin.
+- Finans penceresindeyken "Portföyüm" kısmına girip elinizdeki varlıkların alış fiyatını ve miktarını yazarak canlı Kar/Zarar durumunuzu takip edebilirsiniz.
+
+**3. Dil Değiştirme (Türkçe / İngilizce)**
+- Üst menüden **"⚙️ Ayarlar"** butonuna tıklayın.
+- **"Sistem"** sekmesine (en sağdaki) geçin.
+- Orada **"Uygulama Dili"** seçeneğini göreceksiniz. Türkçe veya English seçip "Kaydet"e bastıktan sonra uygulamayı yeniden başlatırsanız dil tamamen değişecektir!
+
+**4. Groq AI Sesli Hava Danışmanı**
+- Sağ üstteki **"🤖 AI"** ikonuna tıklayın.
+- "Sor" butonuna bastığınızda yapay zeka anlık hava durumuna göre size ne giymeniz gerektiğini, şemsiye alıp almamanızı esprili bir dille söyler.
+- **"🔊 Dinle"** butonuna basarsanız yeni entegre edilen Edge-TTS sistemi (Emel'in sesiyle) size çok doğal bir şekilde yanıtı okur!
+
+**5. Erişilebilirlik (Görme Engelli Desteği)**
+- Hiçbir fare (mouse) tıklamasına ihtiyaç duymadan **Tab** ve **Ok** tuşları ile arayüzde gezebilirsiniz. Orca gibi ekran okuyucular arama kutusunu, butonları ve sekmeleri size sesli olarak betimler.

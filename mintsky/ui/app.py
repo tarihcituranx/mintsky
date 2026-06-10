@@ -317,7 +317,7 @@ class MintSkyApp(Gtk.Window):
                 "show_saatlik":self._show_saatlik, "show_gunluk":self._show_gunluk,
                 "groq_api_key":self._groq_api_key, "show_finance":self._show_finance,
                 "fin_altin":self._fin_altin, "fin_doviz":self._fin_doviz,
-                "fin_kripto":self._fin_kripto,
+                "fin_kripto":self._fin_kripto, "lang":self._lang,
             }, f, ensure_ascii=False)
 
     # ──────────────────── Portföy ──────────────────────────────────────────
@@ -814,6 +814,13 @@ class MintSkyApp(Gtk.Window):
         p4.pack_start(chk_auto,   False, False, 0)
         _sep(p4)
 
+        cb_lang = Gtk.ComboBoxText()
+        cb_lang.append("tr", "🇹🇷 Türkçe")
+        cb_lang.append("en", "🇬🇧 English")
+        cb_lang.set_active_id(self._lang)
+        _row("Uygulama Dili", cb_lang, p4)
+        _sep(p4)
+
         btn_install = Gtk.Button(label="🚀 Uygulama Menüsüne Kısayol Ekle")
         self._sc(btn_install, "btn-search")
         btn_install.connect("clicked", self._install_as_app)
@@ -844,6 +851,13 @@ class MintSkyApp(Gtk.Window):
             self._groq_api_key   = groq_entry.get_text().strip()
             self._fin_altin      = [k for k,c in altin_chks.items() if c.get_active()]
             self._fin_doviz      = [k for k,c in doviz_chks.items() if c.get_active()]
+            
+            old_lang = self._lang
+            self._lang = cb_lang.get_active_id()
+            if self._lang != old_lang:
+                load_language(self._lang)
+                self._msg_dialog(None, "Dil Değiştirildi", "Dil değişikliğinin tam uygulanması için uygulamayı yeniden başlatmanız önerilir.")
+
             self._save_settings()
             self._apply_css()
             self._apply_autostart_logic()
