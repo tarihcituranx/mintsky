@@ -1,43 +1,34 @@
-# agent-skills
+# MintSky — Claude Talimatları
 
-This is the agent-skills project — a collection of production-grade engineering skills for AI coding agents.
+## ZORUNLU — Konuşmadan önce yap
 
-## Project Structure
+Kullanıcı sana herhangi bir şey söylemeden önce şu iki dosyayı oku:
 
-```
-skills/       → Core skills (SKILL.md per directory)
-agents/       → Reusable agent personas (code-reviewer, test-engineer, security-auditor)
-hooks/        → Session lifecycle hooks
-.claude/commands/ → Slash commands (/spec, /plan, /build, /test, /review, /code-simplify, /ship)
-references/   → Supplementary checklists (testing, performance, security, accessibility)
-docs/         → Setup guides for different tools
-```
+1. `brain.md` — mimari, kurallar, bilinen sorunlar
+2. `PROJECT_STATUS.md` — nerede kaldığımız, sıradaki adım
 
-## Skills by Phase
+Okuduktan sonra kullanıcıya tek cümleyle özetle:
+> "Kaldığımız yer: [PROJECT_STATUS.md'deki sıradaki adım]. Devam edelim mi?"
 
-**Define:** interview-me, idea-refine, spec-driven-development
-**Plan:** planning-and-task-breakdown
-**Build:** incremental-implementation, test-driven-development, context-engineering, source-driven-development, doubt-driven-development, frontend-ui-engineering, api-and-interface-design
-**Verify:** browser-testing-with-devtools, debugging-and-error-recovery
-**Review:** code-review-and-quality, code-simplification, security-and-hardening, performance-optimization
-**Ship:** git-workflow-and-versioning, ci-cd-and-automation, deprecation-and-migration, documentation-and-adrs, shipping-and-launch
+**Bu adımı atlama. Kullanıcı senden bir şey istemiş olsa bile önce oku.**
 
-## Conventions
+---
 
-- Every skill lives in `skills/<name>/SKILL.md`
-- YAML frontmatter with `name` and `description` fields
-- Description starts with what the skill does (third person), followed by trigger conditions ("Use when...")
-- Every skill has: Overview, When to Use, Process, Common Rationalizations, Red Flags, Verification
-- References are in `references/`, not inside skill directories
-- Supporting files only created when content exceeds 100 lines
+## ZORUNLU — Görev bitiminde yap
 
-## Commands
+Her görev tamamlandığında veya kullanıcı oturumu kapatmadan önce:
 
-- `npm test` — Not applicable (this is a documentation project)
-- Validate: Check that all SKILL.md files have valid YAML frontmatter with name and description
+1. `PROJECT_STATUS.md` güncelle:
+   - Tamamlananı ✅ listesine taşı
+   - Yarım kalanı ve neden durduğunu yaz
+   - Sıradaki adımı spesifik yaz (dosya adı, fonksiyon adı, satır numarası)
+2. Commit at: `docs: PROJECT_STATUS güncelle`
 
-## Boundaries
+**Bunu yapmazsan bir sonraki AI sıfırdan başlar. Kullanıcıyı tekrar tekrar açıklamak zorunda bırakırsın.**
 
-- Always: Follow the skill-anatomy.md format for new skills
-- Never: Add skills that are vague advice instead of actionable processes
-- Never: Duplicate content between skills — reference other skills instead
+---
+
+## Proje
+
+MintSky — Linux GTK3 hava durumu + finans masaüstü uygulaması.
+Detaylar: `brain.md`
