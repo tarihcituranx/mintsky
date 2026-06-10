@@ -23,20 +23,10 @@ MintSky, Linux masaüstü ortamları için tasarlanmış, hafif ve modüler bir 
 
 - [x] GitHub Actions dokümantasyon iş akışında Typing SVG görselinin ortalanmış HTML etiketi ile değiştirilmesi.
 - [x] Dokümantasyon güncelleme iş akışında çakışmaları önlemek için `git pull --rebase` stratejisine geçilmesi.
-- [x] Farklı hava durumu sağlayıcıları için fallback (yedek) mekanizması eklenmesi.
-- [x] **Telegram Tarzı Dil Paketi Sistemi:** Uygulama arayüzünün dil dosyaları (örn. `tr.json`, `en.json`) üzerinden çalışması ve kullanıcıların kendi dil dosyalarını yükleyip / seçebilmesi.
-- [x] **Görme Engelliler İçin Tam Erişilebilirlik (Accessibility):** Linux sistemlerindeki ekran okuyucular (Orca vb.) ile %100 uyumlu çalışması için GTK/Atk etiketlerinin ayarlanması ve uygulamanın tamamen klavye ile (Tab tuşu, kısayollar) yönetilebilir hale getirilmesi.
-- [x] **Edge TTS Entegrasyonu:** gTTS yerine Microsoft Edge'in çok daha doğal ve akıcı olan yapay zeka seslendirmelerine (edge-tts kütüphanesi) geçiş yapılması.
-- [x] **Dünya Şehirleri Desteği (Global API):** Arama çubuğunda yabancı şehirler aranabilmesi için Nominatim API ile Open-Meteo API entegrasyonunun birleştirilmesi.
+- [ ] Çoklu dil desteğinin (Türkçe/İngilizce) uygulama arayüzüne tam entegrasyonu.
+- [ ] Farklı hava durumu sağlayıcıları için fallback (yedek) mekanizması eklenmesi.
 
 ## Sürüm Notu
-
-### [V7.0 - Global, Erişilebilir ve Modüler Sürüm]
-- **Dünya Şehirleri Desteği:** Sadece Türkiye değil, Nominatim (OpenStreetMap) entegrasyonu sayesinde tüm dünya şehirleri ve ilçeleri aranabilir hale geldi! (Open-Meteo altyapısı ile global hava tahmini desteği).
-- **Edge-TTS Sesli Asistan:** Gecikmeli ve robotik gTTS kaldırılarak, yerine Microsoft Edge'in tamamen doğal ve akıcı (EmelNeural vb.) ses modelleri entegre edildi.
-- **Erişilebilirlik (A11y - Orca Desteği):** Görme engelli kullanıcılar için butonlara, arama kutularına ve ikonlara `Atk` (Accessibility Toolkit) etiketleri eklendi. Ekran okuyucular artık her elementi doğru okuyabiliyor.
-- **i18n Dil Sistemi (Telegram Tarzı):** Projeye `locales/tr.json` ve `en.json` dosyaları eklenerek modüler dil sistemi altyapısı kuruldu. Artık tüm uygulama diller arasında özelleştirilebiliyor.
-- **Güvenlik ve Agent Skills Denetimi:** Tüm kod yapısı `Addy Osmani Agent-Skills` prensiplerine göre incelendi. Subprocess shell injection koruması, try-except kalkanları ve JSON önbellek temizlikleri doğrulandı. Hiçbir güvenlik açığı bulunmuyor.
 
 ### [Oto-Güncelleme] Dokümantasyon ve CI/CD İyileştirmeleri
 - **README Şablon Güncellemesi:** Otomatik oluşturulan README dosyasındaki "Typing SVG" başlığı, daha iyi görsel düzen için ortalanmış HTML `<p align="center"><img ... /></p>` yapısına dönüştürüldü.
@@ -45,34 +35,3 @@ MintSky, Linux masaüstü ortamları için tasarlanmış, hafif ve modüler bir 
 ## Çalışma Prensipleri (Agent Kuralları)
 
 - **Hata Ayıklama ve Geliştirme (Agent Skills):** Yapay zeka asistanları, proje üzerinde hata düzeltmeleri (bug fixes) yaparken, mimariyi incelerken veya yeni özellik eklerken KESİNLİKLE **Addy Osmani agent-skills** prensiplerini ve dizindeki (`AGENT_SKILLS.md`, `.claude/`, `skills/`) yetenekleri kullanmalıdır (Örn: hata çözümlerinde *test-driven-development*, *debugging-and-error-recovery*).
-
-### [Yeni Geliştirme: Groq AI JSON Mode ve Sesli Asistan]
-- **Yapılandırılmış Çıktı (JSON Mode):** `constants.py` içindeki `GROQ_SYSTEM` promptu güncellenerek, Groq API'sinden yanıtların düz metin yerine kesin bir JSON formatında gelmesi sağlandı. API isteğine `response_format: {"type": "json_object"}` parametresi eklendi.
-- **Arayüz Modernizasyonu:** `app.py` içerisindeki Groq diyalog ekranı baştan aşağı yenilendi. Artık düz bir `Gtk.Label` yerine dinamik oluşturulan `Gtk.Frame` kartları (Giyim, Sağlık, Aktivite vb.) ikonlarıyla birlikte ekrana basılarak çok daha premium ve okunabilir bir görünüm elde edildi.
-- **Sesli Asistan (Text-to-Speech):** Groq'un yeni `/v1/audio/speech` yeteneği entegre edildi. Arayüze "🔊 Dinle" butonu eklendi. JSON olarak alınan veriler doğal bir konuşma metnine dönüştürülüp, "playai-tts" (Fritz-PlayAI) modeli kullanılarak sesli okunabilir hale getirildi (Linux `aplay` aracı ile oynatılıyor).
-
-## 📚 Kullanım Kılavuzu (MintSky V7.0)
-
-MintSky uygulamasındaki tüm özelliklerin kullanımı:
-
-**1. Dünya Şehirleri ve Hava Durumu Arama**
-- Üstteki arama kutusuna hem Türkiye'den (Örn: `Ankara`, `Kadıköy`) hem de dünyadan (Örn: `London`, `Tokyo`, `New York`) istediğiniz şehri yazıp **Ara** butonuna basabilirsiniz. 
-- Sistem Türkiye için anlık MGM verisini, dünya şehirleri için otomatik olarak Open-Meteo verisini çeker.
-
-**2. Finans, Döviz ve Kripto Modülü**
-- Sağ üstteki **"💰 Finans"** butonuna tıklayarak piyasaları açabilirsiniz.
-- Hangi kurların (Altın, Dolar, Euro, Bitcoin vs.) görüneceğini seçmek için **"⚙️ Ayarlar"** menüsüne girin ve **"Finans"** sekmesine tıklayın. Oradan dilediğiniz birimleri işaretleyip kaydedin.
-- Finans penceresindeyken "Portföyüm" kısmına girip elinizdeki varlıkların alış fiyatını ve miktarını yazarak canlı Kar/Zarar durumunuzu takip edebilirsiniz.
-
-**3. Dil Değiştirme (Türkçe / İngilizce)**
-- Üst menüden **"⚙️ Ayarlar"** butonuna tıklayın.
-- **"Sistem"** sekmesine (en sağdaki) geçin.
-- Orada **"Uygulama Dili"** seçeneğini göreceksiniz. Türkçe veya English seçip "Kaydet"e bastıktan sonra uygulamayı yeniden başlatırsanız dil tamamen değişecektir!
-
-**4. Groq AI Sesli Hava Danışmanı**
-- Sağ üstteki **"🤖 AI"** ikonuna tıklayın.
-- "Sor" butonuna bastığınızda yapay zeka anlık hava durumuna göre size ne giymeniz gerektiğini, şemsiye alıp almamanızı esprili bir dille söyler.
-- **"🔊 Dinle"** butonuna basarsanız yeni entegre edilen Edge-TTS sistemi (Emel'in sesiyle) size çok doğal bir şekilde yanıtı okur!
-
-**5. Erişilebilirlik (Görme Engelli Desteği)**
-- Hiçbir fare (mouse) tıklamasına ihtiyaç duymadan **Tab** ve **Ok** tuşları ile arayüzde gezebilirsiniz. Orca gibi ekran okuyucular arama kutusunu, butonları ve sekmeleri size sesli olarak betimler.
