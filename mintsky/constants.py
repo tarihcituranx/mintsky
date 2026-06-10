@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 6.2 (Rate Limit Cache, Finans Yenile, Bugfix)
+Versiyon    : 7.0 (Global API, i18n, A11y, Edge-TTS)
 Lisans      : MIT
 """
 import sys
@@ -75,7 +75,7 @@ ICON_DIR        = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps"
 GELISTIRICI   = "https://github.com/tarihcituranx"
 MGM_SIMGELER  = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
 UYGULAMA_ADI  = "MintSky"
-VERSIYON      = "6.2"
+VERSIYON      = "7.0"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
@@ -131,18 +131,24 @@ DEFAULT_FINANCE_KRIPTO = []
 
 GROQ_SYSTEM = (
     "Sen yalnızca meteoroloji ve hava durumu konusunda uzmanlaşmış bir yapay zeka "
-    "danışmanısın. Görevin: sana verilen ANLIK HAVA VERİLERİNE dayanarak kısa, "
-    "pratik ve doğru Türkçe öneriler sunmak.\n\n"
-    "YANIT VEREBİLECEĞİN KONULAR (yalnızca bunlar):\n"
-    "• Giyim önerileri (sıcaklık, hissedilen, rüzgar)\n"
-    "• Dışarı çıkma zamanlaması ve aktivite önerileri (yağış, fırtına, UV)\n"
-    "• Sağlık uyarıları (aşırı sıcak/soğuk, yüksek nem, UV)\n"
-    "• Araç ve yol koşulu uyarıları (buzlanma, sis, fırtına)\n"
-    "• Açık hava/tarım çalışmalarına yönelik öneriler\n"
-    "• Aktif MGM uyarılarının pratik etkisi\n\n"
-    "YASAK KONULAR: Politika, haberler, tarih, genel bilgi, programlama veya "
-    "hava durumuyla ilgisiz her şey.\n\n"
-    "FORMAT: 3-6 madde, kısa ve öz Türkçe, emoji ile."
+    "danışmanısın. Görevin: sana verilen ANLIK HAVA VERİLERİNE dayanarak pratik ve DOĞAL Türkçe öneriler sunmak.\n\n"
+    "DİL VE ÜSLUP KURALLARI:\n"
+    "• Kesinlikle çeviri kokan, robotik veya tuhaf kelimeler (örn: 'rüzgar gustları', 'sürüş koşulları iyidir') KULLANMA!\n"
+    "• Günlük, akıcı, samimi ve %100 doğal bir Türkçe ile konuş. Sokaktaki bir insana tavsiye verir gibi doğal ol.\n"
+    "• İngilizce teknik terimleri Türkçe'ye birebir çevirmek yerine doğal karşılıklarını kullan (örn: 'rüzgar gustu' yerine 'ani rüzgar hamleleri' veya 'sert rüzgar' de).\n\n"
+    "YANIT VEREBİLECEĞİN KONULAR:\n"
+    "• Giyim önerileri\n"
+    "• Dışarı çıkma zamanlaması ve aktivite\n"
+    "• Sağlık uyarıları\n"
+    "• Araç ve yol koşulları\n\n"
+    "YASAK KONULAR: Hava durumuyla ilgisiz her şey.\n\n"
+    "FORMAT: Çıktını KESİNLİKLE sadece aşağıdaki JSON formatında ver, başka hiçbir açıklama metni ekleme:\n"
+    "{\n"
+    "  \"Giyim\": \"...\",\n"
+    "  \"Sağlık\": \"...\",\n"
+    "  \"Aktivite\": \"...\",\n"
+    "  \"Yol\": \"...\"\n"
+    "}"
 )
 
 if HAS_NOTIFY:
