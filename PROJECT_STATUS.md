@@ -17,6 +17,7 @@
 
 ## 🚧 Açık Kararlar
 - Yeni `api/` ve `core/` klasörlerinin ne zaman oluşturulacağı ve hangi yöntemle refactor edileceği.
+- **[SABAH TARTIŞILACAK]:** "Kişisel AI yetenekleri (`skills/`, `AGENT_SKILLS.md` vs.) ve kişisel `brain.md` neden ana proje reposunda yer alıyor? Projeye özel kurallarla kişisel/genel AI kurallarının ayrı tutulması (veya `.gitignore`a eklenmesi) gerekmiyor mu?" konusu sabah seansında çözüme kavuşturulacak.
 
 ## 📝 Notlar
 - `setup.py` sürümü (5.0) ile `constants.py` (6.2) uyumsuzluğu bir sonraki güncellemede düzeltilmeli.
