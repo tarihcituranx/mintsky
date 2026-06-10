@@ -10,6 +10,7 @@ Versiyon    : 6.2 (Rate Limit Cache, Finans Yenile, Bugfix)
 Lisans      : MIT
 """
 import sys
+from mintsky.i18n import load_language, _
 import gi
 gi.require_version("Gtk", "3.0")
 try:
@@ -279,7 +280,10 @@ class MintSkyApp(Gtk.Window):
             self._manual_scale       = d.get("scale",           1.2)
             self._autostart          = d.get("autostart",       False)
             self._def_il             = d.get("def_il",          "Samsun")
+            self._def_il             = d.get("def_il",          "Samsun")
             self._def_ilce           = d.get("def_ilce",        "Atakum")
+            self._lang               = d.get("lang",            "tr")
+            load_language(self._lang)
             self._notify_enabled     = d.get("notify",          True)
             self._api_source         = d.get("api_source",      "mgm")
             self._show_extra         = d.get("show_extra",       False)
@@ -298,6 +302,8 @@ class MintSkyApp(Gtk.Window):
             self._groq_api_key = ""; self._show_finance = False
             self._fin_altin = DEFAULT_FINANCE_ALTIN[:]
             self._fin_doviz = DEFAULT_FINANCE_DOVIZ[:]
+            self._lang = "tr"
+            load_language(self._lang)
             self._fin_kripto = DEFAULT_FINANCE_KRIPTO[:]
 
     def _save_settings(self):
@@ -515,7 +521,12 @@ class MintSkyApp(Gtk.Window):
     def _get_scale(self):  return self._manual_scale
     def _apply_css(self):  self._provider.load_from_data(make_css(self._get_scale(), self._theme).encode("utf-8"))
 
-    # ──────────────────── UI Yardımcıları ──────────────────────────────────
+    def _a11y(self, widget, name, desc=""):
+        atk = widget.get_accessible()
+        if atk:
+            atk.set_name(name)
+            if desc: atk.set_description(desc)
+
     def _create_tool_btn(self, icon, text, tooltip, cb, css_class="btn-tool"):
         btn = Gtk.Button()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
@@ -527,6 +538,7 @@ class MintSkyApp(Gtk.Window):
         btn.add(box)
         self._sc(btn, css_class)
         btn.set_tooltip_text(tooltip)
+        self._a11y(btn, text, tooltip)
         btn.connect("clicked", cb)
         return btn
 
@@ -571,13 +583,16 @@ class MintSkyApp(Gtk.Window):
         self.il_combo   = Gtk.ComboBoxText.new_with_entry()
         self.il_entry   = self.il_combo.get_child()
         self.il_entry.set_placeholder_text("İl Seç / Yaz")
+        self._a11y(self.il_entry, "Şehir Arama Kutusu", "Buraya şehir veya il yazın")
         self.il_entry.connect("activate", lambda *_: self._search(force=True))
         self.il_combo.connect("changed",  self._on_il_changed)
         self.ilce_combo = Gtk.ComboBoxText.new_with_entry()
         self.ilce_entry = self.ilce_combo.get_child()
         self.ilce_entry.set_placeholder_text("İlçe Seç / Yaz")
+        self._a11y(self.ilce_entry, "İlçe Arama Kutusu", "Buraya ilçe yazın")
         self.ilce_entry.connect("activate", lambda *_: self._search(force=True))
         btn_ara = Gtk.Button(label="Ara")
+        self._a11y(btn_ara, "Ara Butonu", "Yazdığınız konumu arar")
         self._sc(btn_ara,"btn-search")
         btn_ara.connect("clicked", lambda *_: self._search(force=True))
         srow.pack_start(self.il_combo,   True, True, 0)
@@ -1151,6 +1166,7 @@ class MintSkyApp(Gtk.Window):
                       {"role": "system", "content": GROQ_SYSTEM},
                       {"role": "user",   "content": context},
                   ],
+                  "response_format": {"type": "json_object"},
                   "max_tokens": 600, "temperature": 0.25},
             timeout=20
         )
@@ -1179,10 +1195,15 @@ class MintSkyApp(Gtk.Window):
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(200)
-        self._ai_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
-        self._ai_lbl.set_halign(Gtk.Align.START); self._ai_lbl.set_valign(Gtk.Align.START)
-        self._ai_lbl.set_line_wrap(True); self._ai_lbl.set_selectable(True)
-        scroll.add(self._ai_lbl); box.pack_start(scroll, True, True, 0)
+        self._ai_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self._ai_box.set_margin_start(10); self._ai_box.set_margin_end(10)
+        self._ai_box.set_margin_top(10); self._ai_box.set_margin_bottom(10)
+        
+        loading_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
+        loading_lbl.set_halign(Gtk.Align.START)
+        self._ai_box.pack_start(loading_lbl, False, False, 0)
+        
+        scroll.add(self._ai_box); box.pack_start(scroll, True, True, 0)
         box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         q_lbl = Gtk.Label(label="Özel soru (boş bırakırsanız genel tavsiye üretir):")
@@ -1193,17 +1214,103 @@ class MintSkyApp(Gtk.Window):
         q_row.pack_start(q_entry, True, True, 0)
         btn_sor = Gtk.Button(label="Sor")
         self._sc(btn_sor, "btn-search"); q_row.pack_start(btn_sor, False, False, 0)
+        
+        btn_dinle = Gtk.Button(label="🔊 Dinle")
+        self._sc(btn_dinle, "btn-suggest"); q_row.pack_start(btn_dinle, False, False, 0)
+        btn_dinle.set_sensitive(False)
+        
         box.pack_start(q_row, False, False, 0)
+        box.show_all()
+
+        def _play_audio(*_):
+            if not hasattr(self, "_last_ai_text"): return
+            btn_dinle.set_sensitive(False)
+            def _tts_thread():
+                try:
+                    import tempfile, subprocess, os
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+                        tmp_path = f.name
+                    subprocess.run([
+                        os.path.expanduser("~/.local/bin/edge-tts"),
+                        "--text", self._last_ai_text,
+                        "--voice", "tr-TR-EmelNeural",
+                        "--write-media", tmp_path
+                    ])
+                    subprocess.run(["mpg123", "-q", tmp_path])
+                    os.remove(tmp_path)
+                except Exception as e:
+                    print("TTS Hatası:", e)
+                finally:
+                    GLib.idle_add(lambda: btn_dinle.set_sensitive(True) or False)
+            threading.Thread(target=_tts_thread, daemon=True).start()
+            
+        btn_dinle.connect("clicked", _play_audio)
         box.show_all()
 
         def _run_ai(custom_q=""):
             btn_sor.set_sensitive(False)
-            self._ai_lbl.set_text("⏳ AI danışılıyor, lütfen bekleyin…")
+            btn_dinle.set_sensitive(False)
+            for child in self._ai_box.get_children():
+                self._ai_box.remove(child)
+            loading_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
+            loading_lbl.set_halign(Gtk.Align.START)
+            self._ai_box.pack_start(loading_lbl, False, False, 0)
+            self._ai_box.show_all()
+            
             context = self._build_weather_context(custom_q)
             def _do():
-                try:    result = self._call_groq(context)
-                except Exception as e: result = f"❌ Hata: {e}"
-                GLib.idle_add(lambda: (self._ai_lbl.set_text(result), btn_sor.set_sensitive(True)) or False)
+                err = None
+                try:    
+                    result_raw = self._call_groq(context)
+                    try:
+                        import json
+                        result_dict = json.loads(result_raw)
+                    except:
+                        result_dict = {"Yanıt": result_raw}
+                except Exception as e: 
+                    err = f"❌ Hata: {e}"
+                
+                def _update_ui():
+                    for child in self._ai_box.get_children():
+                        self._ai_box.remove(child)
+                    if err:
+                        lbl = Gtk.Label(label=err)
+                        lbl.set_halign(Gtk.Align.START)
+                        lbl.set_line_wrap(True)
+                        self._ai_box.pack_start(lbl, False, False, 0)
+                    else:
+                        icons = {"Giyim": "👕", "Aktivite": "🏃", "Sağlık": "⚕️", "Yol": "🚗", "Yanıt": "💬"}
+                        reading_text = "Hava durumu tavsiyeleri şu şekilde: "
+                        for k, v in result_dict.items():
+                            reading_text += f"{k} için, {v} "
+                            frame = Gtk.Frame()
+                            frame.set_shadow_type(Gtk.ShadowType.IN)
+                            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+                            vbox.set_margin_start(8); vbox.set_margin_end(8)
+                            vbox.set_margin_top(8); vbox.set_margin_bottom(8)
+                            
+                            icon = icons.get(k, "📌")
+                            title_lbl = Gtk.Label()
+                            title_lbl.set_markup(f"<b>{icon} {k}</b>")
+                            title_lbl.set_halign(Gtk.Align.START)
+                            
+                            val_lbl = Gtk.Label(label=str(v))
+                            val_lbl.set_halign(Gtk.Align.START)
+                            val_lbl.set_line_wrap(True); val_lbl.set_selectable(True)
+                            
+                            vbox.pack_start(title_lbl, False, False, 0)
+                            vbox.pack_start(val_lbl, False, False, 0)
+                            frame.add(vbox)
+                            self._ai_box.pack_start(frame, False, False, 0)
+                    self._ai_box.show_all()
+                    btn_sor.set_sensitive(True)
+                    if not err:
+                        self._last_ai_text = reading_text
+                        btn_dinle.set_sensitive(True)
+                    return False
+                    return False
+                    
+                GLib.idle_add(_update_ui)
             threading.Thread(target=_do, daemon=True).start()
 
         btn_sor.connect("clicked", lambda *_: _run_ai(q_entry.get_text().strip()))
@@ -1490,8 +1597,27 @@ class MintSkyApp(Gtk.Window):
                 headers=MGM_HEADERS, timeout=TIMEOUT)
             merk = self._safe_json(req)
             if not merk:
-                GLib.idle_add(self._status,
-                    f"'{il}' verisi MGM'den alınamadı veya engellendi.\nLütfen tekrar deneyin.", True)
+                import urllib.parse
+                q = urllib.parse.quote(f"{ilce} {il}".strip())
+                nom_req = requests.get(f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1", headers={"User-Agent": "MintSky/7.0"}, timeout=TIMEOUT)
+                nom_data = self._safe_json(nom_req)
+                if not nom_data:
+                    GLib.idle_add(self._status, f"'{il}' verisi bulunamadı.", True)
+                    return
+                m = {
+                    "il": nom_data[0].get("display_name", il).split(",")[0],
+                    "ilce": "",
+                    "enlem": float(nom_data[0].get("lat")),
+                    "boylam": float(nom_data[0].get("lon")),
+                    "merkezId": 0
+                }
+                self._cur_lat, self._cur_lon = m["enlem"], m["boylam"]
+                om_data = self._fetch_openmeteo(self._cur_lat, self._cur_lon)
+                self._weather_cache = (m, {}, {}, {}, [], [], om_data)
+                self._weather_cache_ts = time.time()
+                self._weather_cache_key = f"{il}|{ilce}"
+                self._fetch_in_progress = False
+                GLib.idle_add(self._render, m, {}, {}, {}, [], [], om_data)
                 return
 
             m = merk[0]
@@ -1574,7 +1700,7 @@ class MintSkyApp(Gtk.Window):
         self._sync_fav_button()
 
         om_cur = om_data.get("current", {}) if om_data else {}
-        use_om = (self._api_source == "openmeteo" and om_cur)
+        use_om = (self._api_source == "openmeteo" and om_cur) or (not sd and om_cur)
 
         if use_om:
             wmo_kod = om_cur.get("weather_code")
@@ -1595,6 +1721,8 @@ class MintSkyApp(Gtk.Window):
             if ma.get("il","").upper() == il.upper() and int(ma.get("seviye",1)) >= 2:
                 uyarilar.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
 
+        gd_tahmin = gd.get("tahmin",[]) if not use_om else []
+        daily_om  = om_data.get("daily",{}) if om_data else {}
         mgm_tahminler = sk.get("tahmin",[]) if not use_om else []
         om_hourly     = om_data.get("hourly",{}) if om_data else {}
         om_times      = om_hourly.get("time",[])

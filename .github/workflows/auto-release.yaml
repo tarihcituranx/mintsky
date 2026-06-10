@@ -1,0 +1,22 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Sadece v harfi ile başlayan tagler atıldığında çalışır (örn: v7.0)
+
+jobs:
+  release:
+    name: Sürüm Oluştur ve Yayınla
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # GitHub'a Release oluşturabilmesi için yazma izni
+
+    steps:
+      - name: Kodu Çek
+        uses: actions/checkout@v4
+        
+      - name: GitHub Release Oluştur
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true # .github/release.yml dosyasına göre notları Türkçe oluşturur

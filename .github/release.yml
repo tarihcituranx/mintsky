@@ -1,0 +1,28 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - dependabot
+      - github-actions[bot]
+  categories:
+    - title: "✨ Yeni Özellikler (Features)"
+      labels:
+        - feature
+        - enhancement
+    - title: "🐛 Hata Düzeltmeleri (Bug Fixes)"
+      labels:
+        - bug
+        - fix
+    - title: "📚 Dokümantasyon (Documentation)"
+      labels:
+        - documentation
+        - docs
+    - title: "🛠️ Bakım ve İyileştirmeler (Maintenance)"
+      labels:
+        - maintenance
+        - refactor
+        - chore
+    - title: "📦 Diğer Değişiklikler (Other Changes)"
+      labels:
+        - "*"
