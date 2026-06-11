@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 6.2 (Rate Limit Cache, Finans Yenile, Bugfix)
+Versiyon    : 7.0
 Lisans      : MIT
 """
 import sys
@@ -56,6 +56,9 @@ from mintsky.utils import *
 from mintsky.api.finance import FinanceAPI
 from mintsky.api.location import LocationAPI
 from mintsky.api.weather import WeatherAPI
+from mintsky.core.settings import load_settings as core_load_settings, save_settings as core_save_settings
+from mintsky.core.portfolio import load_portfolio as core_load_portfolio, save_portfolio as core_save_portfolio
+from mintsky.i18n import _
 from mintsky.ui.styles import make_css
 
 def _safe_icon(icon_name):
@@ -71,7 +74,7 @@ def _safe_icon(icon_name):
 
 class MintSkyApp(Gtk.Window):
     def __init__(self):
-        super().__init__(title=UYGULAMA_ADI)
+        super().__init__(title=_("app_title"))
         self.set_name("main-win")
 
         self.script_path = os.path.abspath(sys.argv[0])
@@ -240,60 +243,41 @@ class MintSkyApp(Gtk.Window):
 
     # ──────────────────── Ayarlar ──────────────────────────────────────────
     def _load_settings(self):
-        try:
-            with open(SETTING_FILE,"r",encoding="utf-8") as f: d = json.load(f)
-            self._theme              = d.get("theme",          "dark")
-            self._manual_scale       = d.get("scale",           1.2)
-            self._autostart          = d.get("autostart",       False)
-            self._def_il             = d.get("def_il",          "Samsun")
-            self._def_ilce           = d.get("def_ilce",        "Atakum")
-            self._notify_enabled     = d.get("notify",          True)
-            self._api_source         = d.get("api_source",      "mgm")
-            self._show_extra         = d.get("show_extra",       False)
-            self._show_saatlik       = d.get("show_saatlik",     True)
-            self._show_gunluk        = d.get("show_gunluk",      True)
-            self._groq_api_key       = d.get("groq_api_key",     "")
-            self._show_finance       = d.get("show_finance",     False)
-            self._fin_altin          = d.get("fin_altin",        DEFAULT_FINANCE_ALTIN)
-            self._fin_doviz          = d.get("fin_doviz",        DEFAULT_FINANCE_DOVIZ)
-            self._fin_kripto         = d.get("fin_kripto",       DEFAULT_FINANCE_KRIPTO)
-        except Exception:
-            self._theme = "dark"; self._manual_scale = 1.2; self._autostart = False
-            self._def_il = "Samsun"; self._def_ilce = "Atakum"
-            self._notify_enabled = True; self._api_source = "mgm"
-            self._show_extra = False; self._show_saatlik = True; self._show_gunluk = True
-            self._groq_api_key = ""; self._show_finance = False
-            self._fin_altin = DEFAULT_FINANCE_ALTIN[:]
-            self._fin_doviz = DEFAULT_FINANCE_DOVIZ[:]
-            self._fin_kripto = DEFAULT_FINANCE_KRIPTO[:]
+        d = core_load_settings()
+        self._theme              = d.get("theme",          "dark")
+        self._manual_scale       = d.get("scale",           1.2)
+        self._autostart          = d.get("autostart",       False)
+        self._def_il             = d.get("def_il",          "Samsun")
+        self._def_ilce           = d.get("def_ilce",        "Atakum")
+        self._notify_enabled     = d.get("notify",          True)
+        self._api_source         = d.get("api_source",      "mgm")
+        self._show_extra         = d.get("show_extra",       False)
+        self._show_saatlik       = d.get("show_saatlik",     True)
+        self._show_gunluk        = d.get("show_gunluk",      True)
+        self._groq_api_key       = d.get("groq_api_key",     "")
+        self._show_finance       = d.get("show_finance",     False)
+        self._fin_altin          = d.get("fin_altin",        DEFAULT_FINANCE_ALTIN)
+        self._fin_doviz          = d.get("fin_doviz",        DEFAULT_FINANCE_DOVIZ)
+        self._fin_kripto         = d.get("fin_kripto",       DEFAULT_FINANCE_KRIPTO)
 
     def _save_settings(self):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(SETTING_FILE,"w",encoding="utf-8") as f:
-            json.dump({
-                "theme":self._theme, "scale":self._manual_scale,
-                "autostart":self._autostart, "def_il":self._def_il,
-                "def_ilce":self._def_ilce, "notify":self._notify_enabled,
-                "api_source":self._api_source, "show_extra":self._show_extra,
-                "show_saatlik":self._show_saatlik, "show_gunluk":self._show_gunluk,
-                "groq_api_key":self._groq_api_key, "show_finance":self._show_finance,
-                "fin_altin":self._fin_altin, "fin_doviz":self._fin_doviz,
-                "fin_kripto":self._fin_kripto,
-            }, f, ensure_ascii=False)
+        core_save_settings({
+            "theme":self._theme, "scale":self._manual_scale,
+            "autostart":self._autostart, "def_il":self._def_il,
+            "def_ilce":self._def_ilce, "notify":self._notify_enabled,
+            "api_source":self._api_source, "show_extra":self._show_extra,
+            "show_saatlik":self._show_saatlik, "show_gunluk":self._show_gunluk,
+            "groq_api_key":self._groq_api_key, "show_finance":self._show_finance,
+            "fin_altin":self._fin_altin, "fin_doviz":self._fin_doviz,
+            "fin_kripto":self._fin_kripto,
+        })
 
     # ──────────────────── Portföy ──────────────────────────────────────────
     def _load_portfolio(self):
-        try:
-            with open(PORTFOLIO_FILE,"r",encoding="utf-8") as f:
-                data = json.load(f)
-                self._portfolio = data.get("items", [])
-        except Exception:
-            self._portfolio = []
+        self._portfolio = core_load_portfolio()
 
     def _save_portfolio(self):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(PORTFOLIO_FILE,"w",encoding="utf-8") as f:
-            json.dump({"items": self._portfolio}, f, ensure_ascii=False, indent=2)
+        core_save_portfolio(self._portfolio)
 
     # ──────────────────── Finans API ───────────────────────────────────────
     def _schedule_finance_refresh(self):
@@ -365,7 +349,7 @@ class MintSkyApp(Gtk.Window):
     def _check_update(self):
         try:
             r = requests.get(GITHUB_API,
-                             headers={"User-Agent":"MintSkyApp/6.0"},
+                             headers={"User-Agent":"MintSkyApp/7.0"},
                              timeout=10)
             if r.status_code == 200:
                 data    = r.json()
@@ -1003,7 +987,8 @@ class MintSkyApp(Gtk.Window):
                                 message_type=Gtk.MessageType.INFO,
                                 buttons=Gtk.ButtonsType.OK, text="Sürüm Notları")
         dlg.format_secondary_markup(
-            f"<b>v6.2 (Bu Sürüm) — Güncel versiyon</b>\n"
+            f"<b>v7.0 (Bu Sürüm) — Güncel versiyon</b>\n"
+            "• 📦 <b>API Modülerizasyonu</b> — God Class mimarisi kırıldı, API'ler ayrıştırıldı\n"
             "• 💰 <b>Finans Modülü</b> — Truncgil Finance API ile altın, gümüş, döviz\n"
             "  fiyatları (widget + ana pencere), rate-limited önbellekleme (2 dk)\n"
             "• 📊 <b>Portföy Takibi</b> — Alım fiyatı gir, gram/adet miktarı kaydet,\n"

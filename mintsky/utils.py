@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 6.2 (Rate Limit Cache, Finans Yenile, Bugfix)
+Versiyon    : 7.0
 Lisans      : MIT
 """
 from datetime import datetime
