@@ -495,7 +495,7 @@ class MintSkyApp(Gtk.Window):
         self.ilce_entry = self.ilce_combo.get_child()
         self.ilce_entry.set_placeholder_text("İlçe Seç / Yaz")
         self.ilce_entry.connect("activate", lambda *_: self._search(force=True))
-        btn_ara = Gtk.Button(label="Ara")
+        btn_ara = Gtk.Button(label=_("btn_search"))
         self._sc(btn_ara,"btn-search")
         btn_ara.connect("clicked", lambda *_: self._search(force=True))
         srow.pack_start(self.il_combo,   True, True, 0)
