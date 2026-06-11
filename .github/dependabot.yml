@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Python bağımlılıklarını güncelle (setup.py)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions versiyonlarını (v4 -> v6 vs) otomatik güncelle
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

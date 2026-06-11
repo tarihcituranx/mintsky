@@ -37,8 +37,24 @@ jobs:
       - name: 📥 Analiz Araçlarını Yükle
         run: |
           python -m pip install --upgrade pip --quiet
-          pip install flake8 black isort pyflakes bandit --quiet
-          echo "✅ Araçlar hazır: flake8 | black | isort | pyflakes | bandit"
+          pip install flake8 black isort pyflakes bandit yamllint --quiet
+          echo "✅ Araçlar hazır: flake8 | black | isort | pyflakes | bandit | yamllint"
+          
+      - name: ⚙️ YAML / Workflow Denetimi (actionlint & yamllint)
+        id: yaml_lint
+        run: |
+          echo "🔎 YAML ve GitHub Actions dosyaları kontrol ediliyor..."
+          set -o pipefail
+          
+          echo "1. Yamllint kontrolü..."
+          yamllint .github/workflows/ || echo "⚠️ Sadece temel yaml hataları raporlandı."
+          
+          echo "2. Actionlint kontrolü..."
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color || { echo "❌ GitHub Actions YAML hatası!"; exit 1; }
+          
+          echo "yaml_status=pass" >> "$GITHUB_OUTPUT"
+          echo "✅ YAML / Workflow dosyaları sorunsuz."
 
       # ──────────────────────────────────────────────
       # 2. KRİTİK KONTROLLER  (başarısız → iş durur)
@@ -190,6 +206,13 @@ jobs:
             echo "| # | Kontrol | Araç | Sonuç | Detay |"
             echo "|---|---------|------|-------|-------|"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # YAML / Workflow
+          if [ "${{ steps.yaml_lint.outcome }}" = "success" ]; then
+            echo "| 0 | ⚙️ Workflow | \`actionlint\` | ✅ Geçti | YAML dosyaları temiz |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| 0 | ⚙️ Workflow | \`actionlint\` | ❌ Başarısız | Hatalı YAML bulundu |" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           # Syntax
           if [ "${{ steps.syntax.outcome }}" = "success" ]; then
