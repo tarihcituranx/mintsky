@@ -78,7 +78,12 @@ class MintSkyApp(Gtk.Window):
         self.set_name("main-win")
 
         self.script_path = os.path.abspath(sys.argv[0])
-        self.icon_path   = os.path.join(os.path.dirname(self.script_path), "mintsky.png")
+        
+        # Logo genelde repodaki ana dizindedir (mintsky/mintsky.png yerine ./mintsky.png)
+        possible_icon1 = os.path.join(os.path.dirname(self.script_path), "mintsky.png")
+        possible_icon2 = os.path.join(os.path.dirname(os.path.dirname(self.script_path)), "mintsky.png")
+        self.icon_path = possible_icon1 if os.path.exists(possible_icon1) else possible_icon2
+        
         if os.path.exists(self.icon_path):
             self.set_icon_from_file(self.icon_path)
 
