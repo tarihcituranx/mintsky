@@ -145,7 +145,7 @@ jobs:
         run: |
           echo "🔐 Güvenlik açıkları aranıyor..."
           set -o pipefail
-          if bandit -r mintsky/ setup.py -f custom 2>&1 | tee /tmp/bandit.txt; then
+          if bandit -r mintsky/ setup.py -f custom -ll 2>&1 | tee /tmp/bandit.txt; then
             echo "✅ Bandit temiz."
           else
             echo "⚠️ Güvenlik uyarıları mevcut."
@@ -205,84 +205,78 @@ jobs:
             echo ""
             echo "| # | Kontrol | Araç | Sonuç | Detay |"
             echo "|---|---------|------|-------|-------|"
-          } >> "$GITHUB_STEP_SUMMARY"
 
-          # YAML / Workflow
-          if [ "${{ steps.yaml_lint.outcome }}" = "success" ]; then
-            echo "| 0 | ⚙️ Workflow | \`actionlint\` | ✅ Geçti | YAML dosyaları temiz |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 0 | ⚙️ Workflow | \`actionlint\` | ❌ Başarısız | Hatalı YAML bulundu |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # YAML / Workflow
+            if [ "${{ steps.yaml_lint.outcome }}" = "success" ]; then
+              echo "| 0 | ⚙️ Workflow | \`actionlint\` | ✅ Geçti | YAML dosyaları temiz |"
+            else
+              echo "| 0 | ⚙️ Workflow | \`actionlint\` | ❌ Başarısız | Hatalı YAML bulundu |"
+            fi
 
-          # Syntax
-          if [ "${{ steps.syntax.outcome }}" = "success" ]; then
-            echo "| 1 | 🔬 Syntax Denetimi | \`py_compile\` | ✅ Geçti | ${{ steps.syntax.outputs.syntax_pass }} / ${{ steps.syntax.outputs.file_count }} dosya temiz |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 1 | 🔬 Syntax Denetimi | \`py_compile\` | ❌ Başarısız | ${{ steps.syntax.outputs.syntax_fail || '?' }} dosyada hata var |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # Syntax
+            if [ "${{ steps.syntax.outcome }}" = "success" ]; then
+              echo "| 1 | 🔬 Syntax Denetimi | \`py_compile\` | ✅ Geçti | ${{ steps.syntax.outputs.syntax_pass }} / ${{ steps.syntax.outputs.file_count }} dosya temiz |"
+            else
+              echo "| 1 | 🔬 Syntax Denetimi | \`py_compile\` | ❌ Başarısız | ${{ steps.syntax.outputs.syntax_fail || '?' }} dosyada hata var |"
+            fi
 
-          # Imports
-          if [ "${{ steps.imports.outcome }}" = "success" ]; then
-            echo "| 2 | 📦 Import Denetimi | \`pyflakes\` | ✅ Geçti | Tanımsız / eksik import yok |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 2 | 📦 Import Denetimi | \`pyflakes\` | ❌ Başarısız | ${{ steps.imports.outputs.import_issues || '?' }} sorun tespit edildi |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # Imports
+            if [ "${{ steps.imports.outcome }}" = "success" ]; then
+              echo "| 2 | 📦 Import Denetimi | \`pyflakes\` | ✅ Geçti | Tanımsız / eksik import yok |"
+            else
+              echo "| 2 | 📦 Import Denetimi | \`pyflakes\` | ❌ Başarısız | ${{ steps.imports.outputs.import_issues || '?' }} sorun tespit edildi |"
+            fi
 
-          # Lint
-          if [ "${{ steps.lint.outcome }}" = "success" ]; then
-            echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ✅ Geçti | Runtime hatası bulunamadı |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ❌ Başarısız | ${{ steps.lint.outputs.critical_errors || '?' }} kritik hata |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # Lint
+            if [ "${{ steps.lint.outcome }}" = "success" ]; then
+              echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ✅ Geçti | Runtime hatası bulunamadı |"
+            else
+              echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ❌ Başarısız | ${{ steps.lint.outputs.critical_errors || '?' }} kritik hata |"
+            fi
 
-          {
             echo ""
             echo "### 💡 Kalite Önerileri *(birleştirmeyi engellemez)*"
             echo ""
             echo "| # | Kontrol | Araç | Sonuç | Düzeltme Komutu |"
             echo "|---|---------|------|-------|-----------------|"
-          } >> "$GITHUB_STEP_SUMMARY"
 
-          # Black
-          if [ "${{ steps.format.outcome }}" = "success" ]; then
-            echo "| 4 | 🎨 Kod Formatı | \`black\` | ✅ Uyumlu | — |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 4 | 🎨 Kod Formatı | \`black\` | ⚠️ Uyarı | \`black .\` |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # Black
+            if [ "${{ steps.format.outcome }}" = "success" ]; then
+              echo "| 4 | 🎨 Kod Formatı | \`black\` | ✅ Uyumlu | — |"
+            else
+              echo "| 4 | 🎨 Kod Formatı | \`black\` | ⚠️ Uyarı | \`black .\` |"
+            fi
 
-          # isort
-          if [ "${{ steps.isort.outcome }}" = "success" ]; then
-            echo "| 5 | 📐 Import Sırası | \`isort\` | ✅ Uyumlu | — |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 5 | 📐 Import Sırası | \`isort\` | ⚠️ Uyarı | \`isort .\` |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # isort
+            if [ "${{ steps.isort.outcome }}" = "success" ]; then
+              echo "| 5 | 📐 Import Sırası | \`isort\` | ✅ Uyumlu | — |"
+            else
+              echo "| 5 | 📐 Import Sırası | \`isort\` | ⚠️ Uyarı | \`isort .\` |"
+            fi
 
-          # Bandit
-          if [ "${{ steps.bandit.outcome }}" = "success" ]; then
-            echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ✅ Temiz | — |" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ⚠️ Uyarı | Güvenlik İncelemesi Önerilir |" >> "$GITHUB_STEP_SUMMARY"
-          fi
+            # Bandit
+            if [ "${{ steps.bandit.outcome }}" = "success" ]; then
+              echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ✅ Temiz | — |"
+            else
+              echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ⚠️ Uyarı | Güvenlik İncelemesi Önerilir |"
+            fi
 
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "---" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo ""
+            echo "---"
+            echo ""
 
-          # Genel karar
-          if [[ "${{ steps.syntax.outcome }}"  == "success" && \
-                "${{ steps.lint.outcome }}"    == "success" ]]; then
-            echo "### ✅ Tüm kritik kontroller başarılı — kod birleştirmeye hazır!" >> "$GITHUB_STEP_SUMMARY"
-          else
-            {
+            # Genel karar
+            if [[ "${{ steps.syntax.outcome }}"  == "success" && \
+                  "${{ steps.lint.outcome }}"    == "success" ]]; then
+              echo "### ✅ Tüm kritik kontroller başarılı — kod birleştirmeye hazır!"
+            else
               echo "### ❌ Kritik kontrol başarısız!"
               echo ""
               echo "> 🔴 Yukarıdaki ❌ satırlarını inceleyip düzeltmeler yapın, ardından commit'inizi güncelleyin."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+            fi
 
-          {
             echo ""
             echo "---"
             echo "*🤖 Bu rapor GitHub Actions tarafından otomatik oluşturulmuştur.*  "
             echo "*⚠️ = Öneri (engellemez) · ❌ = Hata (birleştirmeyi engeller)*"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } >> "$GITHUB_STEP_SUMMARY" 
