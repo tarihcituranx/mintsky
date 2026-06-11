@@ -16,7 +16,7 @@
 * 🤖 **Groq AI & Edge-TTS Asistan:** Hava durumuna göre "bugün ne giymelisin", "şemsiye almalı mısın" gibi yapay zeka tavsiyeleri verir. **Edge-TTS** altyapısıyla bu tavsiyeleri doğal bir insan sesiyle okur!
 * 📈 **Finans Modülü:** Canlı altın, döviz ve kripto para takibi ile portföy kar/zarar yönetimi.
 * ♿ **Görme Engelli Erişilebilirliği:** Arayüzdeki tüm elementler (butonlar, arama çubukları, sekmeler) `Atk` kütüphanesiyle işaretlenmiş olup Linux Ekran Okuyucuları (Örn: Orca) ile %100 uyumludur. Sadece klavye kullanarak uygulamada gezebilirsiniz.
-* 🌐 **Çoklu Dil Desteği (i18n):** Türkçe ve İngilizce başta olmak üzere Telegram tarzı `.json` uzantılı modüler dil dosyaları ile anında dil değiştirebilirsiniz.
+* 🌐 **Çoklu Dil Desteği (i18n):** Türkçe, İngilizce, Almanca, Fransızca, Arapça, Farsça, Çince ve Azerbaycan Türkçesi dahil olmak üzere toplam 8 dil desteği! Telegram tarzı `.json` uzantılı modüler dil dosyaları ile anında geçiş yapın.
 * 🔔 **Sistem Tepsisi (AppIndicator3):** Arka planda hafif ve sessizce çalışarak sistem tepsisinden anlık durum takibi sunar.
 * 💬 **Masaüstü Bildirimleri:** `libnotify` entegrasyonu ile kritik hava durumu değişimlerinde anlık bildirimler gönderir.
 * 🎨 **GTK3 Arayüzü:** Linux masaüstü ortamlarıyla tam uyumlu, modern, sade ve kullanıcı dostu arayüz.
