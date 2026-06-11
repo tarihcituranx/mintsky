@@ -11,7 +11,11 @@ def load_language(lang="tr"):
     locale_file = os.path.join(base_dir, "locales", f"{lang}.json")
     if os.path.exists(locale_file):
         with open(locale_file, "r", encoding="utf-8") as f:
-            _translations = json.load(f)
+            try:
+                _translations = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                print(f"[MintSky] i18n: {lang}.json parse hatası")
+                _translations = {}
     else:
         _translations = {}
 

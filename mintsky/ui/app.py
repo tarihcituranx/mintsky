@@ -51,8 +51,10 @@ import sqlite3
 import urllib.request
 import urllib.error
 import webbrowser
-from mintsky.constants import *
-from mintsky.utils import *
+from mintsky.constants import VERSIYON, BASE_MGM, GITHUB_REPO, GITHUB_API, ICONS, \
+    MGM_SIMGELER, UYGULAMA_ADI, ALTIN_KODLAR, DOVIZ_KODLAR, KRIPTO_KODLAR, TRAY_ICONS, \
+    HADISE, WMO_HADISE, YONLER, NOM_HEADERS, TIMEOUT, WEATHER_CACHE_TTL, FINANCE_CACHE_TTL, TRAY_FETCH_TTL
+from mintsky.utils import yon, fmt_date, fmt_time, fmt_dt, val, fmt_try, fmt_pct, hadise_mgm, hadise_wmo, css_str
 from mintsky.api.finance import FinanceAPI
 from mintsky.api.location import LocationAPI
 from mintsky.api.weather import WeatherAPI
@@ -202,7 +204,7 @@ class MintSkyApp(Gtk.Window):
 
         # Update CSS ve ilk veri çekimi
         self._apply_css()
-        GLib.timeout_add(100, self._btn_refresh_clicked, None)
+        GLib.timeout_add(100, lambda *_: self._search(force=True) or False, None)
         self._check_for_updates_bg()
         return False
 
@@ -372,13 +374,17 @@ class MintSkyApp(Gtk.Window):
                     if tag and tag != VERSIYON and self._is_newer(tag, VERSIYON):
                         self._update_info = (tag, url)
                         GLib.idle_add(self._show_update_banner)
-                    if self._notify_enabled and HAS_NOTIFY:
-                        n = Notify.Notification.new(
-                            "🔄 MintSky Güncellemesi",
-                            f"Yeni sürüm hazır: v{tag}\nGitHub'dan indirip güncelleyebilirsiniz.",
-                            _safe_icon("software-update-available")
-                        )
-                        GLib.idle_add(n.show)
+                        if self._notify_enabled and HAS_NOTIFY:
+                            def _show_notif():
+                                n = Notify.Notification.new(
+                                    "🔄 MintSky Güncellemesi",
+                                    f"Yeni sürüm hazır: v{tag}\nGitHub'dan indirip güncelleyebilirsiniz.",
+                                    _safe_icon("software-update-available")
+                                )
+                                n.set_urgency(1)
+                                n.show()
+                                return False
+                            GLib.idle_add(_show_notif)
         except Exception: pass
 
     def _is_newer(self, remote, local):
@@ -432,7 +438,7 @@ class MintSkyApp(Gtk.Window):
                 # 2 saniye bekle ve yeni süreci başlatarak eskisini öldür
                 import time; time.sleep(2)
                 subprocess.Popen([sys.executable, self.script_path] + sys.argv[1:])
-                os._exit(0)
+                sys.exit(0)
                 
             except Exception as e:
                 GLib.idle_add(self._msg_dialog, self, "Hata", f"Güncelleme başarısız (Git kurulu olmayabilir veya erişim reddedildi):\n{e}")
@@ -467,7 +473,7 @@ class MintSkyApp(Gtk.Window):
                         f"Name={UYGULAMA_ADI}\nComment={_('app_comment')}\n"
                         f"Exec=python3 \"{self.script_path}\"\nIcon=mintsky\n"
                         f"Terminal=false\nCategories=Utility;Weather;\nStartupNotify=true\n")
-            os.system("gtk-update-icon-cache -f ~/.local/share/icons/hicolor/ 2>/dev/null &")
+            subprocess.Popen(["gtk-update-icon-cache", "-f", os.path.expanduser("~/.local/share/icons/hicolor/")], stderr=subprocess.DEVNULL)
             self._status(_("msg_installed"))
         except Exception as e: self._status(f"{_('error')}: {e}", True)
 
@@ -805,7 +811,9 @@ class MintSkyApp(Gtk.Window):
             self._save_settings()
             self._apply_css()
             self._apply_autostart_logic()
-            if self._show_finance and not self.finance_api._data:
+            with self.finance_api._lock:
+                has_fin = bool(self.finance_api._data)
+            if self._show_finance and not has_fin:
                 self.finance_api.fetch_bg()
             if self._api_source != old_api_source:
                 self._weather_cache = None
@@ -918,7 +926,7 @@ class MintSkyApp(Gtk.Window):
                 )
                 info.set_halign(Gtk.Align.START); info.set_use_markup(True)
                 row_box.pack_start(info, True, True, 0)
-                cur_p = self._get_rate_price(item["kod"])
+                cur_p = self.finance_api.get_rate_price(item["kod"])
                 if cur_p is not None:
                     pnl_v   = (cur_p - float(item["buy_price"])) * float(item["amount"])
                     sign    = "+" if pnl_v >= 0 else ""
@@ -973,7 +981,7 @@ class MintSkyApp(Gtk.Window):
         def _on_type_changed(_):
             kod = cb_type.get_active_id()
             if not kod: return
-            cur_p = self._get_rate_price(kod)
+            cur_p = self.finance_api.get_rate_price(kod)
             if cur_p is not None:
                 entry_price.set_text(f"{cur_p:.2f}")
         cb_type.connect("changed", _on_type_changed)
@@ -1250,11 +1258,16 @@ class MintSkyApp(Gtk.Window):
                     edge_bin = shutil.which("edge-tts") or os.path.expanduser("~/.local/bin/edge-tts")
                     subprocess.run([edge_bin, "--text", self._last_ai_text, "--voice", v, "--write-media", tmp_path], check=True)
                     
-                    if shutil.which("mpv"): subprocess.run(["mpv", "--no-video", tmp_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    elif shutil.which("mpg123"): subprocess.run(["mpg123", "-q", tmp_path])
-                    elif shutil.which("play"): subprocess.run(["play", "-q", tmp_path])
-                    
-                    os.remove(tmp_path)
+                    # Sesi Çal
+                    try:
+                        if os.system("command -v paplay >/dev/null 2>&1") == 0:
+                            subprocess.run(["paplay", tmp_path], check=True, timeout=60)
+                        else:
+                            subprocess.run(["aplay", tmp_path], check=True, timeout=60)
+                    finally:
+                        # Temizlik
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
                 except Exception as e:
                     print("TTS Hatası:", e)
                 finally:
@@ -1622,30 +1635,31 @@ class MintSkyApp(Gtk.Window):
         self._last_api_call     = time.time()
         self._fetch_in_progress = True
 
-        if self._show_finance and not self.finance_api._data:
+        with self.finance_api._lock:
+            has_fin = bool(self.finance_api._data)
+        if self._show_finance and not has_fin:
             self.finance_api.fetch_bg()
 
-        threading.Thread(target=self._fetch, args=(il, ilce), daemon=True).start()
+        def _fetch(il, ilce):
+            try:
+                data = WeatherAPI.fetch_weather(il, ilce)
+                success, _, data_content = data
+                if not success:
+                    GLib.idle_add(self._status, "Hata", True)
+                    return
+
+                c_key = f"{il}|{ilce}"
+                self._weather_cache    = data_content
+                self._weather_cache_ts = time.time()
+                self._weather_cache_key= c_key
+
+                GLib.idle_add(self._render, *data_content)
+            except Exception as e: print(f"Fetch hatası: {e}")
+            finally:
+                self._fetch_in_progress = False
+
+        threading.Thread(target=_fetch, args=(il, ilce), daemon=True).start()
         return False
-
-    def _fetch(self, il, ilce):
-        success, err_msg, data = WeatherAPI.fetch_weather(il, ilce)
-        if not success:
-            GLib.idle_add(self._status, err_msg, True)
-            self._fetch_in_progress = False
-            return
-            
-        m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data = data
-        self._cur_lat = m.get("enlem") or m.get("lat")
-        self._cur_lon = m.get("boylam") or m.get("lon")
-
-        # Önbelleğe kaydet
-        self._weather_cache     = (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
-        self._weather_cache_ts  = time.time()
-        self._weather_cache_key = f"{il}|{ilce}"
-
-        GLib.idle_add(self._render, m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
-        self._fetch_in_progress = False
 
     # ──────────────────── Render ───────────────────────────────────────────
     def _render(self, merkez, sd, gd, sk, alarmlar, meteoalarm, om_data):

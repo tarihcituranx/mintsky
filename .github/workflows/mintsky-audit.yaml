@@ -1,7 +1,5 @@
 name: 🩺 Sağlık Kontrolü ve Syntax Denetimi
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 on:
   push:
     paths:
@@ -52,7 +50,7 @@ jobs:
           yamllint .github/workflows/ || echo "⚠️ Sadece temel yaml hataları raporlandı."
           
           echo "2. Actionlint kontrolü..."
-          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          bash <(curl -sfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.6.27
           ./actionlint -color || { echo "❌ GitHub Actions YAML hatası!"; exit 1; }
           
           echo "yaml_status=pass" >> "$GITHUB_OUTPUT"
