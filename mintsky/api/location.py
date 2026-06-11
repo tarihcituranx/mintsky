@@ -22,24 +22,9 @@ class LocationAPI:
         return False, {}
 
     def _try_mgm_ililce(self):
-        try:
-            r = requests.get(f"{BASE_MGM}/web/merkezler/ililcesi", headers=MGM_HEADERS, timeout=TIMEOUT)
-            r.raise_for_status()
-            locs = {}
-            for item in r.json():
-                il = item.get("il","")
-                ilce = item.get("ilce","")
-                if il:
-                    locs.setdefault(il, [])
-                    if ilce and ilce not in locs[il]:
-                        locs[il].append(ilce)
-            for il in locs:
-                locs[il].sort()
-            self._save_locs(locs)
-            return True, locs
-        except Exception as e:
-            print(f"[LocationAPI] MGM Error: {e}")
-            return False, {}
+        # MGM artık /web/merkezler/ililcesi endpoint'inde 'il' parametresi zorunlu tutuyor.
+        # Bu nedenle tek sorguda 81 ili çekmek mümkün değil. TurkiyeAPI veya önbellek kullanılıyor.
+        return False, {}
 
     def _try_cache(self):
         try:
