@@ -68,4 +68,6 @@ python3 main.py
 
 MintSky projesine katkıda bulunmak isterseniz, lütfen bir [Pull Request (PR)](https://github.com/tarihcituranx/mintsky/pulls) açın veya karşılaştığınız hataları bildirmek için bir issue oluşturun. Her türlü katkı, hata bildirimi ve özellik önerisi projenin gelişimi için çok değerlidir!
 
+> **Yasal Uyarı (Disclaimer):** MintSky yalnızca test amaçlı geliştirilmiş bir hava durumu ve döviz takip uygulamasıdır; kullanımından doğacak hiçbir sorumluluk veya yükümlülük kabul edilmez. Şu ana kadar resmi olarak yalnızca Linux Mint 22.3 "Zena" sürümünde test edilmiştir, ancak diğer Linux dağıtımlarında da sorunsuz çalışması beklenmektedir.
+
 ![MintSky Footer](https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer)
