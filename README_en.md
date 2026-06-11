@@ -87,4 +87,6 @@ Contributions are welcome! If you want to improve MintSky, please feel free to f
 
 👉 [Submit a Pull Request](https://github.com/tarihcituranx/mintsky/pulls)
 
+> **Disclaimer:** MintSky is a weather and currency app intended for testing purposes only; no liability is accepted. It has currently been tested only on Linux Mint 22.3 "Zena," but it is expected to work on other Linux distributions as well.
+
 ![MintSky Footer](https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=120&section=footer)
