@@ -418,8 +418,13 @@ class MintSkyApp(Gtk.Window):
             try:
                 repo_dir = os.path.dirname(os.path.dirname(self.script_path))
                 subprocess.run(["git", "pull", "origin", "main"], cwd=repo_dir, check=True, capture_output=True)
-                GLib.idle_add(self._msg_dialog, self, "Başarılı", "MintSky güncellendi! Lütfen uygulamayı kapatıp yeniden başlatın.")
-                GLib.idle_add(lambda: btn.set_label("✅ Güncellendi"))
+                
+                GLib.idle_add(self._msg_dialog, self, "Başarılı", "MintSky güncellendi! Uygulama otomatik olarak yeniden başlatılıyor...")
+                # 2 saniye bekle ve yeni süreci başlatarak eskisini öldür
+                import time; time.sleep(2)
+                subprocess.Popen([sys.executable, self.script_path] + sys.argv[1:])
+                os._exit(0)
+                
             except Exception as e:
                 GLib.idle_add(self._msg_dialog, self, "Hata", f"Güncelleme başarısız (Git kurulu olmayabilir veya erişim reddedildi):\n{e}")
                 GLib.idle_add(lambda: (btn.set_label("❌ Hata"), btn.set_sensitive(True)) or False)
@@ -1866,8 +1871,8 @@ class MintSkyApp(Gtk.Window):
         # Timestamp etiketi
         ts_lbl = Gtk.Label()
         self._sc(ts_lbl, "ts-lbl"); ts_lbl.set_halign(Gtk.Align.END)
-        if self._last_finance_fetch > 0:
-            ts_str = datetime.fromtimestamp(self._last_finance_fetch).strftime("%H:%M:%S")
+        if self.finance_api._last_fetch > 0:
+            ts_str = datetime.fromtimestamp(self.finance_api._last_fetch).strftime("%H:%M:%S")
             ts_lbl.set_text(f"🕐 {ts_str}")
         else:
             ts_lbl.set_text("🕐 —")
@@ -1881,8 +1886,7 @@ class MintSkyApp(Gtk.Window):
                                   f"son istek atılmayacak)")
         def _on_fin_refresh(*_):
             btn_ref.set_label("⏳"); btn_ref.set_sensitive(False)
-            with self._finance_lock:
-                self._last_finance_fetch = 0.0  # önbelleği geçersiz kıl
+            self.finance_api.reset_cache()
             def _do():
                 self.finance_api.fetch_bg(force=True)
                 GLib.idle_add(lambda: (btn_ref.set_label("🔄 Yenile"),
