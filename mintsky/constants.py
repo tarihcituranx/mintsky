@@ -49,39 +49,42 @@ VERSIYON = "7.1.7"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
-    "GRA":  "Gram Altın",
-    "GUM":  "Gümüş (gr)",
-    "CEY":  "Çeyrek Altın",
-    "YAR":  "Yarım Altın",
-    "TAM":  "Tam Altın",
-    "HAS":  "Has Gram Altın",
-    "ODA":  "14 Ayar Altın",
-    "OSA":  "18 Ayar Altın",
-    "YIA":  "22 Ayar Bilezik",
-    "GPL":  "Gram Platin",
-    "CUM":  "Cumhuriyet Altını",
-    "ATA":  "Ata Altını",
+    "GRA": "Gram Altın", "GUM": "Gümüş (gr)", "BRE": "Brent Petrol", "ONS": "Altın ONS",
+    "HAS": "Has Gram Altın", "CEY": "Çeyrek Altın", "YAR": "Yarım Altın", "TAM": "Tam Altın",
+    "CUM": "Cumhuriyet Altını", "ATA": "Ata Altını", "ODA": "14 Ayar Altın", "OSA": "18 Ayar Altın",
+    "YIA": "22 Ayar Bilezik", "IKI": "İki Buçuk Altın", "BES": "Beşli Altın", "GRE": "Gremse Altın",
+    "RES": "Reşat Altın", "HAM": "Hamit Altın", "GPL": "Gram Platin"
 }
 DOVIZ_KODLAR = {
-    "USD": "Amerikan Doları",
-    "EUR": "Euro",
-    "GBP": "İngiliz Sterlini",
-    "CHF": "İsviçre Frangı",
-    "JPY": "Japon Yeni (100)",
-    "AUD": "Avustralya Doları",
-    "CAD": "Kanada Doları",
-    "SAR": "S.A. Riyali",
-    "RUB": "Rus Rublesi",
-    "AED": "BAE Dirhemi",
+    "USD": "Amerikan Doları", "EUR": "Euro", "GBP": "İngiliz Sterlini", "CHF": "İsviçre Frangı",
+    "CAD": "Kanada Doları", "RUB": "Rus Rublesi", "AED": "BAE Dirhemi", "AUD": "Avustralya Doları",
+    "DKK": "Danimarka Kronu", "SEK": "İsveç Kronu", "NOK": "Norveç Kronu", "JPY": "100 Japon Yeni",
+    "KWD": "Kuveyt Dinarı", "ZAR": "Güney Afrika Randı", "BHD": "Bahreyn Dinarı", "LYD": "Libya Dinarı",
+    "SAR": "Suudi Arabistan Riyali", "IQD": "Irak Dinarı", "ILS": "İsrail Şekeli", "IRR": "İran Riyali",
+    "INR": "Hindistan Rupisi", "MXN": "Meksika Pesosu", "HUF": "Macar Forinti", "NZD": "Yeni Zelanda Doları",
+    "BRL": "Brezilya Reali", "IDR": "Endonezya Rupiahi", "CZK": "Çek Korunası", "PLN": "Polonya Zlotisi",
+    "RON": "Romanya Leyi", "CNY": "Çin Yuanı", "ARS": "Arjantin Pesosu", "ALL": "Arnavutluk Leki",
+    "AZN": "Azerbaycan Manatı", "BAM": "Bosna-Hersek Markı", "CLP": "Şili Pesosu", "COP": "Kolombiya Pesosu",
+    "CRC": "Kostarika Kolonu", "DZD": "Cezayir Dinarı", "EGP": "Mısır Lirası", "HKD": "Hong Kong Doları",
+    "ISK": "İzlanda Kronası", "JOD": "Ürdün Dinarı", "KRW": "Güney Kore Wonu", "KZT": "Kazak Tengesi",
+    "LBP": "Lübnan Lirası", "LKR": "Sri Lanka Rupisi", "MAD": "Fas Dirhemi", "MDL": "Moldovya Leusu",
+    "MKD": "Makedon Dinarı", "MYR": "Malezya Ringgiti", "OMR": "Umman Riyali", "PEN": "Peru İnti",
+    "PHP": "Filipinler Pesosu", "PKR": "Pakistan Rupisi", "QAR": "Katar Riyali", "RSD": "Sırbistan Dinarı",
+    "SGD": "Singapur Doları", "SYP": "Suriye Lirası", "THB": "Tayland Bahtı", "TWD": "Yeni Tayvan Doları",
+    "UAH": "Ukrayna Grivnası", "UYU": "Uruguay Pesosu", "GEL": "Gürcistan Larisi", "TND": "Tunus Dinarı",
+    "BGN": "Bulgar Levası"
 }
 KRIPTO_KODLAR = {
-    "BTC": "Bitcoin",
-    "ETH": "Ethereum",
-    "XRP": "Ripple",
-    "SOL": "Solana",
-    "BNB": "BNB",
-    "DOGE": "Dogecoin",
-    "USDT": "Tether",
+    "BTC": "Bitcoin", "ETH": "Ethereum", "XRP": "Ripple", "USDT": "Tether", "SOL": "Solana",
+    "BNB": "BNB", "DOGE": "Dogecoin", "USDC": "USD Coin", "ADA": "Cardano", "STETH": "Lido Staked Ether",
+    "TRX": "TRON", "LINK": "Chainlink", "AVAX": "Avalanche", "SUI": "Sui", "WBTC": "Wrapped Bitcoin",
+    "XLM": "Stellar", "WSTETH": "Wrapped stETH", "HBAR": "Hedera", "TON": "Toncoin", "SHIB": "Shiba Inu",
+    "DOT": "Polkadot", "WETH": "WETH", "LTC": "Litecoin", "LEO": "LEO Token", "BCH": "Bitcoin Cash",
+    "BGB": "Bitget Token", "TRUMP": "Official Trump", "UNI": "Uniswap", "HYPE": "Hyperliquid",
+    "PEPE": "Pepe", "WEETH": "Wrapped eETH", "USDS": "USDS", "NEAR": "NEAR Protocol", "USDE": "Ethena USDe",
+    "AAVE": "Aave", "APT": "Aptos", "ICP": "Internet Computer", "ONDO": "Ondo", "ETC": "Ethereum Classic",
+    "WBT": "WhiteBIT Coin", "VET": "VeChain", "XMR": "Monero", "POL": "POL (ex-MATIC)", "CRO": "Cronos",
+    "RENDER": "Render", "ALGO": "Algorand", "MNT": "Mantle", "OKB": "OKB", "OM": "MANTRA", "DAI": "Dai"
 }
 
 ALTIN_EMOJIS = {
