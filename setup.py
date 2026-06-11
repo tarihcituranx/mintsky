@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="mintsky",
-    version="7.1.9",
+    version="7.1.10",
     description="Linux Mint Desktop & Taskbar Weather App",
     author="Turan Kaya (tarihcituranx)",
     url="https://github.com/tarihcituranx",

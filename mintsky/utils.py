@@ -6,14 +6,16 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 7.0
+Versiyon    : 7.1.9
 Lisans      : MIT
 """
 from datetime import datetime
 from mintsky.constants import YONLER, HADISE, WMO_HADISE
 
 def yon(derece):
-    return YONLER[round(derece/22.5)%16] if derece not in (None,-9999) and derece >= 0 else ""
+    if derece is None or derece == -9999 or not isinstance(derece, (int, float)):
+        return ""
+    return YONLER[round(derece/22.5)%16] if derece >= 0 else ""
 
 def fmt_date(iso):
     try:
@@ -22,15 +24,15 @@ def fmt_date(iso):
         ay  = ["","Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz",
                "Ağustos","Eylül","Ekim","Kasım","Aralık"][dt.month]
         return f"{gun} {dt.day} {ay}"
-    except Exception: return iso
+    except (ValueError, TypeError, AttributeError): return iso
 
 def fmt_time(iso_z):
     try: return datetime.fromisoformat(iso_z.replace("Z","+00:00")).astimezone().strftime("%H:%M")
-    except Exception: return str(iso_z)[11:16]
+    except (ValueError, TypeError, AttributeError): return str(iso_z)[11:16]
 
 def fmt_dt(iso_z):
     try: return datetime.fromisoformat(iso_z.replace("Z","+00:00")).astimezone().strftime("%d.%m.%Y %H:%M")
-    except Exception: return str(iso_z)[:16]
+    except (ValueError, TypeError, AttributeError): return str(iso_z)[:16]
 
 def val(v, fmt="{:.0f}", suffix=""):
     return f"{fmt.format(v)}{suffix}" if v not in (None,-9999) else "—"
@@ -38,9 +40,7 @@ def val(v, fmt="{:.0f}", suffix=""):
 def fmt_try(v):
     """TRY formatı: binlik nokta, 2 ondalık"""
     if v is None or v == -9999: return "—"
-    if abs(v) >= 1000:
-        return f"{v:,.2f} ₺".replace(",",".")
-    return f"{v:.2f} ₺"
+    return f"{v:,.2f} ₺".replace(",", "X").replace(".", ",").replace("X", ".")
 
 def fmt_pct(v):
     if v is None: return "—"
@@ -48,6 +48,12 @@ def fmt_pct(v):
     return f"{sign}{v:.2f}%"
 
 def hadise_mgm(kod):  return HADISE.get(kod) or ("🌡️", kod or "—", "")
-def hadise_wmo(kod):  return WMO_HADISE.get(int(kod),("🌡️","Bilinmiyor","")) if kod is not None else ("🌡️","—","")
+def hadise_wmo(kod):
+    if kod is None:
+        return ("🌡️", "—", "")
+    try:
+        return WMO_HADISE.get(int(kod), ("🌡️", "Bilinmiyor", ""))
+    except (ValueError, TypeError):
+        return ("🌡️", str(kod), "")
 
 # ─── CSS ──────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import os
 import sys
+import atexit
 
 # Bulunduğu dizinin bir üstünü module path'e ekle (mintsky klasöründen çıkış)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,6 +19,7 @@ def main():
     global _lock_file
     lock_path = os.path.join(tempfile.gettempdir(), 'mintsky_instance.lock')
     _lock_file = open(lock_path, 'w')
+    atexit.register(lambda: _lock_file.close())
     try:
         fcntl.lockf(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
