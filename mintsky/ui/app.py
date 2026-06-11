@@ -53,8 +53,21 @@ import urllib.error
 import webbrowser
 from mintsky.constants import *
 from mintsky.utils import *
-from mintsky.utils import _safe_icon
+from mintsky.api.finance import FinanceAPI
+from mintsky.api.location import LocationAPI
+from mintsky.api.weather import WeatherAPI
 from mintsky.ui.styles import make_css
+
+def _safe_icon(icon_name):
+    try:
+        from gi.repository import Gtk
+        theme = Gtk.IconTheme.get_default()
+        sym   = f"{icon_name}-symbolic"
+        if theme.has_icon(sym):      return sym
+        if theme.has_icon(icon_name): return icon_name
+        if theme.has_icon("weather-few-clouds-symbolic"): return "weather-few-clouds-symbolic"
+    except Exception: pass
+    return "dialog-information"
 
 class MintSkyApp(Gtk.Window):
     def __init__(self):
@@ -76,11 +89,9 @@ class MintSkyApp(Gtk.Window):
         self._weather_cache_key = ""     # "il|ilce"
         self._fetch_in_progress = False  # eş zamanlı fetch engeli
 
-        # ── Finans önbelleği ───────────────────────────────────────────────
-        self._finance_data      = {}
-        self._last_finance_fetch= 0.0
-        self._finance_lock      = threading.Lock()
-        self._fin_fetching      = False  # çift finans-fetch engeli
+        # ── Finans API ─────────────────────────────────────────────────────
+        self.finance_api = FinanceAPI()
+        self.location_api = LocationAPI()
 
         # ── Güncelleme ─────────────────────────────────────────────────────
         self._update_info      = None
@@ -119,7 +130,9 @@ class MintSkyApp(Gtk.Window):
         self.il_entry.set_text(self._def_il)
         self.ilce_entry.set_text(self._def_ilce)
 
-        threading.Thread(target=self._fetch_turkiye_api, daemon=True).start()
+        def _loc_cb(sorted_provinces, locs):
+            GLib.idle_add(self._apply_turkiye_api, sorted_provinces, locs)
+        self.location_api.fetch_locations_bg(callback=_loc_cb)
         threading.Thread(target=self._check_update,      daemon=True).start()
 
         self.show_all()
@@ -208,52 +221,6 @@ class MintSkyApp(Gtk.Window):
         return False
 
     # ──────────────────── Türkiye İl/İlçe API ──────────────────────────────
-    def _fetch_turkiye_api(self):
-        for attempt in [self._try_mgm_ililce, self._try_cache, self._try_turkiyeapi]:
-            if attempt(): return
-
-    def _try_mgm_ililce(self):
-        try:
-            r = requests.get(f"{BASE_MGM}/web/merkezler/ililcesi", headers=MGM_HEADERS, timeout=TIMEOUT)
-            if r.status_code == 200:
-                locs = {}
-                for item in r.json():
-                    il = item.get("il",""); ilce = item.get("ilce","")
-                    if il:
-                        locs.setdefault(il,[])
-                        if ilce and ilce not in locs[il]: locs[il].append(ilce)
-                for il in locs: locs[il].sort()
-                self._save_locs(locs)
-                GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
-                return True
-        except Exception: pass
-        return False
-
-    def _try_cache(self):
-        try:
-            if os.path.exists(LOC_FILE):
-                with open(LOC_FILE,"r",encoding="utf-8") as f: locs = json.load(f)
-                GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
-                return True
-        except Exception: pass
-        return False
-
-    def _try_turkiyeapi(self):
-        try:
-            r = requests.get("https://api.turkiyeapi.dev/v1/provinces", timeout=10)
-            if r.status_code == 200:
-                locs = {p.get("name"):sorted([d.get("name") for d in p.get("districts",[])])
-                        for p in r.json().get("data",[])}
-                self._save_locs(locs)
-                GLib.idle_add(self._apply_turkiye_api, sorted(locs.keys()), locs)
-                return True
-        except Exception: pass
-        return False
-
-    def _save_locs(self, locs):
-        os.makedirs(CONFIG_DIR, exist_ok=True)
-        with open(LOC_FILE,"w",encoding="utf-8") as f: json.dump(locs,f,ensure_ascii=False,indent=2)
-
     def _apply_turkiye_api(self, sorted_provinces, locs):
         self._location_data = locs
         cur_il, cur_ilce = self.il_entry.get_text(), self.ilce_entry.get_text()
@@ -332,54 +299,22 @@ class MintSkyApp(Gtk.Window):
     def _schedule_finance_refresh(self):
         """GLib timer callback — arka planda finans güncelle"""
         if self._show_finance:
-            threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+            def _cb(success):
+                if success: GLib.idle_add(self._render_from_cache)
+            self.finance_api.fetch_bg(force=False, callback=_cb)
         return True  # devam et
-
-    def _fetch_finance_bg(self, force=False):
-        """Rate-limited finans çekimi. force=True ise önbellek kontrolünü atla."""
-        now = time.time()
-        with self._finance_lock:
-            if not force and (now - self._last_finance_fetch < FINANCE_CACHE_TTL):
-                return
-            if self._fin_fetching:
-                return
-            self._fin_fetching = True
-        try:
-            r = requests.get(FINANCE_API, timeout=TIMEOUT)
-            if r.status_code == 200:
-                data = r.json()
-                with self._finance_lock:
-                    self._finance_data       = data.get("Rates", {})
-                    self._last_finance_fetch = time.time()
-                    self._fin_fetching       = False
-                GLib.idle_add(self._render_from_cache)
-            else:
-                with self._finance_lock: self._fin_fetching = False
-        except Exception as e:
-            print(f"[MintSky Finans] API hatası: {e}")
-            with self._finance_lock: self._fin_fetching = False
 
     def _force_finance_refresh(self, btn=None):
         """Kullanıcı 'Yenile' butonuna bastı — önbelleği sıfırla ve çek."""
         if btn:
             btn.set_label("⏳"); btn.set_sensitive(False)
-        with self._finance_lock:
-            self._last_finance_fetch = 0.0
-        def _do():
-            self._fetch_finance_bg(force=True)
+        self.finance_api.reset_cache()
+        def _cb(success):
             if btn:
                 GLib.idle_add(lambda: (btn.set_label("🔄 Yenile"), btn.set_sensitive(True)) or False)
-        threading.Thread(target=_do, daemon=True).start()
-
-    def _get_rate_price(self, kod):
-        """Bir kodun güncel alış fiyatını döndür (TRY)"""
-        rates = self._finance_data
-        if not rates or kod not in rates: return None
-        r = rates[kod]
-        # Altın/döviz: Buying fiyatı; kripto: TRY_Price
-        if r.get("Type") == "CryptoCurrency":
-            return r.get("TRY_Price")
-        return r.get("Buying") or r.get("Selling")
+            if success:
+                GLib.idle_add(self._render_from_cache)
+        self.finance_api.fetch_bg(force=True, callback=_cb)
 
     # ──────────────────── Portföy hesaplama ────────────────────────────────
     def _calc_portfolio_pnl(self):
@@ -387,12 +322,11 @@ class MintSkyApp(Gtk.Window):
         total_cost    = 0.0
         total_current = 0.0
         details       = []
-        rates         = self._finance_data
         for item in self._portfolio:
             kod        = item.get("kod","")
             amount     = float(item.get("amount", 0))
             buy_price  = float(item.get("buy_price", 0))
-            cur_price  = self._get_rate_price(kod)
+            cur_price  = self.finance_api.get_rate_price(kod)
             cost       = amount * buy_price
             if cur_price is not None:
                 current    = amount * cur_price
@@ -1484,85 +1418,23 @@ class MintSkyApp(Gtk.Window):
         return False
 
     def _fetch(self, il, ilce):
-        try:
-            req  = requests.get(
-                f"{BASE_MGM}/web/merkezler?il={il}" + (f"&ilce={ilce}" if ilce else ""),
-                headers=MGM_HEADERS, timeout=TIMEOUT)
-            merk = self._safe_json(req)
-            if not merk:
-                GLib.idle_add(self._status,
-                    f"'{il}' verisi MGM'den alınamadı veya engellendi.\nLütfen tekrar deneyin.", True)
-                return
-
-            m = merk[0]
-            self._cur_lat = m.get("enlem") or m.get("lat")
-            self._cur_lon = m.get("boylam") or m.get("lon")
-            mid = m["merkezId"]
-
-            urls = {
-                "sd":         f"/web/sondurumlar?merkezid={mid}",
-                "gd":         f"/web/tahminler/gunluk?istno={m.get('gunlukTahminIstNo')}",
-                "sk":         f"/web/tahminler/saatlik?istno={m.get('saatlikTahminIstNo')}",
-                "alarmlar":   "/web/alarmlar",
-                "meteoalarm": "/web/meteoalarm/today",
-            }
-            results = {}
-            def get_url(key, url):
-                return self._safe_json(requests.get(f"{BASE_MGM}{url}",
-                                                    headers=MGM_HEADERS, timeout=TIMEOUT))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-                fmap = {ex.submit(get_url, k, v): k for k, v in urls.items()}
-                for fut in concurrent.futures.as_completed(fmap):
-                    k = fmap[fut]
-                    try:    results[k] = fut.result()
-                    except: results[k] = []
-
-            om_data = {}
-            if self._cur_lat and self._cur_lon:
-                om_data = self._fetch_openmeteo(self._cur_lat, self._cur_lon)
-
-            sd_data    = results.get("sd",  [{}])[0] if results.get("sd")  else {}
-            gd_data    = results.get("gd",  [{}])[0] if results.get("gd")  else {}
-            sk_data    = results.get("sk",  [{}])[0] if results.get("sk")  else {}
-            alarmlar   = results.get("alarmlar",   [])
-            meteoalarm = results.get("meteoalarm", [])
-
-            # Önbelleğe kaydet
-            self._weather_cache     = (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
-            self._weather_cache_ts  = time.time()
-            self._weather_cache_key = f"{il}|{ilce}"
-
-            GLib.idle_add(self._render, m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
-        except Exception as e:
-            GLib.idle_add(self._status,
-                f"MGM Bağlantı Hatası — Lütfen Yenileyin.\nDetay: {str(e)[:60]}", True)
-        finally:
+        success, err_msg, data = WeatherAPI.fetch_weather(il, ilce)
+        if not success:
+            GLib.idle_add(self._status, err_msg, True)
             self._fetch_in_progress = False
+            return
+            
+        m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data = data
+        self._cur_lat = m.get("enlem") or m.get("lat")
+        self._cur_lon = m.get("boylam") or m.get("lon")
 
-    def _fetch_openmeteo(self, lat, lon):
-        try:
-            params = {
-                "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 5,
-                "current": ",".join([
-                    "temperature_2m","apparent_temperature","relative_humidity_2m",
-                    "precipitation","weather_code","surface_pressure",
-                    "wind_speed_10m","wind_direction_10m","wind_gusts_10m",
-                    "uv_index","visibility","cloud_cover","dew_point_2m",
-                ]),
-                "hourly": ",".join([
-                    "temperature_2m","precipitation_probability",
-                    "wind_speed_10m","uv_index","weather_code",
-                ]),
-                "daily": ",".join([
-                    "temperature_2m_max","temperature_2m_min","precipitation_sum",
-                    "precipitation_probability_max","uv_index_max",
-                    "wind_speed_10m_max","sunshine_duration","weather_code",
-                ]),
-            }
-            r = requests.get(BASE_OM, params=params, timeout=TIMEOUT)
-            if r.status_code == 200: return r.json()
-        except Exception: pass
-        return {}
+        # Önbelleğe kaydet
+        self._weather_cache     = (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
+        self._weather_cache_ts  = time.time()
+        self._weather_cache_key = f"{il}|{ilce}"
+
+        GLib.idle_add(self._render, m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
+        self._fetch_in_progress = False
 
     # ──────────────────── Render ───────────────────────────────────────────
     def _render(self, merkez, sd, gd, sk, alarmlar, meteoalarm, om_data):

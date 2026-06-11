@@ -9,37 +9,7 @@ Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
 Versiyon    : 6.2 (Rate Limit Cache, Finans Yenile, Bugfix)
 Lisans      : MIT
 """
-import sys
-import gi
-gi.require_version("Gtk", "3.0")
-try:
-    gi.require_version("Notify", "0.7")
-    from gi.repository import Notify
-    HAS_NOTIFY = True
-except Exception:
-    HAS_NOTIFY = False
-from gi.repository import Gtk, GLib, Gdk
-try:
-    gi.require_version("AppIndicator3", "0.1")
-    from gi.repository import AppIndicator3
-    HAS_INDICATOR = True
-except Exception:
-    try:
-        gi.require_version("AyatanaAppIndicator3", "0.1")
-        from gi.repository import AyatanaAppIndicator3 as AppIndicator3
-        HAS_INDICATOR = True
-    except Exception:
-        HAS_INDICATOR = False
-import requests
-import threading
-import json
 import os
-import shutil
-import time
-import webbrowser
-import uuid
-import concurrent.futures
-from datetime import datetime
 # ─── Sabitler ─────────────────────────────────────────────────────────────
 BASE_MGM      = "https://servis.mgm.gov.tr"
 
@@ -144,9 +114,6 @@ GROQ_SYSTEM = (
     "hava durumuyla ilgisiz her şey.\n\n"
     "FORMAT: 3-6 madde, kısa ve öz Türkçe, emoji ile."
 )
-
-if HAS_NOTIFY:
-    Notify.init(UYGULAMA_ADI)
 
 # ─── MGM Hadise Sözlüğü ───────────────────────────────────────────────────
 HADISE = {
