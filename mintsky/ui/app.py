@@ -1073,16 +1073,22 @@ class MintSkyApp(Gtk.Window):
     def _check_for_updates_bg(self, forced=False):
         def _check():
             try:
-                import requests
-                api_url = GITHUB_REPO.replace("github.com", "api.github.com/repos") + "/releases/latest"
-                r = requests.get(api_url, timeout=5)
+                import requests, re
+                raw_url = "https://raw.githubusercontent.com/tarihcituranx/mintsky/main/mintsky/constants.py"
+                r = requests.get(raw_url, timeout=5)
                 if r.status_code == 200:
-                    latest = r.json().get("tag_name", "")
-                    if latest and latest.lstrip("v") > VERSIYON:
-                        download_url = r.json().get("html_url", GITHUB_REPO)
-                        GLib.idle_add(self._ask_update, latest, download_url)
+                    match = re.search(r'VERSIYON\s*=\s*["\']([^"\']+)["\']', r.text)
+                    if match:
+                        latest = match.group(1)
+                        if latest > VERSIYON:
+                            download_url = f"{GITHUB_REPO}/releases/latest"
+                            GLib.idle_add(self._ask_update, latest, download_url)
+                        elif forced:
+                            GLib.idle_add(self._notify_no_update)
                     elif forced:
                         GLib.idle_add(self._notify_no_update)
+                elif forced:
+                    GLib.idle_add(self._notify_update_error, f"HTTP {r.status_code}")
             except Exception as e:
                 if forced:
                     GLib.idle_add(self._notify_update_error, str(e))
