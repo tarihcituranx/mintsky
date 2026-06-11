@@ -457,12 +457,12 @@ class MintSkyApp(Gtk.Window):
             os.makedirs(APP_DIR, exist_ok=True)
             with open(APP_FILE,"w") as f:
                 f.write(f"[Desktop Entry]\nVersion=1.0\nType=Application\n"
-                        f"Name={UYGULAMA_ADI}\nComment=MintSky Hava Durumu ve Tahmini\n"
+                        f"Name={UYGULAMA_ADI}\nComment={_('app_comment')}\n"
                         f"Exec=python3 \"{self.script_path}\"\nIcon=mintsky\n"
                         f"Terminal=false\nCategories=Utility;Weather;\nStartupNotify=true\n")
             os.system("gtk-update-icon-cache -f ~/.local/share/icons/hicolor/ 2>/dev/null &")
-            self._status("🚀 Uygulama Linux menüsüne eklendi!\nUygulama listesinden 'MintSky' yazarak açabilirsin.")
-        except Exception as e: self._status(f"Hata: {e}", True)
+            self._status(_("msg_installed"))
+        except Exception as e: self._status(f"{_('error')}: {e}", True)
 
     def _get_scale(self):  return self._manual_scale
     def _apply_css(self):  self._provider.load_from_data(make_css(self._get_scale(), self._theme).encode("utf-8"))
@@ -500,15 +500,15 @@ class MintSkyApp(Gtk.Window):
         title_row.pack_start(Gtk.Box(), True, True, 0)  # spacer
 
         for icon, text, tooltip, cb in [
-            ("🔽","Widget",   "Widget Moduna Geç",        self._toggle_compact),
-            ("🔄","Yenile",   "Yenile (F5)",               self._manual_refresh),
-            ("📜","Sürüm",    "Sürüm Notları",             self._show_changelog),
-            ("ℹ️","Simgeler", "Hava Simgeleri Rehberi",    self._open_mgm_simgeler),
-            ("⚙️","Ayarlar",  "Uygulama Ayarları",         self._show_settings),
+            ("🔽", _("btn_widget"),   _("btn_widget_tt"),        self._toggle_compact),
+            ("🔄", _("btn_refresh"),  _("btn_refresh_tt"),        self._manual_refresh),
+            ("📜", _("btn_version"),  _("btn_version_tt"),        self._show_changelog),
+            ("ℹ️", _("btn_icons"),    _("btn_icons_tt"),          self._open_mgm_simgeler),
+            ("⚙️", _("btn_settings"), _("btn_settings_tt"),       self._show_settings),
         ]:
             title_row.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
-        self.btn_ai = self._create_tool_btn("🤖","AI","Groq AI Hava Danışmanı",
+        self.btn_ai = self._create_tool_btn("🤖", _("btn_ai"), _("btn_ai_tt"),
                                              self._show_ai_dialog, "btn-ai")
         title_row.pack_start(self.btn_ai, False, False, 0)
 
@@ -591,8 +591,8 @@ class MintSkyApp(Gtk.Window):
     def _show_settings(self, *_):
         old_api_source = self._api_source
 
-        dlg = Gtk.Dialog(title="⚙️ Ayarlar", transient_for=self, flags=0)
-        dlg.add_buttons("İptal", Gtk.ResponseType.CANCEL, "💾 Kaydet", Gtk.ResponseType.OK)
+        dlg = Gtk.Dialog(title=f"⚙️ {_('settings_title')}", transient_for=self, flags=0)
+        dlg.add_buttons(_("settings_cancel"), Gtk.ResponseType.CANCEL, f"💾 {_('settings_save')}", Gtk.ResponseType.OK)
         dlg.set_default_size(680, 400)
         dlg.set_resizable(False)
 
@@ -630,25 +630,25 @@ class MintSkyApp(Gtk.Window):
         # ════════════════════════════════════════════════════════════════════
         # SEKME 1 — HAVA DURUMU
         # ════════════════════════════════════════════════════════════════════
-        p1, t1 = _tab("☁️  Hava Durumu")
+        p1, t1 = _tab(f"☁️  {_('settings_tab_weather')}")
 
         cb_src = Gtk.ComboBoxText()
         cb_src.append("mgm",       "🇹🇷 MGM — Meteoroloji Genel Müdürlüğü (Türkiye)")
         cb_src.append("openmeteo", "🌍 Open-Meteo — Uluslararası açık kaynak")
         cb_src.set_active_id(self._api_source)
-        _row("Veri Kaynağı", cb_src, p1)
+        _row(_("settings_src"), cb_src, p1)
         _sep(p1)
 
-        chk_saat  = Gtk.CheckButton.new_with_label("⏰ Saatlik Tahmin (48 saat)")
-        chk_gun   = Gtk.CheckButton.new_with_label("📅 5 Günlük Tahmin")
-        chk_extra = Gtk.CheckButton.new_with_label("🔬 Ekstra Detaylar  (UV, yağış, kar, çiğ noktası…)")
+        chk_saat  = Gtk.CheckButton.new_with_label(f"⏰ {_('settings_hourly')} (48 saat)")
+        chk_gun   = Gtk.CheckButton.new_with_label(f"📅 {_('settings_daily')}")
+        chk_extra = Gtk.CheckButton.new_with_label(f"🔬 {_('settings_extra')}  (UV, yağış, kar, çiğ noktası…)")
         chk_saat.set_active(self._show_saatlik)
         chk_gun.set_active(self._show_gunluk)
         chk_extra.set_active(self._show_extra)
 
         bolum_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         for w in (chk_saat, chk_gun, chk_extra): bolum_box.pack_start(w, False, False, 0)
-        _row("Gösterilecek\nBölümler", bolum_box, p1)
+        _row(_("settings_show_sections"), bolum_box, p1)
 
         nb.append_page(p1, t1)
 
@@ -692,7 +692,7 @@ class MintSkyApp(Gtk.Window):
         # ════════════════════════════════════════════════════════════════════
         # SEKME 3 — AI & GÖRÜNÜM
         # ════════════════════════════════════════════════════════════════════
-        p3, t3 = _tab("🤖  AI & Görünüm")
+        p3, t3 = _tab(f"🤖  {_('settings_tab_ai')}")
 
         groq_note = Gtk.Label()
         groq_note.set_markup(
@@ -741,10 +741,10 @@ class MintSkyApp(Gtk.Window):
         # ════════════════════════════════════════════════════════════════════
         # SEKME 4 — SİSTEM
         # ════════════════════════════════════════════════════════════════════
-        p4, t4 = _tab("⚙️  Sistem")
+        p4, t4 = _tab(f"⚙️  {_('settings_tab_system')}")
 
-        chk_notify = Gtk.CheckButton.new_with_label("Hava değişimi ve uyarıları için masaüstü bildirimi gönder")
-        chk_auto   = Gtk.CheckButton.new_with_label("Sistem açılışında otomatik başlat  (widget modunda)")
+        chk_notify = Gtk.CheckButton.new_with_label(_("settings_notify"))
+        chk_auto   = Gtk.CheckButton.new_with_label(_("settings_autostart"))
         chk_notify.set_active(self._notify_enabled)
         chk_auto.set_active(self._autostart)
         p4.pack_start(chk_notify, False, False, 0)
@@ -755,7 +755,7 @@ class MintSkyApp(Gtk.Window):
         cb_lang.append("tr", "🇹🇷 Türkçe")
         cb_lang.append("en", "🇬🇧 English")
         cb_lang.set_active_id(self._language)
-        _row("Dil Seçimi / Language (Yeniden başlatma gerektirir)", cb_lang, p4)
+        _row(_("settings_lang"), cb_lang, p4)
         _sep(p4)
 
         btn_install = Gtk.Button(label="🚀 Uygulama Menüsüne Kısayol Ekle")
