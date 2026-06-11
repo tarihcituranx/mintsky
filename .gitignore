@@ -1,1 +1,12 @@
 __pycache__/
+
+# AI Assistant files
+brain.md
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+AGENT_SKILLS.md
+PROJECT_STATUS.md
+.claude/
+.gemini/
+skills/
