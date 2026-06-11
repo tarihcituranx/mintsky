@@ -5,9 +5,9 @@ def make_css(scale_val, theme="dark"):
         card_grad        = "linear-gradient(145deg,#ffffff 0%,#eef2f7 100%)"
         hdr_grad         = "linear-gradient(160deg,#ffffff 0%,#f0f4f8 100%)"
         border           = "#d0d7de"
-        text_main        = "#1a2233"
-        text_sub         = "#4a5568"
-        text_mut         = "#8c95a0"
+        text_main        = "#0f172a"
+        text_sub         = "#334155"
+        text_mut         = "#475569"
         text_accent      = "#0969da"
         entry_bg,btn_bg  = "#ffffff","#f0f3f7"
         btn_hover        = "#e5e9f0"
@@ -27,9 +27,9 @@ def make_css(scale_val, theme="dark"):
         card_grad        = "linear-gradient(145deg,#161e30 0%,#0f1520 100%)"
         hdr_grad         = "linear-gradient(160deg,#161e30 0%,#0a0e17 100%)"
         border           = "#253046"
-        text_main        = "#e2e8f8"
-        text_sub         = "#94a3c0"
-        text_mut         = "#5a6a85"
+        text_main        = "#f8fafc"
+        text_sub         = "#cbd5e1"
+        text_mut         = "#94a3b8"
         text_accent      = "#60a5fa"
         entry_bg,btn_bg  = "#101828","#1e2d42"
         btn_hover        = "#253046"
@@ -46,7 +46,7 @@ def make_css(scale_val, theme="dark"):
         pill_shadow      = "rgba(0,0,0,0.35)"
 
     return f"""
-* {{ font-family:"Ubuntu","Cantarell",sans-serif; }}
+* {{ font-family:"Ubuntu","Cantarell",sans-serif; font-size:{fs(15)}px; }}
 #main-win {{ background-color:{bg}; }}
 
 /* ─── Header ─── */
