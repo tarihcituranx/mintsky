@@ -1391,7 +1391,7 @@ class MintSkyApp(Gtk.Window):
         tooltip_text = f"☁️ MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
         if HAS_INDICATOR:
             self._indicator.set_icon_full(icon_name, kisa_desc)
-            self._indicator.set_title(tooltip_text)
+            self._indicator.set_title(f" {temp_txt}°")
             # Menüyü yenile (finans eklenebilir)
             self._indicator.set_menu(self._build_tray_menu())
         else:
