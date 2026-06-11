@@ -8,8 +8,9 @@ setup(
     url="https://github.com/tarihcituranx",
     packages=find_packages(),
     install_requires=[
-        "requests",
-        "PyGObject"
+        "requests>=2.31.0",
+        "PyGObject>=3.46.0",
+        "groq>=0.9.0"
     ],
     entry_points={
         "console_scripts": [
