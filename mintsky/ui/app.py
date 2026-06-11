@@ -250,6 +250,7 @@ class MintSkyApp(Gtk.Window):
     def _load_settings(self):
         d = core_load_settings()
         self._theme              = d.get("theme",          "dark")
+        self._language           = d.get("language",       "tr")
         self._manual_scale       = d.get("scale",           1.2)
         self._autostart          = d.get("autostart",       False)
         self._def_il             = d.get("def_il",          "Samsun")
@@ -267,7 +268,7 @@ class MintSkyApp(Gtk.Window):
 
     def _save_settings(self):
         core_save_settings({
-            "theme":self._theme, "scale":self._manual_scale,
+            "theme":self._theme, "language":self._language, "scale":self._manual_scale,
             "autostart":self._autostart, "def_il":self._def_il,
             "def_ilce":self._def_ilce, "notify":self._notify_enabled,
             "api_source":self._api_source, "show_extra":self._show_extra,
@@ -748,6 +749,13 @@ class MintSkyApp(Gtk.Window):
         p4.pack_start(chk_notify, False, False, 0)
         p4.pack_start(chk_auto,   False, False, 0)
         _sep(p4)
+        
+        cb_lang = Gtk.ComboBoxText()
+        cb_lang.append("tr", "🇹🇷 Türkçe")
+        cb_lang.append("en", "🇬🇧 English")
+        cb_lang.set_active_id(self._language)
+        _row("Dil Seçimi / Language (Yeniden başlatma gerektirir)", cb_lang, p4)
+        _sep(p4)
 
         btn_install = Gtk.Button(label="🚀 Uygulama Menüsüne Kısayol Ekle")
         self._sc(btn_install, "btn-search")
@@ -776,6 +784,7 @@ class MintSkyApp(Gtk.Window):
             self._show_saatlik   = chk_saat.get_active()
             self._show_gunluk    = chk_gun.get_active()
             self._show_finance   = chk_fin.get_active()
+            self._language       = cb_lang.get_active_id() or "tr"
             self._groq_api_key   = groq_entry.get_text().strip()
             self._fin_altin      = [k for k,c in altin_chks.items() if c.get_active()]
             self._fin_doviz      = [k for k,c in doviz_chks.items() if c.get_active()]

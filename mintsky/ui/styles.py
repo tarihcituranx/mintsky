@@ -74,27 +74,27 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 .btn-search:active {{ background:linear-gradient(135deg,#25a557,#1f8e4d); }}
 
 .btn-tool {{ background-color:{btn_bg}; color:{text_main}; border:1px solid {border};
-             border-radius:8px; padding:{fs(4)}px {fs(6)}px; min-width:{fs(40)}px;
+             border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px; min-width:{fs(50)}px;
              box-shadow:0 2px 4px {pill_shadow}; }}
 .btn-tool:hover  {{ background-color:{btn_hover}; border-color:{text_accent}; }}
 .btn-tool:active {{ background-color:{btn_active}; }}
 
 .btn-ai  {{ background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff;
-            border:1px solid #8b5cf6; border-radius:8px; padding:{fs(4)}px {fs(6)}px;
-            min-width:{fs(40)}px; box-shadow:0 3px 8px rgba(124,58,237,0.35); }}
+            border:1px solid #8b5cf6; border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px;
+            min-width:{fs(50)}px; box-shadow:0 3px 8px rgba(124,58,237,0.35); }}
 .btn-ai:hover  {{ background:linear-gradient(135deg,#8b5cf6,#6d28d9);
                   box-shadow:0 4px 12px rgba(124,58,237,0.50); }}
 .btn-ai:active {{ background:linear-gradient(135deg,#6d28d9,#5b21b6); }}
 
 .btn-fin {{ background:linear-gradient(135deg,#d4a017,#b8860b); color:#ffffff;
-            border:1px solid #c9a227; border-radius:8px; padding:{fs(4)}px {fs(6)}px;
-            min-width:{fs(40)}px; box-shadow:0 3px 8px rgba(184,134,11,0.35); }}
+            border:1px solid #c9a227; border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px;
+            min-width:{fs(50)}px; box-shadow:0 3px 8px rgba(184,134,11,0.35); }}
 .btn-fin:hover  {{ background:linear-gradient(135deg,#e8b420,#cc9910); }}
 .btn-fin:active {{ background:linear-gradient(135deg,#b87b0a,#9a6508); }}
 
 .btn-fav-active {{ background:linear-gradient(135deg,#92400e,#78350f); color:#fbbf24;
-                   border:1px solid #d97706; border-radius:8px; padding:{fs(4)}px {fs(6)}px;
-                   min-width:{fs(40)}px; box-shadow:0 3px 8px rgba(217,119,6,0.35); }}
+                   border:1px solid #d97706; border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px;
+                   min-width:{fs(50)}px; box-shadow:0 3px 8px rgba(217,119,6,0.35); }}
 .btn-fav-active:hover {{ background:linear-gradient(135deg,#a45a0e,#8a3f0f); }}
 
 /* ─── Ana kart (şimdiki hava) ─── */
