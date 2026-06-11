@@ -202,8 +202,10 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 
 /* ─── Status / hata ─── */
 .status-lbl {{ font-size:{fs(15)}px; color:{text_sub}; }}
-.err-lbl    {{ font-size:{fs(14)}px; color:#f85149; }}
+.err-lbl    {{ font-size:{fs(15)}px; color:#f85149; font-weight: bold; }}
 .ts-lbl     {{ font-size:{fs(13)}px; color:{text_mut}; font-style:italic; margin-top:{fs(6)}px; }}
+.ai-lbl     {{ font-size:{fs(15)}px; color:{text_main}; font-weight: bold; }}
+.ai-val     {{ font-size:{fs(14)}px; color:{text_main}; }}
 separator   {{ background-color:{border}; margin:{fs(8)}px 0; }}
 scrolledwindow {{ background-color:transparent; }}
 viewport {{ background-color:transparent; }}
