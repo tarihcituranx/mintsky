@@ -10,7 +10,7 @@ from gi.repository import Gtk
 
 from mintsky.ui.app import MintSkyApp
 from mintsky.i18n import load_language
-from mintsky.utils import core_load_settings
+from mintsky.core.settings import load_settings
 
 def main():
     import fcntl
@@ -24,7 +24,7 @@ def main():
         print("MintSky zaten arka planda çalışıyor! (Sistem tepsisine veya görev çubuğuna bakın)")
         sys.exit(0)
 
-    cfg = core_load_settings()
+    cfg = load_settings()
     load_language(cfg.get("language", "tr"))
     win = MintSkyApp()
     Gtk.main()
