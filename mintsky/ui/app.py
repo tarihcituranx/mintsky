@@ -1122,13 +1122,15 @@ class MintSkyApp(Gtk.Window):
             self._msg_dialog(self, "Veri Yok", "Önce bir konum arayın; AI veriyi okuyarak tavsiye üretir."); return
 
         dlg = Gtk.Dialog(title="🤖 Groq AI Hava Danışmanı", transient_for=self, flags=0)
+        dlg.set_name("main-win")
         dlg.add_button("Kapat", Gtk.ResponseType.CLOSE)
-        dlg.set_default_size(460, 420)
+        dlg.set_default_size(500, 480)
         box = dlg.get_content_area()
         box.set_margin_start(16); box.set_margin_end(16)
         box.set_margin_top(14); box.set_margin_bottom(14); box.set_spacing(8)
 
         sehir_lbl = Gtk.Label(label=f"📍 {self._last_render_data.get('sehir','')}")
+        self._sc(sehir_lbl, "ai-lbl")
         sehir_lbl.set_halign(Gtk.Align.START); box.pack_start(sehir_lbl, False, False, 0)
 
         scroll = Gtk.ScrolledWindow()
@@ -1139,6 +1141,7 @@ class MintSkyApp(Gtk.Window):
         box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         q_lbl = Gtk.Label(label="Özel soru (boş bırakırsanız genel tavsiye üretir):")
+        self._sc(q_lbl, "ai-lbl")
         q_lbl.set_halign(Gtk.Align.START); box.pack_start(q_lbl, False, False, 0)
         q_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         q_entry = Gtk.Entry()
@@ -1185,6 +1188,7 @@ class MintSkyApp(Gtk.Window):
             for child in self._ai_box.get_children():
                 self._ai_box.remove(child)
             loading_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
+            self._sc(loading_lbl, "ai-lbl")
             loading_lbl.set_halign(Gtk.Align.START)
             self._ai_box.pack_start(loading_lbl, False, False, 0)
             self._ai_box.show_all()
@@ -1207,6 +1211,7 @@ class MintSkyApp(Gtk.Window):
                         self._ai_box.remove(child)
                     if err:
                         lbl = Gtk.Label(label=err)
+                        self._sc(lbl, "err-lbl")
                         lbl.set_halign(Gtk.Align.START)
                         lbl.set_line_wrap(True)
                         self._ai_box.pack_start(lbl, False, False, 0)
@@ -1224,9 +1229,11 @@ class MintSkyApp(Gtk.Window):
                             icon = icons.get(k, "📌")
                             title_lbl = Gtk.Label()
                             title_lbl.set_markup(f"<b>{icon} {k}</b>")
+                            self._sc(title_lbl, "ai-lbl")
                             title_lbl.set_halign(Gtk.Align.START)
                             
                             val_lbl = Gtk.Label(label=str(v))
+                            self._sc(val_lbl, "ai-val")
                             val_lbl.set_halign(Gtk.Align.START)
                             val_lbl.set_line_wrap(True); val_lbl.set_selectable(True)
                             
