@@ -16,7 +16,33 @@ jobs:
       - name: Kodu Çek
         uses: actions/checkout@v6
         
+      - name: Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Bağımlılıkları Yükle
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 libcairo2-dev libgirepository1.0-dev pkg-config
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: PyInstaller ile Derle
+        run: |
+          pyinstaller --noconfirm --onedir --windowed --name "MintSky" \
+            --add-data "mintsky/locales:mintsky/locales" \
+            --hidden-import "gi.repository.Gtk" \
+            --hidden-import "gi.repository.Gdk" \
+            --hidden-import "gi.repository.GLib" \
+            --hidden-import "gi.repository.Pango" \
+            --hidden-import "gi.repository.AppIndicator3" \
+            mintsky/main.py
+            
+          cd dist && tar -czvf MintSky-Linux-x86_64.tar.gz MintSky/
+
       - name: GitHub Release Oluştur
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true # .github/release.yml dosyasına göre notları Türkçe oluşturur
+          files: dist/MintSky-Linux-x86_64.tar.gz

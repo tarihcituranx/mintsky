@@ -200,6 +200,12 @@ class MintSkyApp(Gtk.Window):
             self.resize(int(500*self._get_scale()), int(880*self._get_scale()))
         GLib.idle_add(self._render_from_cache)
 
+        # Update CSS ve ilk veri çekimi
+        self._apply_css()
+        GLib.timeout_add(100, self._btn_refresh_clicked, None)
+        self._check_for_updates_bg()
+        return False
+
     def _apply_widget_geometry(self):
         self.resize(1, 1)
         GLib.timeout_add(60, self._move_to_corner)
@@ -1063,6 +1069,30 @@ class MintSkyApp(Gtk.Window):
         dlg.set_website(GELISTIRICI); dlg.set_website_label("GitHub: tarihcituranx")
         dlg.set_license_type(Gtk.License.MIT_X11); dlg.set_authors(["Turan Kaya"])
         dlg.run(); dlg.destroy()
+
+    def _check_for_updates_bg(self):
+        def _check():
+            try:
+                import requests
+                api_url = GITHUB_REPO.replace("github.com", "api.github.com/repos") + "/releases/latest"
+                r = requests.get(api_url, timeout=5)
+                if r.status_code == 200:
+                    latest = r.json().get("tag_name", "")
+                    if latest and latest.lstrip("v") > VERSIYON:
+                        download_url = r.json().get("html_url", GITHUB_REPO)
+                        GLib.idle_add(self._ask_update, latest, download_url)
+            except: pass
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _ask_update(self, latest, url):
+        dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.QUESTION,
+                                buttons=Gtk.ButtonsType.YES_NO, text=f"Yeni Sürüm Mevcut: {latest}")
+        dlg.format_secondary_text(f"MintSky'ın yeni bir versiyonu ({latest}) var. İndirme sayfasına gitmek ister misiniz?\n\nİndirme bağlatısından Linux için derlenmiş hazır 'MintSky-Linux-x86_64.tar.gz' paketini indirebilirsiniz.")
+        response = dlg.run()
+        dlg.destroy()
+        if response == Gtk.ResponseType.YES:
+            import webbrowser
+            webbrowser.open(url)
 
     # ──────────────────── Groq AI ──────────────────────────────────────────
     def _test_groq_key(self, key):

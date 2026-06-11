@@ -16,7 +16,7 @@
 * 🤖 **Groq AI & Edge-TTS Assistant:** AI-powered recommendations (e.g., "should I take an umbrella?"). Reads the suggestions aloud using realistic **Edge-TTS** voices!
 * 💰 **Finance & Portfolio Tracker:** Real-time prices for Gold, Currencies, and Crypto via Truncgil API. Track your portfolio to see live Profit/Loss calculations.
 * ♿ **Accessibility (A11y):** Full support for Linux Screen Readers (e.g., Orca). All UI elements (buttons, search bars, tabs) are properly labeled via `Atk` for 100% keyboard navigability.
-* 🌐 **Multi-Language (i18n):** Supports English and Turkish out-of-the-box using modular `.json` locale files, similar to Telegram.
+* 🌐 **Multi-Language (i18n):** Supports 8 languages including English, Turkish, German, French, Arabic, Persian, Chinese, and Azerbaijani! Switch instantly using modular `.json` locale files, similar to Telegram.
 * 🔔 **System Tray & Notifications:** Runs quietly in the background (`AppIndicator3`) and delivers desktop notifications via `libnotify` for sudden weather changes.
 * 🎨 **Modern GTK3 Interface:** A clean, lightweight, native UI with Dark/Light mode support tailored for Linux desktop environments.
 
