@@ -391,6 +391,12 @@ class MintSkyApp(Gtk.Window):
         lbl.get_style_context().add_class("update-txt")
         lbl.set_halign(Gtk.Align.START)
         self._update_bar.pack_start(lbl, True, True, 0)
+        
+        btn_update = Gtk.Button(label="📥 Otomatik Güncelle")
+        btn_update.connect("clicked", self._do_in_app_update)
+        self._sc(btn_update, "btn-tool")
+        self._update_bar.pack_start(btn_update, False, False, 0)
+
         btn_kapat = Gtk.Button(label="✕")
         btn_kapat.connect("clicked", lambda *_: self.hdr.remove(self._update_bar))
         self._sc(btn_kapat, "btn-tool")
@@ -398,6 +404,22 @@ class MintSkyApp(Gtk.Window):
         self.hdr.pack_start(self._update_bar, False, False, 0)
         self.hdr.show_all()
         return False
+
+    def _do_in_app_update(self, btn):
+        btn.set_sensitive(False)
+        btn.set_label("⏳ Güncelleniyor...")
+        def _bg():
+            import subprocess
+            try:
+                repo_dir = os.path.dirname(os.path.dirname(self.script_path))
+                subprocess.run(["git", "pull", "origin", "main"], cwd=repo_dir, check=True, capture_output=True)
+                GLib.idle_add(self._msg_dialog, self, "Başarılı", "MintSky güncellendi! Lütfen uygulamayı kapatıp yeniden başlatın.")
+                GLib.idle_add(lambda: btn.set_label("✅ Güncellendi"))
+            except Exception as e:
+                GLib.idle_add(self._msg_dialog, self, "Hata", f"Güncelleme başarısız (Git kurulu olmayabilir veya erişim reddedildi):\n{e}")
+                GLib.idle_add(lambda: (btn.set_label("❌ Hata"), btn.set_sensitive(True)) or False)
+        import threading
+        threading.Thread(target=_bg, daemon=True).start()
 
     # ──────────────────── Autostart / Kurulum ──────────────────────────────
     def _apply_autostart_logic(self):
