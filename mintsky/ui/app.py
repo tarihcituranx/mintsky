@@ -71,7 +71,7 @@ def _safe_icon(icon_name):
         if theme.has_icon(sym):      return sym
         if theme.has_icon(icon_name): return icon_name
         if theme.has_icon("weather-few-clouds-symbolic"): return "weather-few-clouds-symbolic"
-    except Exception: pass
+    except Exception as e: print(f"[MintSky] Hata: {e}")
     return "dialog-information"
 
 class MintSkyApp(Gtk.Window):
@@ -385,7 +385,7 @@ class MintSkyApp(Gtk.Window):
                                 n.show()
                                 return False
                             GLib.idle_add(_show_notif)
-        except Exception: pass
+        except Exception as e: print(f"[MintSky] Hata: {e}")
 
     def _is_newer(self, remote, local):
         try:
@@ -999,9 +999,9 @@ class MintSkyApp(Gtk.Window):
         def _add_item(*_):
             kod = cb_type.get_active_id()
             try: amt = float(entry_amt.get_text().replace(",","."))
-            except: self._msg_dialog(dlg,"Hata","Geçersiz miktar."); return
+            except ValueError: self._msg_dialog(dlg,"Hata","Geçersiz miktar."); return
             try: bp  = float(entry_price.get_text().replace(",","."))
-            except: self._msg_dialog(dlg,"Hata","Geçersiz alım fiyatı."); return
+            except ValueError: self._msg_dialog(dlg,"Hata","Geçersiz alım fiyatı."); return
             # İsim bul
             all_names = {**ALTIN_KODLAR, **DOVIZ_KODLAR}
             name = all_names.get(kod, kod)
@@ -1486,7 +1486,7 @@ class MintSkyApp(Gtk.Window):
                 GLib.idle_add(n.show)
 
             self._last_bg_hadise = h_kod; self._last_bg_alarms = aktif
-        except Exception: pass
+        except Exception as e: print(f"[MintSky] Hata: {e}")
         finally: self._tray_busy = False
 
     # ──────────────────── Konum GPS ────────────────────────────────────────
@@ -2179,7 +2179,7 @@ class MintSkyApp(Gtk.Window):
         for i in range(start, min(start+24, len(om_times))):
             hc = self._make_hcard()
             try:    t_str = om_times[i][11:16]
-            except: t_str = "--"
+            except (IndexError, TypeError): t_str = "--"
             tl = Gtk.Label(label=t_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
             em,ks,uz = hadise_wmo(wcodes[i] if i<len(wcodes) else None)
             el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
@@ -2244,7 +2244,7 @@ class MintSkyApp(Gtk.Window):
             outer   = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2); self._sc(outer,"fc-row")
             top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             try:   dt_fmt = fmt_date(tarih+"T00:00:00")
-            except: dt_fmt = tarih
+            except (ValueError, TypeError): dt_fmt = tarih
             dl  = Gtk.Label(label=dt_fmt); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
             em,ksa,uzn = hadise_wmo(wc_arr[i] if i<len(wc_arr) else None)
             cl  = Gtk.Label(label=f"{em} {ksa}"); self._sc(cl,"fc-cond"); cl.set_halign(Gtk.Align.START)
