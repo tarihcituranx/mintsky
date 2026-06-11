@@ -361,16 +361,17 @@ class MintSkyApp(Gtk.Window):
     # ──────────────────── GitHub Güncelleme Kontrolü ───────────────────────
     def _check_update(self):
         try:
-            r = requests.get(GITHUB_API,
-                             headers={"User-Agent":"MintSkyApp/7.0"},
-                             timeout=10)
+            import requests, re
+            raw_url = "https://raw.githubusercontent.com/tarihcituranx/mintsky/main/mintsky/constants.py"
+            r = requests.get(raw_url, timeout=10)
             if r.status_code == 200:
-                data    = r.json()
-                tag     = data.get("tag_name","").lstrip("v")
-                url     = data.get("html_url", GITHUB_REPO)
-                if tag and tag != VERSIYON and self._is_newer(tag, VERSIYON):
-                    self._update_info = (tag, url)
-                    GLib.idle_add(self._show_update_banner)
+                match = re.search(r'VERSIYON\s*=\s*["\']([^"\']+)["\']', r.text)
+                if match:
+                    tag = match.group(1)
+                    url = f"{GITHUB_REPO}/releases/latest"
+                    if tag and tag != VERSIYON and self._is_newer(tag, VERSIYON):
+                        self._update_info = (tag, url)
+                        GLib.idle_add(self._show_update_banner)
                     if self._notify_enabled and HAS_NOTIFY:
                         n = Notify.Notification.new(
                             "🔄 MintSky Güncellemesi",
