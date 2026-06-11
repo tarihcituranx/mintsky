@@ -777,7 +777,7 @@ class MintSkyApp(Gtk.Window):
             self._save_settings()
             self._apply_css()
             self._apply_autostart_logic()
-            if self._show_finance and not self._finance_data:
+            if self._show_finance and not self.finance_api._data:
                 threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
             if self._api_source != old_api_source:
                 self._weather_cache = None
@@ -791,7 +791,7 @@ class MintSkyApp(Gtk.Window):
         """Portföy yönetimi: ekle/sil/görüntüle"""
         if self._show_finance:
             # Finans verisi yoksa önce çek
-            if not self._finance_data:
+            if not self.finance_api._data:
                 threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
 
         dlg = Gtk.Dialog(title="💰 Finans & Portföy Yönetimi", transient_for=self, flags=0)
@@ -1427,7 +1427,7 @@ class MintSkyApp(Gtk.Window):
         self._last_api_call     = time.time()
         self._fetch_in_progress = True
 
-        if self._show_finance and not self._finance_data:
+        if self._show_finance and not self.finance_api._data:
             threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
 
         threading.Thread(target=self._fetch, args=(il, ilce), daemon=True).start()
@@ -1602,7 +1602,7 @@ class MintSkyApp(Gtk.Window):
         # ── Widget: Finans mini panel ──
         if self._is_compact and self._show_finance:
             with self._finance_lock:
-                fin_rates = dict(self._finance_data)
+                fin_rates = dict(self.finance_api._data)
             if fin_rates:
                 self._render_finance_widget(fin_rates)
 
@@ -1708,7 +1708,7 @@ class MintSkyApp(Gtk.Window):
         # ── Finans bölümü (ana pencere) ──
         if self._show_finance and not self._is_compact:
             with self._finance_lock:
-                fin_rates = dict(self._finance_data)
+                fin_rates = dict(self.finance_api._data)
             self._render_finance_main(fin_rates)
 
         self.compact_content.show_all()
