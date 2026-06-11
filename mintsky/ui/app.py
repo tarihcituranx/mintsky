@@ -86,6 +86,7 @@ class MintSkyApp(Gtk.Window):
         
         if os.path.exists(self.icon_path):
             self.set_icon_from_file(self.icon_path)
+            Gtk.Window.set_default_icon_from_file(self.icon_path)
 
         self._start_as_widget = "--autostart" in sys.argv
         self._load_settings()
