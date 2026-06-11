@@ -1017,18 +1017,19 @@ class MintSkyApp(Gtk.Window):
     # ──────────────────── Groq AI ──────────────────────────────────────────
     def _test_groq_key(self, key):
         try:
-            r = requests.post(
-                GROQ_API_URL,
-                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json={"model": GROQ_MODEL,
-                      "messages": [{"role":"user","content":"Merhaba, çalışıyor musun?"}],
-                      "max_tokens": 20},
-                timeout=10
+            from groq import Groq
+            client = Groq(api_key=key, timeout=10)
+            r = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role":"user","content":"Merhaba, çalışıyor musun?"}],
+                max_tokens=20
             )
-            if r.status_code == 200:  return True, "✅ Bağlantı başarılı! API anahtarı geçerli."
-            elif r.status_code == 401: return False, "❌ Geçersiz API anahtarı. Lütfen kontrol edin."
-            else: return False, f"❌ API hatası: {r.status_code} — {r.text[:80]}"
-        except Exception as e: return False, f"❌ Bağlantı hatası: {str(e)[:80]}"
+            return True, "✅ Bağlantı başarılı! API anahtarı geçerli."
+        except Exception as e: 
+            err_msg = str(e)
+            if "AuthenticationError" in err_msg or "401" in err_msg:
+                return False, "❌ Geçersiz API anahtarı. Lütfen kontrol edin."
+            return False, f"❌ Bağlantı hatası: {err_msg[:80]}"
 
     def _build_weather_context(self, custom_q=""):
         d = self._last_render_data
@@ -1061,21 +1062,24 @@ class MintSkyApp(Gtk.Window):
         return context
 
     def _call_groq(self, context):
-        r = requests.post(
-            GROQ_API_URL,
-            headers={"Authorization": f"Bearer {self._groq_api_key}",
-                     "Content-Type": "application/json"},
-            json={"model": GROQ_MODEL,
-                  "messages": [
-                      {"role": "system", "content": GROQ_SYSTEM},
-                      {"role": "user",   "content": context},
-                  ],
-                  "max_tokens": 600, "temperature": 0.25},
-            timeout=20
-        )
-        if r.status_code == 200:   return r.json()["choices"][0]["message"]["content"].strip()
-        elif r.status_code == 401: raise PermissionError("Geçersiz Groq API anahtarı.")
-        else: raise RuntimeError(f"Groq API hatası {r.status_code}: {r.text[:120]}")
+        from groq import Groq
+        try:
+            client = Groq(api_key=self._groq_api_key, timeout=20)
+            r = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": GROQ_SYSTEM},
+                    {"role": "user",   "content": context},
+                ],
+                max_tokens=600,
+                temperature=0.25
+            )
+            return r.choices[0].message.content.strip()
+        except Exception as e:
+            err_msg = str(e)
+            if "AuthenticationError" in err_msg or "401" in err_msg:
+                raise PermissionError("Geçersiz Groq API anahtarı.")
+            raise RuntimeError(f"Groq API hatası: {err_msg[:120]}")
 
     def _show_ai_dialog(self, *_):
         if not self._groq_api_key:
