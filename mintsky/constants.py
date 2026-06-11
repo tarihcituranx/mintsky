@@ -45,7 +45,7 @@ ICON_DIR        = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps"
 GELISTIRICI   = "https://github.com/tarihcituranx"
 MGM_SIMGELER  = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
 UYGULAMA_ADI  = "MintSky"
-VERSIYON = "7.1.0"
+VERSIYON = "7.1.7"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
