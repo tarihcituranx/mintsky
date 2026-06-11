@@ -778,7 +778,7 @@ class MintSkyApp(Gtk.Window):
             self._apply_css()
             self._apply_autostart_logic()
             if self._show_finance and not self.finance_api._data:
-                threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+                self.finance_api.fetch_bg()
             if self._api_source != old_api_source:
                 self._weather_cache = None
                 GLib.idle_add(lambda: self._search(force=True))
@@ -792,7 +792,7 @@ class MintSkyApp(Gtk.Window):
         if self._show_finance:
             # Finans verisi yoksa önce çek
             if not self.finance_api._data:
-                threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+                self.finance_api.fetch_bg()
 
         dlg = Gtk.Dialog(title="💰 Finans & Portföy Yönetimi", transient_for=self, flags=0)
         dlg.add_button("Kapat", Gtk.ResponseType.CLOSE)
@@ -1129,10 +1129,8 @@ class MintSkyApp(Gtk.Window):
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(200)
-        self._ai_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
-        self._ai_lbl.set_halign(Gtk.Align.START); self._ai_lbl.set_valign(Gtk.Align.START)
-        self._ai_lbl.set_line_wrap(True); self._ai_lbl.set_selectable(True)
-        scroll.add(self._ai_lbl); box.pack_start(scroll, True, True, 0)
+        self._ai_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        scroll.add(self._ai_box); box.pack_start(scroll, True, True, 0)
         box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         q_lbl = Gtk.Label(label="Özel soru (boş bırakırsanız genel tavsiye üretir):")
@@ -1143,17 +1141,102 @@ class MintSkyApp(Gtk.Window):
         q_row.pack_start(q_entry, True, True, 0)
         btn_sor = Gtk.Button(label="Sor")
         self._sc(btn_sor, "btn-search"); q_row.pack_start(btn_sor, False, False, 0)
+        
+        btn_dinle = Gtk.Button(label="🔊 Dinle")
+        self._sc(btn_dinle, "btn-suggest"); q_row.pack_start(btn_dinle, False, False, 0)
+        btn_dinle.set_sensitive(False)
+        
         box.pack_start(q_row, False, False, 0)
+        box.show_all()
+
+        def _play_audio(*_):
+            if not hasattr(self, "_last_ai_text"): return
+            btn_dinle.set_sensitive(False)
+            def _tts_thread():
+                try:
+                    import tempfile, subprocess, os
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+                        tmp_path = f.name
+                    subprocess.run([
+                        os.path.expanduser("~/.local/bin/edge-tts"),
+                        "--text", self._last_ai_text,
+                        "--voice", "tr-TR-EmelNeural",
+                        "--write-media", tmp_path
+                    ])
+                    subprocess.run(["mpg123", "-q", tmp_path])
+                    os.remove(tmp_path)
+                except Exception as e:
+                    print("TTS Hatası:", e)
+                finally:
+                    GLib.idle_add(lambda: btn_dinle.set_sensitive(True) or False)
+            threading.Thread(target=_tts_thread, daemon=True).start()
+            
+        btn_dinle.connect("clicked", _play_audio)
         box.show_all()
 
         def _run_ai(custom_q=""):
             btn_sor.set_sensitive(False)
-            self._ai_lbl.set_text("⏳ AI danışılıyor, lütfen bekleyin…")
+            btn_dinle.set_sensitive(False)
+            for child in self._ai_box.get_children():
+                self._ai_box.remove(child)
+            loading_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
+            loading_lbl.set_halign(Gtk.Align.START)
+            self._ai_box.pack_start(loading_lbl, False, False, 0)
+            self._ai_box.show_all()
+            
             context = self._build_weather_context(custom_q)
             def _do():
-                try:    result = self._call_groq(context)
-                except Exception as e: result = f"❌ Hata: {e}"
-                GLib.idle_add(lambda: (self._ai_lbl.set_text(result), btn_sor.set_sensitive(True)) or False)
+                err = None
+                try:    
+                    result_raw = self._call_groq(context)
+                    try:
+                        import json
+                        result_dict = json.loads(result_raw)
+                    except:
+                        result_dict = {"Yanıt": result_raw}
+                except Exception as e: 
+                    err = f"❌ Hata: {e}"
+                
+                def _update_ui():
+                    for child in self._ai_box.get_children():
+                        self._ai_box.remove(child)
+                    if err:
+                        lbl = Gtk.Label(label=err)
+                        lbl.set_halign(Gtk.Align.START)
+                        lbl.set_line_wrap(True)
+                        self._ai_box.pack_start(lbl, False, False, 0)
+                    else:
+                        icons = {"Giyim": "👕", "Aktivite": "🏃", "Sağlık": "⚕️", "Yol": "🚗", "Yanıt": "💬"}
+                        reading_text = "Hava durumu tavsiyeleri şu şekilde: "
+                        for k, v in result_dict.items():
+                            reading_text += f"{k} için, {v} "
+                            frame = Gtk.Frame()
+                            frame.set_shadow_type(Gtk.ShadowType.IN)
+                            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+                            vbox.set_margin_start(8); vbox.set_margin_end(8)
+                            vbox.set_margin_top(8); vbox.set_margin_bottom(8)
+                            
+                            icon = icons.get(k, "📌")
+                            title_lbl = Gtk.Label()
+                            title_lbl.set_markup(f"<b>{icon} {k}</b>")
+                            title_lbl.set_halign(Gtk.Align.START)
+                            
+                            val_lbl = Gtk.Label(label=str(v))
+                            val_lbl.set_halign(Gtk.Align.START)
+                            val_lbl.set_line_wrap(True); val_lbl.set_selectable(True)
+                            
+                            vbox.pack_start(title_lbl, False, False, 0)
+                            vbox.pack_start(val_lbl, False, False, 0)
+                            frame.add(vbox)
+                            self._ai_box.pack_start(frame, False, False, 0)
+                    self._ai_box.show_all()
+                    btn_sor.set_sensitive(True)
+                    if not err:
+                        self._last_ai_text = reading_text
+                        btn_dinle.set_sensitive(True)
+                    return False
+                    
+                GLib.idle_add(_update_ui)
             threading.Thread(target=_do, daemon=True).start()
 
         btn_sor.connect("clicked", lambda *_: _run_ai(q_entry.get_text().strip()))
@@ -1428,7 +1511,7 @@ class MintSkyApp(Gtk.Window):
         self._fetch_in_progress = True
 
         if self._show_finance and not self.finance_api._data:
-            threading.Thread(target=self._fetch_finance_bg, daemon=True).start()
+            self.finance_api.fetch_bg()
 
         threading.Thread(target=self._fetch, args=(il, ilce), daemon=True).start()
         return False
@@ -1462,7 +1545,7 @@ class MintSkyApp(Gtk.Window):
         self._sync_fav_button()
 
         om_cur = om_data.get("current", {}) if om_data else {}
-        use_om = (self._api_source == "openmeteo" and om_cur)
+        use_om = (self._api_source == "openmeteo" and om_cur) or (not sd and om_cur)
 
         if use_om:
             wmo_kod = om_cur.get("weather_code")
@@ -1601,7 +1684,7 @@ class MintSkyApp(Gtk.Window):
 
         # ── Widget: Finans mini panel ──
         if self._is_compact and self._show_finance:
-            with self._finance_lock:
+            with self.finance_api._lock:
                 fin_rates = dict(self.finance_api._data)
             if fin_rates:
                 self._render_finance_widget(fin_rates)
@@ -1707,7 +1790,7 @@ class MintSkyApp(Gtk.Window):
 
         # ── Finans bölümü (ana pencere) ──
         if self._show_finance and not self._is_compact:
-            with self._finance_lock:
+            with self.finance_api._lock:
                 fin_rates = dict(self.finance_api._data)
             self._render_finance_main(fin_rates)
 
@@ -1801,7 +1884,7 @@ class MintSkyApp(Gtk.Window):
             with self._finance_lock:
                 self._last_finance_fetch = 0.0  # önbelleği geçersiz kıl
             def _do():
-                self._fetch_finance_bg(force=True)
+                self.finance_api.fetch_bg(force=True)
                 GLib.idle_add(lambda: (btn_ref.set_label("🔄 Yenile"),
                                        btn_ref.set_sensitive(True)) or False)
             threading.Thread(target=_do, daemon=True).start()

@@ -19,7 +19,23 @@ class WeatherAPI:
                 timeout=TIMEOUT)
             merk = cls.safe_json(req)
             if not merk:
-                return False, f"'{il}' verisi MGM'den alınamadı veya engellendi.\nLütfen tekrar deneyin.", None
+                import urllib.parse
+                q = urllib.parse.quote(f"{ilce} {il}".strip())
+                nom_req = session.get(f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1", headers={"User-Agent": "MintSky/7.0"}, timeout=TIMEOUT)
+                nom_data = cls.safe_json(nom_req)
+                if not nom_data:
+                    return False, f"'{il}' verisi bulunamadı.", None
+                
+                m = {
+                    "il": nom_data[0].get("display_name", il).split(",")[0],
+                    "ilce": "",
+                    "enlem": float(nom_data[0].get("lat")),
+                    "boylam": float(nom_data[0].get("lon")),
+                    "merkezId": 0
+                }
+                
+                om_data = cls.fetch_openmeteo(m["enlem"], m["boylam"])
+                return True, "", (m, {}, {}, {}, [], [], om_data)
 
             m = merk[0]
             lat = m.get("enlem") or m.get("lat")
