@@ -1070,7 +1070,7 @@ class MintSkyApp(Gtk.Window):
         dlg.set_license_type(Gtk.License.MIT_X11); dlg.set_authors(["Turan Kaya"])
         dlg.run(); dlg.destroy()
 
-    def _check_for_updates_bg(self):
+    def _check_for_updates_bg(self, forced=False):
         def _check():
             try:
                 import requests
@@ -1081,8 +1081,26 @@ class MintSkyApp(Gtk.Window):
                     if latest and latest.lstrip("v") > VERSIYON:
                         download_url = r.json().get("html_url", GITHUB_REPO)
                         GLib.idle_add(self._ask_update, latest, download_url)
-            except: pass
+                    elif forced:
+                        GLib.idle_add(self._notify_no_update)
+            except Exception as e:
+                if forced:
+                    GLib.idle_add(self._notify_update_error, str(e))
         threading.Thread(target=_check, daemon=True).start()
+
+    def _notify_no_update(self):
+        dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.INFO,
+                                buttons=Gtk.ButtonsType.OK, text="Uygulama Güncel")
+        dlg.format_secondary_text(f"MintSky'ın en güncel versiyonunu (v{VERSIYON}) kullanıyorsunuz.")
+        dlg.run()
+        dlg.destroy()
+
+    def _notify_update_error(self, err):
+        dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.ERROR,
+                                buttons=Gtk.ButtonsType.OK, text="Güncelleme Kontrolü Başarısız")
+        dlg.format_secondary_text(f"Bağlantı hatası: {err}")
+        dlg.run()
+        dlg.destroy()
 
     def _ask_update(self, latest, url):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.QUESTION,
@@ -1330,17 +1348,35 @@ class MintSkyApp(Gtk.Window):
 
     def _build_tray_menu(self):
         menu = Gtk.Menu()
-        show = Gtk.MenuItem.new_with_label("Pencereyi Göster / Gizle")
+        show = Gtk.MenuItem.new_with_label("🪟 Pencereyi Göster / Gizle")
         show.connect("activate", self._tray_toggle); menu.append(show)
+        
+        refresh = Gtk.MenuItem.new_with_label("🌤️ Hava Durumunu Yenile")
+        refresh.connect("activate", lambda *_: self._search(force=True))
+        menu.append(refresh)
+        
         menu.append(Gtk.SeparatorMenuItem())
+        
         if self._show_finance:
             fin_item = Gtk.MenuItem.new_with_label("💰 Finans & Portföy")
             fin_item.connect("activate", self._show_portfolio_dialog)
             menu.append(fin_item)
             menu.append(Gtk.SeparatorMenuItem())
-        ab = Gtk.MenuItem.new_with_label("Hakkında"); ab.connect("activate", self._show_about); menu.append(ab)
-        q  = Gtk.MenuItem.new_with_label("Çıkış");   q.connect("activate",  self._quit);       menu.append(q)
-        menu.show_all(); return menu
+            
+        update_chk = Gtk.MenuItem.new_with_label("🔄 Güncellemeleri Denetle")
+        update_chk.connect("activate", lambda *_: self._check_for_updates_bg(forced=True))
+        menu.append(update_chk)
+        
+        ab = Gtk.MenuItem.new_with_label("ℹ️ Hakkında")
+        ab.connect("activate", self._show_about)
+        menu.append(ab)
+        
+        q  = Gtk.MenuItem.new_with_label("❌ Çıkış")
+        q.connect("activate",  self._quit)
+        menu.append(q)
+        
+        menu.show_all()
+        return menu
 
     def _apply_tray_data(self, emoji, temp_txt, sehir, icon_key, kisa_desc):
         raw = (WMO_TRAY.get(icon_key, "weather-clear") if isinstance(icon_key, int)
