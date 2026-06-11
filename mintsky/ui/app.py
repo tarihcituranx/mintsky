@@ -1158,17 +1158,17 @@ class MintSkyApp(Gtk.Window):
         scroll.add(self._ai_box); box.pack_start(scroll, True, True, 0)
         box.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
-        q_lbl = Gtk.Label(label="Özel soru (boş bırakırsanız genel tavsiye üretir):")
+        q_lbl = Gtk.Label(label=_("ai_custom_question"))
         self._sc(q_lbl, "ai-lbl")
         q_lbl.set_halign(Gtk.Align.START); box.pack_start(q_lbl, False, False, 0)
         q_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         q_entry = Gtk.Entry()
-        q_entry.set_placeholder_text("Ör: Bugün bisiklet için uygun mu?")
+        q_entry.set_placeholder_text("...")
         q_row.pack_start(q_entry, True, True, 0)
-        btn_sor = Gtk.Button(label="Sor")
+        btn_sor = Gtk.Button(label=_("ai_btn_ask"))
         self._sc(btn_sor, "btn-search"); q_row.pack_start(btn_sor, False, False, 0)
         
-        btn_dinle = Gtk.Button(label="🔊 Dinle")
+        btn_dinle = Gtk.Button(label=f"🔊 {_('ai_btn_listen')}")
         self._sc(btn_dinle, "btn-suggest"); q_row.pack_start(btn_dinle, False, False, 0)
         btn_dinle.set_sensitive(False)
         
@@ -1180,16 +1180,25 @@ class MintSkyApp(Gtk.Window):
             btn_dinle.set_sensitive(False)
             def _tts_thread():
                 try:
-                    import tempfile, subprocess, os
+                    import tempfile, subprocess, os, shutil
+                    voices = {
+                        "tr": "tr-TR-EmelNeural", "en": "en-US-ChristopherNeural",
+                        "de": "de-DE-KillianNeural", "fr": "fr-FR-HenriNeural",
+                        "ar": "ar-SA-HamedNeural", "fa": "fa-IR-FaridNeural",
+                        "zh": "zh-CN-YunxiNeural", "az": "az-AZ-BabekNeural"
+                    }
+                    v = voices.get(self._language, "en-US-ChristopherNeural")
+                    
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
                         tmp_path = f.name
-                    subprocess.run([
-                        os.path.expanduser("~/.local/bin/edge-tts"),
-                        "--text", self._last_ai_text,
-                        "--voice", "tr-TR-EmelNeural",
-                        "--write-media", tmp_path
-                    ])
-                    subprocess.run(["mpg123", "-q", tmp_path])
+                        
+                    edge_bin = shutil.which("edge-tts") or os.path.expanduser("~/.local/bin/edge-tts")
+                    subprocess.run([edge_bin, "--text", self._last_ai_text, "--voice", v, "--write-media", tmp_path], check=True)
+                    
+                    if shutil.which("mpv"): subprocess.run(["mpv", "--no-video", tmp_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    elif shutil.which("mpg123"): subprocess.run(["mpg123", "-q", tmp_path])
+                    elif shutil.which("play"): subprocess.run(["play", "-q", tmp_path])
+                    
                     os.remove(tmp_path)
                 except Exception as e:
                     print("TTS Hatası:", e)
@@ -1205,7 +1214,7 @@ class MintSkyApp(Gtk.Window):
             btn_dinle.set_sensitive(False)
             for child in self._ai_box.get_children():
                 self._ai_box.remove(child)
-            loading_lbl = Gtk.Label(label="⏳ AI danışılıyor, lütfen bekleyin…")
+            loading_lbl = Gtk.Label(label=_("ai_loading"))
             self._sc(loading_lbl, "ai-lbl")
             loading_lbl.set_halign(Gtk.Align.START)
             self._ai_box.pack_start(loading_lbl, False, False, 0)
