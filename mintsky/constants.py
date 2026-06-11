@@ -45,7 +45,16 @@ ICON_DIR        = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps"
 GELISTIRICI   = "https://github.com/tarihcituranx"
 MGM_SIMGELER  = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
 UYGULAMA_ADI  = "MintSky"
-VERSIYON      = "7.0"
+def _get_version():
+    import subprocess, os
+    try:
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        rev = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=repo, stderr=subprocess.DEVNULL).decode().strip()
+        return f"7.0.{rev}"
+    except Exception:
+        return "7.0.0"
+
+VERSIYON      = _get_version()
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {

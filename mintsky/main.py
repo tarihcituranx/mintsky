@@ -12,6 +12,17 @@ from mintsky.ui.app import MintSkyApp
 from mintsky.i18n import load_language
 
 def main():
+    import fcntl
+    import tempfile
+    global _lock_file
+    lock_path = os.path.join(tempfile.gettempdir(), 'mintsky_instance.lock')
+    _lock_file = open(lock_path, 'w')
+    try:
+        fcntl.lockf(_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print("MintSky zaten arka planda çalışıyor! (Sistem tepsisine veya görev çubuğuna bakın)")
+        sys.exit(0)
+
     load_language("tr")
     win = MintSkyApp()
     Gtk.main()
