@@ -3,6 +3,8 @@ import threading
 import requests
 from mintsky.constants import FINANCE_API, FINANCE_CACHE_TTL, TIMEOUT
 
+session = requests.Session()
+
 class FinanceAPI:
     def __init__(self):
         self._data = {}
@@ -30,7 +32,7 @@ class FinanceAPI:
 
         success = False
         try:
-            r = requests.get(FINANCE_API, timeout=TIMEOUT)
+            r = session.get(FINANCE_API, timeout=TIMEOUT)
             r.raise_for_status()
             data = r.json()
             with self._lock:

@@ -2,6 +2,9 @@ import concurrent.futures
 import requests
 from mintsky.constants import BASE_MGM, MGM_HEADERS, TIMEOUT, BASE_OM
 
+session = requests.Session()
+session.headers.update(MGM_HEADERS)
+
 class WeatherAPI:
     @staticmethod
     def safe_json(resp, default=None):
@@ -11,9 +14,9 @@ class WeatherAPI:
     @classmethod
     def fetch_weather(cls, il, ilce):
         try:
-            req = requests.get(
+            req = session.get(
                 f"{BASE_MGM}/web/merkezler?il={il}" + (f"&ilce={ilce}" if ilce else ""),
-                headers=MGM_HEADERS, timeout=TIMEOUT)
+                timeout=TIMEOUT)
             merk = cls.safe_json(req)
             if not merk:
                 return False, f"'{il}' verisi MGM'den alınamadı veya engellendi.\nLütfen tekrar deneyin.", None
@@ -32,7 +35,7 @@ class WeatherAPI:
             }
             results = {}
             def get_url(key, url):
-                return cls.safe_json(requests.get(f"{BASE_MGM}{url}", headers=MGM_HEADERS, timeout=TIMEOUT))
+                return cls.safe_json(session.get(f"{BASE_MGM}{url}", timeout=TIMEOUT))
             
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
                 fmap = {ex.submit(get_url, k, v): k for k, v in urls.items()}
@@ -76,7 +79,7 @@ class WeatherAPI:
                     "wind_speed_10m_max","sunshine_duration","weather_code",
                 ]),
             }
-            r = requests.get(BASE_OM, params=params, timeout=TIMEOUT)
+            r = session.get(BASE_OM, params=params, timeout=TIMEOUT)
             if r.status_code == 200: return r.json()
         except Exception: pass
         return {}
