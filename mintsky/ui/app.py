@@ -540,7 +540,7 @@ class MintSkyApp(Gtk.Window):
                                              self._show_ai_dialog, "btn-ai")
         title_row.pack_start(self.btn_ai, False, False, 0)
 
-        self.btn_fin = self._create_tool_btn("💰","Finans","Finans & Portföy Yönetimi",
+        self.btn_fin = self._create_tool_btn("💰", _("btn_finance"), _("btn_finance_tt"),
                                               self._show_portfolio_dialog, "btn-fin")
         title_row.pack_start(self.btn_fin, False, False, 0)
 
@@ -550,12 +550,12 @@ class MintSkyApp(Gtk.Window):
         srow.get_style_context().add_class("search-row")
         self.il_combo   = Gtk.ComboBoxText.new_with_entry()
         self.il_entry   = self.il_combo.get_child()
-        self.il_entry.set_placeholder_text("İl Seç / Yaz")
+        self.il_entry.set_placeholder_text(_("search_city"))
         self.il_entry.connect("activate", lambda *_: self._search(force=True))
         self.il_combo.connect("changed",  self._on_il_changed)
         self.ilce_combo = Gtk.ComboBoxText.new_with_entry()
         self.ilce_entry = self.ilce_combo.get_child()
-        self.ilce_entry.set_placeholder_text("İlçe Seç / Yaz")
+        self.ilce_entry.set_placeholder_text(_("search_district"))
         self.ilce_entry.connect("activate", lambda *_: self._search(force=True))
         btn_ara = Gtk.Button(label=_("btn_search"))
         self._sc(btn_ara,"btn-search")
@@ -568,15 +568,15 @@ class MintSkyApp(Gtk.Window):
         arow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         arow.set_margin_top(5)
         for icon, text, tooltip, cb in [
-            ("📍","GPS Bul",  "GPS ile konumu bul",         lambda *args: self._fetch_location()),
-            ("🏠","Sabitle",  "Bu konumu varsayılan yap",   self._make_default),
+            ("📍", _("btn_gps"), _("btn_gps_tt"),         lambda *args: self._fetch_location()),
+            ("🏠", _("btn_pin"), _("btn_pin_tt"),   self._make_default),
         ]:
             arow.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
-        self.btn_fav = self._create_tool_btn("⭐","Favorile","Bu konumu favorilere ekle/çıkar",
+        self.btn_fav = self._create_tool_btn("⭐", _("btn_fav_add"), _("btn_fav_tt"),
                                               self._toggle_favorite)
         arow.pack_start(self.btn_fav, False, False, 0)
-        arow.pack_start(self._create_tool_btn("📋","Favorilerim","Favori listelerim",
+        arow.pack_start(self._create_tool_btn("📋", _("btn_list"), _("btn_list_tt"),
                                                self._show_favorites_menu), False, False, 0)
         self.hdr.pack_start(arow, False, False, 0)
         root.pack_start(self.hdr, False, False, 0)
@@ -1381,22 +1381,22 @@ class MintSkyApp(Gtk.Window):
 
     def _build_tray_menu(self):
         menu = Gtk.Menu()
-        show = Gtk.MenuItem.new_with_label("🪟 Pencereyi Göster / Gizle")
+        show = Gtk.MenuItem.new_with_label(f"🪟 {_('tray_show_hide')}")
         show.connect("activate", self._tray_toggle); menu.append(show)
         
-        refresh = Gtk.MenuItem.new_with_label("🌤️ Hava Durumunu Yenile")
+        refresh = Gtk.MenuItem.new_with_label(f"🌤️ {_('tray_refresh')}")
         refresh.connect("activate", lambda *_: self._search(force=True))
         menu.append(refresh)
         
         menu.append(Gtk.SeparatorMenuItem())
         
         if self._show_finance:
-            fin_item = Gtk.MenuItem.new_with_label("💰 Finans & Portföy")
+            fin_item = Gtk.MenuItem.new_with_label(f"💰 {_('btn_finance')}")
             fin_item.connect("activate", self._show_portfolio_dialog)
             menu.append(fin_item)
             menu.append(Gtk.SeparatorMenuItem())
             
-        update_chk = Gtk.MenuItem.new_with_label("🔄 Güncellemeleri Denetle")
+        update_chk = Gtk.MenuItem.new_with_label(f"🔄 {_('tray_update')}")
         update_chk.connect("activate", lambda *_: self._check_for_updates_bg(forced=True))
         menu.append(update_chk)
         
@@ -1797,7 +1797,7 @@ class MintSkyApp(Gtk.Window):
         t_lbl.set_tooltip_text(f"Anlık Sıcaklık: {val(sicak,suffix='°C')}")
         rcol.pack_start(t_lbl, False, False, 0)
         if his not in (-9999,None):
-            f_lbl = Gtk.Label(label=f"Hissedilen {val(his,suffix='°')}")
+            f_lbl = Gtk.Label(label=f"{_('lbl_feels_like')} {val(his,suffix='°')}")
             self._sc(f_lbl,"cur-feels"); f_lbl.set_halign(Gtk.Align.END)
             rcol.pack_start(f_lbl, False, False, 0)
         top.pack_start(rcol, False, False, 0)
@@ -1842,34 +1842,34 @@ class MintSkyApp(Gtk.Window):
 
         if not use_om:
             if nem_val not in (-9999,None):
-                pills_temel.append(("💧 Nem", f"%{nem_val:.0f}"))
+                pills_temel.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
             if ruzgar_hiz not in (-9999,None):
-                pills_temel.append(("💨 Rüzgar", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
+                pills_temel.append((f"💨 {_('lbl_wind')}", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
             if basinc not in (-9999,None):
-                pills_temel.append(("🔵 Basınç", f"{basinc:.0f} hPa"))
+                pills_temel.append((f"🔵 {_('lbl_pressure')}", f"{basinc:.0f} hPa"))
             if gorus_v not in (-9999,None):
-                pills_temel.append(("👁 Görüş", f"{gorus_v/1000:.0f} km" if gorus_v >= 1000 else f"{gorus_v} m"))
+                pills_temel.append((f"👁 {_('lbl_visibility')}", f"{gorus_v/1000:.0f} km" if gorus_v >= 1000 else f"{gorus_v} m"))
             for key,fld,fmt,sfx in [
-                ("🌧 Yağış 1s","yagis1Saat",   "{:.1f}"," mm"),
-                ("🌧 Yağış 24s","yagis24Saat",  "{:.1f}"," mm"),
-                ("🌊 Deniz",    "denizSicaklik", "{:.0f}","°C"),
-                ("☁ Bulutluluk","kapalilik",     "{:.0f}","/8 okta"),
-                ("❄ Kar",       "karYukseklik",  "{:.0f}"," cm"),
+                (f"🌧 {_('lbl_precip_1h')}","yagis1Saat",   "{:.1f}"," mm"),
+                (f"🌧 {_('lbl_precip_24h')}","yagis24Saat",  "{:.1f}"," mm"),
+                (f"🌊 {_('lbl_sea')}",    "denizSicaklik", "{:.0f}","°C"),
+                (f"☁ {_('lbl_clouds')}","kapalilik",     "{:.0f}","/8 okta"),
+                (f"❄ {_('lbl_snow')}",       "karYukseklik",  "{:.0f}"," cm"),
             ]:
                 v2 = sd.get(fld,-9999)
                 if v2 not in (-9999,None) and v2 > 0:
                     pills_ekstra.append((key, f"{fmt.format(v2)}{sfx}"))
         else:
             if nem_val is not None:
-                pills_temel.append(("💧 Nem", f"%{nem_val:.0f}"))
+                pills_temel.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
             if om_cur.get("wind_speed_10m") is not None:
                 ws = om_cur["wind_speed_10m"]
-                pills_temel.append(("💨 Rüzgar", f"{ws:.0f} km/s {ruzgar_yon}".strip()))
+                pills_temel.append((f"💨 {_('lbl_wind')}", f"{ws:.0f} km/s {ruzgar_yon}".strip()))
             if om_cur.get("surface_pressure") is not None:
-                pills_temel.append(("🔵 Basınç", f"{om_cur['surface_pressure']:.0f} hPa"))
+                pills_temel.append((f"🔵 {_('lbl_pressure')}", f"{om_cur['surface_pressure']:.0f} hPa"))
             if om_cur.get("visibility") is not None:
                 gv = om_cur["visibility"]
-                pills_temel.append(("👁 Görüş", f"{gv/1000:.0f} km" if gv >= 1000 else f"{gv:.0f} m"))
+                pills_temel.append((f"👁 {_('lbl_visibility')}", f"{gv/1000:.0f} km" if gv >= 1000 else f"{gv:.0f} m"))
 
         if om_cur and self._show_extra:
             if uv_val is not None:
@@ -1879,26 +1879,26 @@ class MintSkyApp(Gtk.Window):
                 elif uv_val <= 7:  uv_lbl += " (Yüksek)"
                 elif uv_val <= 10: uv_lbl += " (Çok Yüksek)"
                 else:               uv_lbl += " (Aşırı)"
-                pills_ekstra.append(("🔆 UV İndeksi", uv_lbl))
+                pills_ekstra.append((f"🔆 {_('lbl_uv')}", uv_lbl))
             if gustu is not None:
-                pills_ekstra.append(("💨 Rüzgar Gustu", f"{gustu:.0f} km/s"))
+                pills_ekstra.append((f"💨 {_('lbl_wind_gust')}", f"{gustu:.0f} km/s"))
             if om_cur.get("dew_point_2m") is not None:
-                pills_ekstra.append(("🌡 Çiğ Noktası", f"{om_cur['dew_point_2m']:.1f}°C"))
+                pills_ekstra.append((f"🌡 {_('lbl_dew_point')}", f"{om_cur['dew_point_2m']:.1f}°C"))
             if om_cur.get("cloud_cover") is not None:
-                pills_ekstra.append(("☁ Bulutluluk", f"%{om_cur['cloud_cover']:.0f}"))
+                pills_ekstra.append((f"☁ {_('lbl_clouds')}", f"%{om_cur['cloud_cover']:.0f}"))
             if om_cur.get("precipitation") is not None and om_cur["precipitation"] > 0:
-                pills_ekstra.append(("🌧 Yağış (anlık)", f"{om_cur['precipitation']:.1f} mm"))
+                pills_ekstra.append((f"🌧 {_('lbl_precip_now')}", f"{om_cur['precipitation']:.1f} mm"))
             if yag_olas is not None:
-                pills_ekstra.append(("🌂 Yağış Olas.", f"%{yag_olas:.0f}"))
+                pills_ekstra.append((f"🌂 {_('lbl_rain_prob')}", f"%{yag_olas:.0f}"))
             sun_list = (om_data.get("daily",{}).get("sunshine_duration",[]) if om_data else [])
             if sun_list and sun_list[0] is not None:
-                pills_ekstra.append(("☀ Güneşlenme", f"{sun_list[0]/3600:.1f} saat"))
+                pills_ekstra.append((f"☀ {_('lbl_sunshine')}", f"{sun_list[0]/3600:.1f} saat"))
             sunrise_list = (om_data.get("daily",{}).get("sunrise",[]) if om_data else [])
             sunset_list = (om_data.get("daily",{}).get("sunset",[]) if om_data else [])
             if sunrise_list and sunrise_list[0]:
-                pills_ekstra.append(("🌅 G. Doğuşu", f"{sunrise_list[0][-5:]}"))
+                pills_ekstra.append((f"🌅 {_('pill_sunrise')}", f"{sunrise_list[0][-5:]}"))
             if sunset_list and sunset_list[0]:
-                pills_ekstra.append(("🌇 G. Batışı", f"{sunset_list[0][-5:]}"))
+                pills_ekstra.append((f"🌇 {_('pill_sunset')}", f"{sunset_list[0][-5:]}"))
 
         all_pills = pills_temel + (pills_ekstra if self._show_extra else [])
         if all_pills:
@@ -1911,7 +1911,7 @@ class MintSkyApp(Gtk.Window):
             self.content.pack_start(grid, False, False, 0)
 
         if not use_om and sd.get("veriZamani",""):
-            ts = Gtk.Label(label=f"Son ölçüm: {fmt_dt(sd['veriZamani'])}")
+            ts = Gtk.Label(label=f"{_('lbl_last_update')}: {fmt_dt(sd['veriZamani'])}")
             self._sc(ts,"ts-lbl"); ts.set_halign(Gtk.Align.END); ts.set_margin_end(12)
             self.content.pack_start(ts, False, False, 0)
 
