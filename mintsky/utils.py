@@ -10,12 +10,43 @@ Versiyon    : 7.1.9
 Lisans      : MIT
 """
 from datetime import datetime
-from mintsky.constants import YONLER, HADISE, WMO_HADISE
+import json
+import os
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk, GdkPixbuf
+
+from .constants import YONLER, HADISE, WMO_HADISE
+
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
+
+def get_svg_image(icon_name, size=24, folder="weather"):
+    """SVG dosyasını yükler ve belirtilen boyuta ölçekler."""
+    if not icon_name or icon_name == "unknown":
+        return Gtk.Label(label="?")
+    path = os.path.join(ASSETS_DIR, folder, f"{icon_name}.svg")
+    if not os.path.exists(path):
+        return Gtk.Label(label="?")
+    try:
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, size, size, True)
+        image = Gtk.Image.new_from_pixbuf(pixbuf)
+        return image
+    except Exception:
+        return Gtk.Label(label="?")
 
 def yon(derece):
     if derece is None or derece == -9999 or not isinstance(derece, (int, float)):
         return ""
-    return YONLER[round(derece/22.5)%16] if derece >= 0 else ""
+    if derece >= 0:
+        val = YONLER[round(derece/22.5)%16]
+        try:
+            return _(val)
+        except NameError:
+            import builtins
+            if hasattr(builtins, '_'):
+                return builtins._(val)
+            return val
+    return ""
 
 def fmt_date(iso):
     try:
@@ -47,21 +78,27 @@ def fmt_pct(v):
     sign = "+" if v >= 0 else ""
     return f"{sign}{v:.2f}%"
 
+EMOJI_TO_SVG = {
+    "☀️": "clear-day", "🌙": "clear-night", "🌤️": "partly-cloudy-day", "⛅": "partly-cloudy-day",
+    "🌙☁️": "partly-cloudy-night", "☁️": "cloudy", "🌁": "fog", "🌫️": "fog", "🌧️": "rain",
+    "🌦️": "drizzle", "⛈️": "thunderstorm", "🌨️": "snow", "❄️": "snow", "🌡️": "unknown"
+}
+
 def hadise_mgm(kod, is_night=False):
     icon, label, desc = HADISE.get(kod) or ("🌡️", kod or "—", "")
     if is_night:
         icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
-    return icon, label, desc
+    return EMOJI_TO_SVG.get(icon, "unknown"), label, desc
 
 def hadise_wmo(kod, is_night=False):
     if kod is None:
-        return ("🌡️", "—", "")
+        return ("unknown", "—", "")
     try:
         icon, label, desc = WMO_HADISE.get(int(kod), ("🌡️", "Bilinmiyor", ""))
     except (ValueError, TypeError):
         icon, label, desc = ("🌡️", str(kod), "")
     if is_night:
         icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
-    return icon, label, desc
+    return EMOJI_TO_SVG.get(icon, "unknown"), label, desc
 
 # ─── CSS ──────────────────────────────────────────────────────────────────

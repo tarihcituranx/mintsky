@@ -200,8 +200,6 @@ class MintSkyApp(Gtk.Window):
 
         # Update CSS ve ilk veri çekimi
         self._apply_css()
-        GLib.timeout_add(100, lambda *_: self._search(force=True) or False, None)
-        self._check_for_updates_bg()
         return False
 
     def _apply_widget_geometry(self):
@@ -499,13 +497,34 @@ class MintSkyApp(Gtk.Window):
         self.hdr = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.hdr.get_style_context().add_class("hdr")
 
-        title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         title = Gtk.Label(label=UYGULAMA_ADI.upper())
         self._sc(title,"hdr-title"); title.set_halign(Gtk.Align.START)
-        ver_lbl = Gtk.Label(label=f"<span size='small' color='#5a6a85'>v{VERSIYON}</span>")
-        ver_lbl.set_use_markup(True)
-        title_row.pack_start(title, False, False, 0)
-        title_row.pack_start(ver_lbl, False, False, 4)
+        
+        # Sürüm no (okunaklı ve açık mavi)
+        ver_lbl = Gtk.Label()
+        ver_lbl.set_markup(f"<span size='medium' weight='bold' color='#79c0ff'>v{VERSIYON}</span>")
+        ver_lbl.set_margin_start(4)
+        
+        # Geliştirici (GitHub logo + isim)
+        gh_icon = Gtk.Image.new_from_icon_name("github-symbolic", Gtk.IconSize.MENU)
+        dev_lbl = Gtk.Label()
+        dev_lbl.set_markup("<span size='small' color='#8b949e'><b>Turan Kaya</b></span>")
+        
+        dev_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        dev_box.set_valign(Gtk.Align.CENTER)
+        dev_box.pack_start(gh_icon, False, False, 0)
+        dev_box.pack_start(dev_lbl, False, False, 0)
+
+        # Üst kısımda başlık ve sürüm, altında geliştirici
+        title_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        title_top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        title_top.pack_start(title, False, False, 0)
+        title_top.pack_start(ver_lbl, False, False, 0)
+        title_col.pack_start(title_top, False, False, 0)
+        title_col.pack_start(dev_box, False, False, 0)
+
+        title_row.pack_start(title_col, False, False, 0)
         title_row.pack_start(Gtk.Box(), True, True, 0)  # spacer
 
         for icon, text, tooltip, cb in [
@@ -557,7 +576,7 @@ class MintSkyApp(Gtk.Window):
         self.btn_fav = self._create_tool_btn("⭐","Favorile","Bu konumu favorilere ekle/çıkar",
                                               self._toggle_favorite)
         arow.pack_start(self.btn_fav, False, False, 0)
-        arow.pack_start(self._create_tool_btn("📋","Liste","Favori listesi",
+        arow.pack_start(self._create_tool_btn("📋","Favorilerim","Favori listelerim",
                                                self._show_favorites_menu), False, False, 0)
         self.hdr.pack_start(arow, False, False, 0)
         root.pack_start(self.hdr, False, False, 0)
@@ -1046,21 +1065,16 @@ class MintSkyApp(Gtk.Window):
                                 message_type=Gtk.MessageType.INFO,
                                 buttons=Gtk.ButtonsType.OK, text="Sürüm Notları")
         dlg.format_secondary_markup(
-            f"<b>v7.0.125 (Bu Sürüm) — Güncel versiyon</b>\n"
-            "• 🌐 <b>Çoklu Dil Desteği (i18n)</b> — Türkçe ve İngilizce dil seçimi eklendi.\n"
-            "• 🌓 <b>Karanlık/Aydınlık Tema</b> — Ayarlar'dan seçilebilen gelişmiş tema altyapısı.\n"
-            "• 🤖 <b>AI Danışman Güncellemesi</b> — AI penceresi karanlık temaya uygun hale getirildi, okunaklılık artırıldı.\n"
-            "• 📡 <b>MGM API Optimizasyonu</b> — İl/ilçe parametreleri ve güncel hadise kodları (GGSY, MSY) %100 uyumlu hale getirildi.\n"
-            "• 📦 <b>API Modülerizasyonu</b> — God Class mimarisi kırıldı, API'ler ayrıştırıldı\n"
-            "• 💰 <b>Finans Modülü</b> — Truncgil Finance API ile altın, gümüş, döviz\n"
-            "  fiyatları, rate-limited önbellekleme\n"
-            "• 📊 <b>Portföy Takibi</b> — Alım fiyatı gir, gram/adet miktarı kaydet, kar/zarar hesapla\n"
-            "• 🔄 <b>GitHub Güncelleme Kontrolü</b> — Yeni sürüm bildirimleri otomatikleşti\n"
-            "• 🎨 <b>Modern 3D CSS</b> — Gradyanlar, drop-shadow filtreler ve büyük arayüz fontları\n"
-            "• ⚡ <b>Optimizasyonlar</b> — Thread güvenliği, Single-Instance (Tekil çalışma) kilidi\n\n"
-            "<b>v5.0:</b> Groq AI Danışman, Widget düzeltme, Hibrit OM, İkon düzeltme.\n"
-            "<b>v4.x:</b> Concurrent fetch, Open-Meteo hybrid.\n"
-            "<b>v3.x:</b> Widget modu, Tray, MeteoAlarm.\n\n"
+            f"<b>v{VERSIYON} (Bu Sürüm) — Güncel versiyon</b>\n"
+            "• 🎨 <b>MintSky Grafik Devrimi</b> — Hava durumu ve finans menüsü SVG ikonlarla tamamen yenilendi.\n"
+            "• 🌐 <b>Çoklu Dil Desteği (i18n)</b> — Yabancı dil destekli altyapı ve gelişmiş çeviriler.\n"
+            "• 🌗 <b>Karanlık/Aydınlık Tema</b> — Ayarlar'dan seçilebilen gelişmiş tema altyapısı.\n"
+            "• 📡 <b>MGM & Open-Meteo Hibrit API</b> — Kesintisiz profesyonel veri ve rate-limit düzeltmeleri.\n"
+            "• 💰 <b>Finans & Portföy Modülü</b> — Altın/döviz fiyatları ve cüzdan takibi (widget destekli).\n"
+            "• 🤖 <b>AI Danışman</b> — Gelişmiş yapay zeka entegrasyonu ile hava durumu analizleri.\n"
+            "• 🔄 <b>Widget & Sistem Tepsisi (Tray)</b> — Artış/azalış oranları ve sistem tepsisi eklentileri.\n\n"
+            "<b>v5.0 - v7.0:</b> Modüler altyapı, Concurrent Fetch, Tema Motoru, Portföy Takibi.\n"
+            "<b>v3.x - v4.x:</b> Temel API yapısı, Widget modu, MGM optimizasyonu.\n\n"
             f"<small>Geliştirici: Turan Kaya | {GITHUB_REPO}</small>"
         )
         dlg.run(); dlg.destroy()
