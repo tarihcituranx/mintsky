@@ -1,6 +1,6 @@
 import os
 import json
-from mintsky.constants import CONFIG_DIR, SETTING_FILE, DEFAULT_FINANCE_ALTIN, DEFAULT_FINANCE_DOVIZ, DEFAULT_FINANCE_KRIPTO
+from mintsky.constants import CONFIG_DIR, SETTING_FILE
 
 def load_settings():
     try:

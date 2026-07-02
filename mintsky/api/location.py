@@ -2,7 +2,7 @@ import os
 import json
 import threading
 import requests
-from mintsky.constants import BASE_MGM, MGM_HEADERS, TIMEOUT, CONFIG_DIR, LOC_FILE
+from mintsky.constants import CONFIG_DIR, LOC_FILE
 
 class LocationAPI:
     def fetch_locations_bg(self, callback):
