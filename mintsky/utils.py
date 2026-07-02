@@ -17,7 +17,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GdkPixbuf
 
 from .constants import YONLER, HADISE, WMO_HADISE
-
+from .i18n import _
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 
 def get_svg_image(icon_name, size=24, folder="weather"):
@@ -42,9 +42,6 @@ def yon(derece):
         try:
             return _(val)
         except NameError:
-            import builtins
-            if hasattr(builtins, '_'):
-                return builtins._(val)
             return val
     return ""
 
@@ -88,7 +85,7 @@ def hadise_mgm(kod, is_night=False):
     icon, label, desc = HADISE.get(kod) or ("🌡️", kod or "—", "")
     if is_night:
         icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
-    return EMOJI_TO_SVG.get(icon, "unknown"), label, desc
+    return EMOJI_TO_SVG.get(icon, "unknown"), _(label), _(desc)
 
 def hadise_wmo(kod, is_night=False):
     if kod is None:
@@ -99,6 +96,6 @@ def hadise_wmo(kod, is_night=False):
         icon, label, desc = ("🌡️", str(kod), "")
     if is_night:
         icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
-    return EMOJI_TO_SVG.get(icon, "unknown"), label, desc
+    return EMOJI_TO_SVG.get(icon, "unknown"), _(label), _(desc)
 
 # ─── CSS ──────────────────────────────────────────────────────────────────
