@@ -1450,7 +1450,9 @@ class MintSkyApp(Gtk.Window):
 
             sd    = sondur[0]
             h_kod = sd.get("hadiseKodu","")
-            emoji, kisa, _dummy = hadise_mgm(h_kod)
+            now_h = datetime.now().hour
+            is_night = (now_h < 6 or now_h >= 19)
+            emoji, kisa, _dummy = hadise_mgm(h_kod, is_night)
             sicak = sd.get("sicaklik",-9999)
             ttxt  = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
             sehir = f"{il} / {ilce}" if ilce else il
@@ -1671,13 +1673,16 @@ class MintSkyApp(Gtk.Window):
 
         if use_om:
             wmo_kod = om_cur.get("weather_code")
-            emoji, kisa, uzun = hadise_wmo(wmo_kod)
+            is_night = (om_cur.get("is_day", 1) == 0)
+            emoji, kisa, uzun = hadise_wmo(wmo_kod, is_night)
             sicak = om_cur.get("temperature_2m", -9999)
             his   = om_cur.get("apparent_temperature", -9999)
             h_kod_for_tray = wmo_kod or 0
         else:
             h_kod  = sd.get("hadiseKodu","")
-            emoji, kisa, uzun = hadise_mgm(h_kod)
+            now_h = datetime.now().hour
+            is_night = (now_h < 6 or now_h >= 19)
+            emoji, kisa, uzun = hadise_mgm(h_kod, is_night)
             sicak = sd.get("sicaklik", -9999)
             his   = sd.get("hissedilenSicaklik", -9999)
             h_kod_for_tray = h_kod
@@ -1695,8 +1700,10 @@ class MintSkyApp(Gtk.Window):
         tahmin_3s = []
         if mgm_tahminler:
             for item in mgm_tahminler[:3]:
-                em, _dummy1, _dummy2 = hadise_mgm(item.get("hadise",""))
-                tahmin_3s.append((fmt_time(item.get("tarih","")), em,
+                h_str = fmt_time(item.get("tarih",""))
+                h_int = int(h_str.split(":")[0]) if ":" in h_str else 12
+                em, _dummy1, _dummy2 = hadise_mgm(item.get("hadise",""), (h_int < 6 or h_int >= 19))
+                tahmin_3s.append((h_str, em,
                                   val(item.get("sicaklik",-9999),suffix="°")))
         elif om_times:
             now_h = datetime.now().strftime("%Y-%m-%dT%H:")
@@ -1704,7 +1711,8 @@ class MintSkyApp(Gtk.Window):
             temps_h  = om_hourly.get("temperature_2m",[])
             wcodes_h = om_hourly.get("weather_code",[])
             for i in range(st, min(st+3, len(om_times))):
-                em, _dummy1, _dummy2 = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None)
+                is_night_h = (om_hourly.get("is_day",[])[i] == 0) if i < len(om_hourly.get("is_day",[])) else False
+                em, _dummy1, _dummy2 = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None, is_night_h)
                 tahmin_3s.append((om_times[i][11:16], em,
                                   val(temps_h[i] if i<len(temps_h) else -9999, suffix="°")))
 
@@ -1868,6 +1876,12 @@ class MintSkyApp(Gtk.Window):
             sun_list = (om_data.get("daily",{}).get("sunshine_duration",[]) if om_data else [])
             if sun_list and sun_list[0] is not None:
                 pills_ekstra.append(("☀ Güneşlenme", f"{sun_list[0]/3600:.1f} saat"))
+            sunrise_list = (om_data.get("daily",{}).get("sunrise",[]) if om_data else [])
+            sunset_list = (om_data.get("daily",{}).get("sunset",[]) if om_data else [])
+            if sunrise_list and sunrise_list[0]:
+                pills_ekstra.append(("🌅 G. Doğuşu", f"{sunrise_list[0][-5:]}"))
+            if sunset_list and sunset_list[0]:
+                pills_ekstra.append(("🌇 G. Batışı", f"{sunset_list[0][-5:]}"))
 
         all_pills = pills_temel + (pills_ekstra if self._show_extra else [])
         if all_pills:
@@ -2149,8 +2163,10 @@ class MintSkyApp(Gtk.Window):
         h_box.set_margin_bottom(4)
         for item in tahminler[:16]:
             hc = self._make_hcard()
-            tl = Gtk.Label(label=fmt_time(item.get("tarih",""))); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
-            em,ks,uz = hadise_mgm(item.get("hadise",""))
+            h_str = fmt_time(item.get("tarih",""))
+            h_int = int(h_str.split(":")[0]) if ":" in h_str else 12
+            tl = Gtk.Label(label=h_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
+            em,ks,uz = hadise_mgm(item.get("hadise",""), (h_int < 6 or h_int >= 19))
             el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
             if uz: el.set_tooltip_text(f"{ks}\n{uz}")
             ttl = Gtk.Label(label=val(item.get("sicaklik",-9999),suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
@@ -2177,7 +2193,8 @@ class MintSkyApp(Gtk.Window):
             try:    t_str = om_times[i][11:16]
             except (IndexError, TypeError): t_str = "--"
             tl = Gtk.Label(label=t_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
-            em,ks,uz = hadise_wmo(wcodes[i] if i<len(wcodes) else None)
+            is_night_h = (om_hourly.get("is_day",[])[i] == 0) if i < len(om_hourly.get("is_day",[])) else False
+            em,ks,uz = hadise_wmo(wcodes[i] if i<len(wcodes) else None, is_night_h)
             el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
             if uz: el.set_tooltip_text(f"{ks}\n{uz}")
             tmp  = temps[i] if i<len(temps) else -9999
