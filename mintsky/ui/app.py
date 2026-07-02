@@ -507,7 +507,7 @@ class MintSkyApp(Gtk.Window):
         ver_lbl.set_margin_start(4)
         
         # Geliştirici (GitHub logo + isim)
-        gh_icon = Gtk.Image.new_from_icon_name("github-symbolic", Gtk.IconSize.MENU)
+        gh_icon = Gtk.Label(label="👨‍💻")
         dev_lbl = Gtk.Label()
         dev_lbl.set_markup("<span size='small' color='#8b949e'><b>Turan Kaya</b></span>")
         
@@ -536,7 +536,7 @@ class MintSkyApp(Gtk.Window):
         ]:
             title_row.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
-        self.btn_ai = self._create_tool_btn("🤖", _("btn_ai"), _("btn_ai_tt"),
+        self.btn_ai = self._create_tool_btn("🤖", _("btn_ai_advisor"), _("btn_ai_advisor_tt"),
                                              self._show_ai_dialog, "btn-ai")
         title_row.pack_start(self.btn_ai, False, False, 0)
 
