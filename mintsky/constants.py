@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 7.1.12
+Versiyon    : 7.2.0
 Lisans      : MIT
 """
 import os
@@ -25,7 +25,7 @@ MGM_HEADERS   = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 }
-NOM_HEADERS   = {"User-Agent": "MintSkyApp/7.1.12 (github.com/tarihcituranx)"}
+NOM_HEADERS   = {"User-Agent": "MintSkyApp/7.2.0 (github.com/tarihcituranx)"}
 TIMEOUT           = 12
 WEATHER_CACHE_TTL = 300   # saniye — widget/ayar geçişi API atılmaz, önbellekten render
 FINANCE_CACHE_TTL = 120   # saniye — Truncgil API minimum yenileme aralığı
@@ -45,7 +45,7 @@ ICON_DIR        = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps"
 GELISTIRICI   = "https://github.com/tarihcituranx"
 MGM_SIMGELER  = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
 UYGULAMA_ADI  = "MintSky"
-VERSIYON = "7.1.12"
+VERSIYON = "7.2.0"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
@@ -215,7 +215,7 @@ WMO_TRAY = {
     95:"weather-storm",96:"weather-storm",99:"weather-storm",
 }
 
-YONLER = ["K","KKD","KD","DKD","D","DGD","GD","GGD","G","GGB","GB","BGB","B","BBK","BK","KBK"]
+YONLER = ["Kuzey","Kuzey Kuzeydoğu","Kuzeydoğu","Doğu Kuzeydoğu","Doğu","Doğu Güneydoğu","Güneydoğu","Güney Güneydoğu","Güney","Güney Güneybatı","Güneybatı","Batı Güneybatı","Batı","Batı Kuzeybatı","Kuzeybatı","Kuzey Kuzeybatı"]
 METEOALARM_SEVIYE = {"1":"Yeşil","2":"Sarı ⚠","3":"Turuncu ⚠⚠","4":"Kırmızı 🔴"}
 
 # ─── Yardımcı Fonksiyonlar ────────────────────────────────────────────────
