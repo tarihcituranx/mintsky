@@ -87,5 +87,15 @@
   "Batı": "西",
   "Batı Kuzeybatı": "西西北",
   "Kuzeybatı": "西北",
-  "Kuzey Kuzeybatı": "北西北"
+  "Kuzey Kuzeybatı": "北西北",
+  "src_mgm": "🇹🇷 MGM — Turkish State Meteorological Service",
+  "src_om": "🌍 Open-Meteo — Global Open Source",
+  "settings_groq_free": "Free Groq API key:",
+  "settings_groq_test": "Test",
+  "settings_theme_dark": "Dark",
+  "settings_theme_light": "Light",
+  "settings_shortcut": "Add to Application Menu",
+  "settings_shortcut_desc": "<small><i>Adds a shortcut named 'MintSky' to your app menu.\\nMust be run in the same folder as the icon (mintsky.png).</i></small>",
+  "restart_required_title": "Restart Required",
+  "restart_required_msg": "Please restart MintSky for the language changes to take full effect."
 }
