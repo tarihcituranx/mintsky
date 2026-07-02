@@ -28,7 +28,7 @@ def main():
 
     cfg = load_settings()
     load_language(cfg.get("language", "tr"))
-    win = MintSkyApp()
+    MintSkyApp()
     Gtk.main()
 
 if __name__ == "__main__":

@@ -38,23 +38,19 @@ import shutil
 import time
 import webbrowser
 import uuid
-import concurrent.futures
 from datetime import datetime
-# ─── Sabitler ─────────────────────────────────────────────────────────────
-BASE_MGM      = "https://servis.mgm.gov.tr"
-import threading
-import requests
-from datetime import datetime
-import time
-import json
-import sqlite3
-import urllib.request
-import urllib.error
-import webbrowser
-from mintsky.constants import VERSIYON, BASE_MGM, GITHUB_REPO, GITHUB_API, ICONS, \
-    MGM_SIMGELER, UYGULAMA_ADI, ALTIN_KODLAR, DOVIZ_KODLAR, KRIPTO_KODLAR, TRAY_ICONS, \
-    HADISE, WMO_HADISE, YONLER, NOM_HEADERS, TIMEOUT, WEATHER_CACHE_TTL, FINANCE_CACHE_TTL, TRAY_FETCH_TTL
-from mintsky.utils import yon, fmt_date, fmt_time, fmt_dt, val, fmt_try, fmt_pct, hadise_mgm, hadise_wmo, css_str
+import subprocess
+
+from mintsky.constants import (
+    VERSIYON, BASE_MGM, GITHUB_REPO, MGM_SIMGELER, UYGULAMA_ADI,
+    ALTIN_KODLAR, DOVIZ_KODLAR, TRAY_ICONS, NOM_HEADERS, TIMEOUT,
+    WEATHER_CACHE_TTL, FINANCE_CACHE_TTL, TRAY_FETCH_TTL,
+    DEFAULT_FINANCE_ALTIN, DEFAULT_FINANCE_DOVIZ, DEFAULT_FINANCE_KRIPTO,
+    MGM_HEADERS, PILL_TOOLTIPS, AUTOSTART_FILE, AUTOSTART_DIR, ICON_DIR,
+    APP_DIR, APP_FILE, ALTIN_EMOJIS, DOVIZ_EMOJIS, GELISTIRICI,
+    GROQ_MODEL, GROQ_SYSTEM, WMO_TRAY, FAV_FILE, CONFIG_DIR, METEOALARM_SEVIYE
+)
+from mintsky.utils import yon, fmt_date, fmt_time, fmt_dt, val, fmt_try, fmt_pct, hadise_mgm, hadise_wmo
 from mintsky.api.finance import FinanceAPI
 from mintsky.api.location import LocationAPI
 from mintsky.api.weather import WeatherAPI
@@ -553,7 +549,7 @@ class MintSkyApp(Gtk.Window):
         arow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         arow.set_margin_top(5)
         for icon, text, tooltip, cb in [
-            ("📍","GPS Bul",  "GPS ile konumu bul",         lambda *_: self._fetch_location()),
+            ("📍","GPS Bul",  "GPS ile konumu bul",         lambda *args: self._fetch_location()),
             ("🏠","Sabitle",  "Bu konumu varsayılan yap",   self._make_default),
         ]:
             arow.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
@@ -601,7 +597,7 @@ class MintSkyApp(Gtk.Window):
         GLib.timeout_add(1500, self._render_from_cache)
 
     # ──────────────────── Ayarlar Diyaloğu (Sekmeli) ──────────────────────
-    def _show_settings(self, *_):
+    def _show_settings(self, *args):
         old_api_source = self._api_source
 
         dlg = Gtk.Dialog(title=f"⚙️ {_('settings_title')}", transient_for=self, flags=0)
@@ -1132,7 +1128,7 @@ class MintSkyApp(Gtk.Window):
         try:
             from groq import Groq
             client = Groq(api_key=key, timeout=10)
-            r = client.chat.completions.create(
+            _dummy = client.chat.completions.create(
                 model=GROQ_MODEL,
                 messages=[{"role":"user","content":"Merhaba, çalışıyor musun?"}],
                 max_tokens=20
@@ -1454,7 +1450,7 @@ class MintSkyApp(Gtk.Window):
 
             sd    = sondur[0]
             h_kod = sd.get("hadiseKodu","")
-            emoji, kisa, _ = hadise_mgm(h_kod)
+            emoji, kisa, _dummy = hadise_mgm(h_kod)
             sicak = sd.get("sicaklik",-9999)
             ttxt  = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
             sehir = f"{il} / {ilce}" if ilce else il
@@ -1699,7 +1695,7 @@ class MintSkyApp(Gtk.Window):
         tahmin_3s = []
         if mgm_tahminler:
             for item in mgm_tahminler[:3]:
-                em, _, _ = hadise_mgm(item.get("hadise",""))
+                em, _dummy1, _dummy2 = hadise_mgm(item.get("hadise",""))
                 tahmin_3s.append((fmt_time(item.get("tarih","")), em,
                                   val(item.get("sicaklik",-9999),suffix="°")))
         elif om_times:
@@ -1708,7 +1704,7 @@ class MintSkyApp(Gtk.Window):
             temps_h  = om_hourly.get("temperature_2m",[])
             wcodes_h = om_hourly.get("weather_code",[])
             for i in range(st, min(st+3, len(om_times))):
-                em,_,_ = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None)
+                em, _dummy1, _dummy2 = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None)
                 tahmin_3s.append((om_times[i][11:16], em,
                                   val(temps_h[i] if i<len(temps_h) else -9999, suffix="°")))
 
@@ -1943,7 +1939,7 @@ class MintSkyApp(Gtk.Window):
             r = rates[kod]
             price = r.get("Buying") or r.get("Selling") or r.get("TRY_Price")
             if price is None: continue
-            change = r.get("Change", 0) or 0
+            _dummy = r.get("Change", 0) or 0
             em = ALTIN_EMOJIS.get(kod, DOVIZ_EMOJIS.get(kod,""))
             short_name = (ALTIN_KODLAR.get(kod, DOVIZ_KODLAR.get(kod, kod)))[:8]
             col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -1959,7 +1955,7 @@ class MintSkyApp(Gtk.Window):
 
         # Portföy P&L özeti
         if self._portfolio:
-            _, cur, pnl, pnl_pct, _ = self._calc_portfolio_pnl()
+            _dummy1, cur, pnl, pnl_pct, _dummy2 = self._calc_portfolio_pnl()
             if pnl is not None:
                 sep = Gtk.Label(label="│")
                 sep.get_style_context().add_class("wfin-item")
