@@ -661,8 +661,8 @@ class MintSkyApp(Gtk.Window):
         p1, t1 = _tab(f"☁️  {_('settings_tab_weather')}")
 
         cb_src = Gtk.ComboBoxText()
-        cb_src.append("mgm",       "🇹🇷 MGM — Meteoroloji Genel Müdürlüğü (Türkiye)")
-        cb_src.append("openmeteo", "🌍 Open-Meteo — Uluslararası açık kaynak")
+        cb_src.append("mgm",       _("src_mgm"))
+        cb_src.append("openmeteo", _("src_om"))
         cb_src.set_active_id(self._api_source)
         _row(_("settings_src"), cb_src, p1)
         _sep(p1)
@@ -683,15 +683,15 @@ class MintSkyApp(Gtk.Window):
         # ════════════════════════════════════════════════════════════════════
         # SEKME 2 — FİNANS
         # ════════════════════════════════════════════════════════════════════
-        p2, t2 = _tab("💰  Finans")
+        p2, t2 = _tab(f"💰  {_('settings_tab_finance')}")
 
-        chk_fin = Gtk.CheckButton.new_with_label("Finans modülünü aktif et  (altın, döviz fiyatları)")
+        chk_fin = Gtk.CheckButton.new_with_label(_("settings_finance_enable"))
         chk_fin.set_active(self._show_finance)
         p2.pack_start(chk_fin, False, False, 0)
         _sep(p2)
 
         # Altın — yatay 3 sütun grid
-        altin_lbl = Gtk.Label(); altin_lbl.set_markup("<b>🥇 Altın / Gümüş / Platin</b>")
+        altin_lbl = Gtk.Label(); altin_lbl.set_markup(f"<b>🥇 {_('settings_gold')}</b>")
         altin_lbl.set_halign(Gtk.Align.START); p2.pack_start(altin_lbl, False, False, 0)
         altin_grid = Gtk.Grid(); altin_grid.set_column_spacing(12); altin_grid.set_row_spacing(2)
         altin_chks = {}
@@ -704,7 +704,7 @@ class MintSkyApp(Gtk.Window):
         _sep(p2)
 
         # Döviz — yatay 3 sütun grid
-        doviz_lbl = Gtk.Label(); doviz_lbl.set_markup("<b>💵 Döviz Kurları</b>")
+        doviz_lbl = Gtk.Label(); doviz_lbl.set_markup(f"<b>💵 {_('settings_fx')}</b>")
         doviz_lbl.set_halign(Gtk.Align.START); p2.pack_start(doviz_lbl, False, False, 0)
         doviz_grid = Gtk.Grid(); doviz_grid.set_column_spacing(12); doviz_grid.set_row_spacing(2)
         doviz_chks = {}
@@ -724,7 +724,7 @@ class MintSkyApp(Gtk.Window):
 
         groq_note = Gtk.Label()
         groq_note.set_markup(
-            "Ücretsiz Groq API anahtarı: "
+            _("settings_groq_free") + " "
             "<a href='https://console.groq.com'>console.groq.com</a>")
         groq_note.set_halign(Gtk.Align.START); groq_note.set_use_markup(True)
         p3.pack_start(groq_note, False, False, 0)
@@ -736,25 +736,25 @@ class MintSkyApp(Gtk.Window):
         groq_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY, "view-conceal-symbolic")
         groq_entry.connect("icon-press", lambda e, *_: e.set_visibility(not e.get_visibility()))
         key_box.pack_start(groq_entry, True, True, 0)
-        btn_test = Gtk.Button(label="Test Et"); self._sc(btn_test, "btn-tool")
+        btn_test = Gtk.Button(label=_("settings_groq_test")); self._sc(btn_test, "btn-tool")
         def _test_groq(*_):
             k = groq_entry.get_text().strip()
             if not k: self._msg_dialog(dlg, "API Anahtarı Eksik", "Groq API anahtarı gerekli."); return
             btn_test.set_label("…"); btn_test.set_sensitive(False)
             def _do():
                 ok, msg = self._test_groq_key(k)
-                GLib.idle_add(lambda: (btn_test.set_label("Test Et"), btn_test.set_sensitive(True),
+                GLib.idle_add(lambda: (btn_test.set_label(_("settings_groq_test")), btn_test.set_sensitive(True),
                                        self._msg_dialog(dlg, "Groq Test", msg)) or False)
             threading.Thread(target=_do, daemon=True).start()
         btn_test.connect("clicked", _test_groq)
         key_box.pack_start(btn_test, False, False, 0)
-        _row("Groq API Anahtarı", key_box, p3)
+        _row(_("settings_groq_key"), key_box, p3)
         _sep(p3)
 
         cb_theme = Gtk.ComboBoxText()
-        cb_theme.append("dark", "🌙 Karanlık"); cb_theme.append("light", "☀️ Aydınlık")
+        cb_theme.append("dark", f"🌙 {_('settings_theme_dark')}"); cb_theme.append("light", f"☀️ {_('settings_theme_light')}")
         cb_theme.set_active_id(self._theme)
-        _row("Tema", cb_theme, p3)
+        _row(_("settings_theme"), cb_theme, p3)
 
         adj = Gtk.Adjustment(value=self._manual_scale, lower=0.5, upper=3.0,
                              step_increment=0.1, page_increment=0.5)
@@ -762,7 +762,7 @@ class MintSkyApp(Gtk.Window):
         scale_sl.set_digits(1); scale_sl.set_value_pos(Gtk.PositionType.RIGHT)
         for tick in (0.5, 1.0, 1.2, 1.5, 2.0, 2.5, 3.0):
             scale_sl.add_mark(tick, Gtk.PositionType.BOTTOM, None)
-        _row("Arayüz Büyüklüğü", scale_sl, p3)
+        _row(_("settings_scale"), scale_sl, p3)
 
         nb.append_page(p3, t3)
 
@@ -792,7 +792,7 @@ class MintSkyApp(Gtk.Window):
         _row(_("settings_lang"), cb_lang, p4)
         _sep(p4)
 
-        btn_install = Gtk.Button(label="🚀 Uygulama Menüsüne Kısayol Ekle")
+        btn_install = Gtk.Button(label=f"🚀 {_('settings_shortcut')}")
         self._sc(btn_install, "btn-search")
         btn_install.connect("clicked", self._install_as_app)
         btn_install.set_halign(Gtk.Align.START)
@@ -819,12 +819,15 @@ class MintSkyApp(Gtk.Window):
             self._show_saatlik   = chk_saat.get_active()
             self._show_gunluk    = chk_gun.get_active()
             self._show_finance   = chk_fin.get_active()
+            old_lang = self._language
             self._language       = cb_lang.get_active_id() or "tr"
             self._groq_api_key   = groq_entry.get_text().strip()
             self._fin_altin      = [k for k,c in altin_chks.items() if c.get_active()]
             self._fin_doviz      = [k for k,c in doviz_chks.items() if c.get_active()]
             self._save_settings()
             self._apply_css()
+            if old_lang != self._language:
+                self._msg_dialog(None, _("restart_required_title"), _("restart_required_msg"))
             self._apply_autostart_logic()
             with self.finance_api._lock:
                 has_fin = bool(self.finance_api._data)
