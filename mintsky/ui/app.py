@@ -50,7 +50,7 @@ from mintsky.constants import (
     APP_DIR, APP_FILE, ALTIN_EMOJIS, DOVIZ_EMOJIS, GELISTIRICI,
     GROQ_MODEL, GROQ_SYSTEM, WMO_TRAY, FAV_FILE, CONFIG_DIR, METEOALARM_SEVIYE
 )
-from mintsky.utils import yon, fmt_date, fmt_time, fmt_dt, val, fmt_try, fmt_pct, hadise_mgm, hadise_wmo
+from mintsky.utils import yon, fmt_date, fmt_time, fmt_dt, val, fmt_try, fmt_pct, hadise_mgm, hadise_wmo, get_svg_image
 from mintsky.api.finance import FinanceAPI
 from mintsky.api.location import LocationAPI
 from mintsky.api.weather import WeatherAPI
@@ -1773,8 +1773,12 @@ class MintSkyApp(Gtk.Window):
         self._sc(city_lbl,"cur-city"); city_lbl.set_halign(Gtk.Align.START)
         lcol.pack_start(city_lbl, False, False, 0)
 
-        cond = Gtk.Label(label=f"{emoji}  {kisa}")
-        self._sc(cond,"cur-cond"); cond.set_halign(Gtk.Align.START)
+        cond = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        c_icon = get_svg_image(emoji, size=56)
+        c_lbl = Gtk.Label(label=kisa); self._sc(c_lbl,"cur-cond")
+        cond.pack_start(c_icon, False, False, 0)
+        cond.pack_start(c_lbl, False, False, 0)
+        cond.set_halign(Gtk.Align.START)
         if uzun: cond.set_tooltip_text(uzun)
         lcol.pack_start(cond, False, False, 0)
 
@@ -1818,7 +1822,7 @@ class MintSkyApp(Gtk.Window):
                 bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
                 self._sc(bx, "w3-card"); bx.set_halign(Gtk.Align.CENTER)
                 tl = Gtk.Label(label=t_str); self._sc(tl,"w3-time"); tl.set_halign(Gtk.Align.CENTER)
-                el = Gtk.Label(label=em);    self._sc(el,"w3-emoji"); el.set_halign(Gtk.Align.CENTER)
+                el = get_svg_image(em, size=24); el.set_halign(Gtk.Align.CENTER)
                 vl = Gtk.Label(label=tmp);   self._sc(vl,"w3-temp");  vl.set_halign(Gtk.Align.CENTER)
                 bx.pack_start(tl, False, False, 0)
                 bx.pack_start(el, False, False, 0)
@@ -2238,7 +2242,11 @@ class MintSkyApp(Gtk.Window):
             top_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             dl  = Gtk.Label(label=fmt_date(tarih)); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
             em,ksa,uzn = hadise_mgm(gd.get(f"hadiseGun{i}",""))
-            cl  = Gtk.Label(label=f"{em} {ksa}"); self._sc(cl,"fc-cond"); cl.set_halign(Gtk.Align.START)
+            cl = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            c_ic = get_svg_image(em, size=20)
+            c_lb = Gtk.Label(label=ksa); self._sc(c_lb,"fc-cond")
+            cl.pack_start(c_ic, False, False, 0); cl.pack_start(c_lb, False, False, 0)
+            cl.set_halign(Gtk.Align.START)
             if uzn: cl.set_tooltip_text(uzn)
             rh2 = gd.get(f"ruzgarHizGun{i}",-9999)
             rl  = Gtk.Label(label=f"💨 {rh2:.0f} km/s" if rh2 not in (-9999,None) else "")
@@ -2277,7 +2285,11 @@ class MintSkyApp(Gtk.Window):
             except (ValueError, TypeError): dt_fmt = tarih
             dl  = Gtk.Label(label=dt_fmt); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
             em,ksa,uzn = hadise_wmo(wc_arr[i] if i<len(wc_arr) else None)
-            cl  = Gtk.Label(label=f"{em} {ksa}"); self._sc(cl,"fc-cond"); cl.set_halign(Gtk.Align.START)
+            cl = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            c_ic = get_svg_image(em, size=20)
+            c_lb = Gtk.Label(label=ksa); self._sc(c_lb,"fc-cond")
+            cl.pack_start(c_ic, False, False, 0); cl.pack_start(c_lb, False, False, 0)
+            cl.set_halign(Gtk.Align.START)
             if uzn: cl.set_tooltip_text(uzn)
             rh2 = rh_arr[i] if i<len(rh_arr) else None
             rl  = Gtk.Label(label=f"💨 {rh2:.0f} km/s" if rh2 is not None else "")
