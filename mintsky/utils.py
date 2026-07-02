@@ -47,13 +47,21 @@ def fmt_pct(v):
     sign = "+" if v >= 0 else ""
     return f"{sign}{v:.2f}%"
 
-def hadise_mgm(kod):  return HADISE.get(kod) or ("🌡️", kod or "—", "")
-def hadise_wmo(kod):
+def hadise_mgm(kod, is_night=False):
+    icon, label, desc = HADISE.get(kod) or ("🌡️", kod or "—", "")
+    if is_night:
+        icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
+    return icon, label, desc
+
+def hadise_wmo(kod, is_night=False):
     if kod is None:
         return ("🌡️", "—", "")
     try:
-        return WMO_HADISE.get(int(kod), ("🌡️", "Bilinmiyor", ""))
+        icon, label, desc = WMO_HADISE.get(int(kod), ("🌡️", "Bilinmiyor", ""))
     except (ValueError, TypeError):
-        return ("🌡️", str(kod), "")
+        icon, label, desc = ("🌡️", str(kod), "")
+    if is_night:
+        icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
+    return icon, label, desc
 
 # ─── CSS ──────────────────────────────────────────────────────────────────

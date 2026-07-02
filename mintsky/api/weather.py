@@ -84,15 +84,17 @@ class WeatherAPI:
                     "precipitation","weather_code","surface_pressure",
                     "wind_speed_10m","wind_direction_10m","wind_gusts_10m",
                     "uv_index","visibility","cloud_cover","dew_point_2m",
+                    "is_day"
                 ]),
                 "hourly": ",".join([
                     "temperature_2m","precipitation_probability",
-                    "wind_speed_10m","uv_index","weather_code",
+                    "wind_speed_10m","uv_index","weather_code","is_day"
                 ]),
                 "daily": ",".join([
                     "temperature_2m_max","temperature_2m_min","precipitation_sum",
                     "precipitation_probability_max","uv_index_max",
                     "wind_speed_10m_max","sunshine_duration","weather_code",
+                    "sunrise","sunset"
                 ]),
             }
             r = session.get(BASE_OM, params=params, timeout=TIMEOUT)

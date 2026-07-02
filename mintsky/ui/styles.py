@@ -5,10 +5,10 @@ def make_css(scale_val, theme="dark"):
         card_grad        = "linear-gradient(145deg,#ffffff 0%,#eef2f7 100%)"
         hdr_grad         = "linear-gradient(160deg,#ffffff 0%,#f0f4f8 100%)"
         border           = "#d0d7de"
-        text_main        = "#0f172a"
-        text_sub         = "#334155"
-        text_mut         = "#475569"
-        text_accent      = "#0969da"
+        text_main        = "#000000"
+        text_sub         = "#1a202c"
+        text_mut         = "#2d3748"
+        text_accent      = "#0055b3"
         entry_bg,btn_bg  = "#ffffff","#f0f3f7"
         btn_hover        = "#e5e9f0"
         btn_active       = "#dde3eb"
@@ -27,9 +27,9 @@ def make_css(scale_val, theme="dark"):
         card_grad        = "linear-gradient(145deg,#161e30 0%,#0f1520 100%)"
         hdr_grad         = "linear-gradient(160deg,#161e30 0%,#0a0e17 100%)"
         border           = "#253046"
-        text_main        = "#f8fafc"
-        text_sub         = "#cbd5e1"
-        text_mut         = "#94a3b8"
+        text_main        = "#ffffff"
+        text_sub         = "#f8fafc"
+        text_mut         = "#e2e8f0"
         text_accent      = "#60a5fa"
         entry_bg,btn_bg  = "#101828","#1e2d42"
         btn_hover        = "#253046"
@@ -46,7 +46,7 @@ def make_css(scale_val, theme="dark"):
         pill_shadow      = "rgba(0,0,0,0.35)"
 
     return f"""
-* {{ font-family:"Ubuntu","Cantarell",sans-serif; font-size:{fs(15)}px; }}
+* {{ font-family:"Ubuntu","Cantarell",sans-serif; font-size:{fs(15)}px; font-weight:700; text-shadow:0px 1px 3px rgba(0,0,0,0.15); }}
 #main-win {{ background-color:{bg}; }}
 
 /* ─── Header ─── */
@@ -111,9 +111,9 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
               text-shadow:0 1px 4px {pill_shadow}; }}
 .cur-cond  {{ font-size:{fs(18)}px; color:{text_sub}; margin-top:{fs(2)}px; font-weight:600; }}
 .cur-desc  {{ font-size:{fs(14)}px; color:{text_sub}; margin-top:{fs(4)}px; }}
-.cur-temp  {{ font-size:{fs(66)}px; font-weight:200; color:{text_main}; letter-spacing:-3px;
-              text-shadow:0 2px 8px {pill_shadow}; }}
-.cur-feels {{ font-size:{fs(14)}px; color:{text_sub}; margin-top:-{fs(4)}px; }}
+.cur-temp  {{ font-size:{fs(66)}px; font-weight:900; color:{text_main}; letter-spacing:-2px;
+              text-shadow:0 3px 12px {pill_shadow}; }}
+.cur-feels {{ font-size:{fs(15)}px; font-weight:800; color:{text_sub}; margin-top:-{fs(4)}px; }}
 .om-badge  {{ font-size:{fs(12)}px; color:{text_accent}; font-weight:bold; margin-top:{fs(6)}px; }}
 
 /* ─── Pill kartlar ─── */

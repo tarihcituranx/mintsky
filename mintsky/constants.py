@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 7.1.11
+Versiyon    : 7.1.12
 Lisans      : MIT
 """
 import os
@@ -25,7 +25,7 @@ MGM_HEADERS   = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 }
-NOM_HEADERS   = {"User-Agent": "MintSkyApp/7.1.11 (github.com/tarihcituranx)"}
+NOM_HEADERS   = {"User-Agent": "MintSkyApp/7.1.12 (github.com/tarihcituranx)"}
 TIMEOUT           = 12
 WEATHER_CACHE_TTL = 300   # saniye — widget/ayar geçişi API atılmaz, önbellekten render
 FINANCE_CACHE_TTL = 120   # saniye — Truncgil API minimum yenileme aralığı
@@ -45,7 +45,7 @@ ICON_DIR        = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps"
 GELISTIRICI   = "https://github.com/tarihcituranx"
 MGM_SIMGELER  = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
 UYGULAMA_ADI  = "MintSky"
-VERSIYON = "7.1.11"
+VERSIYON = "7.1.12"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
@@ -59,20 +59,8 @@ DOVIZ_KODLAR = {
     "USD": "Amerikan Doları", "EUR": "Euro", "GBP": "İngiliz Sterlini", "CHF": "İsviçre Frangı",
     "CAD": "Kanada Doları", "RUB": "Rus Rublesi", "AED": "BAE Dirhemi", "AUD": "Avustralya Doları",
     "DKK": "Danimarka Kronu", "SEK": "İsveç Kronu", "NOK": "Norveç Kronu", "JPY": "100 Japon Yeni",
-    "KWD": "Kuveyt Dinarı", "ZAR": "Güney Afrika Randı", "BHD": "Bahreyn Dinarı", "LYD": "Libya Dinarı",
-    "SAR": "Suudi Arabistan Riyali", "IQD": "Irak Dinarı", "ILS": "İsrail Şekeli", "IRR": "İran Riyali",
-    "INR": "Hindistan Rupisi", "MXN": "Meksika Pesosu", "HUF": "Macar Forinti", "NZD": "Yeni Zelanda Doları",
-    "BRL": "Brezilya Reali", "IDR": "Endonezya Rupiahi", "CZK": "Çek Korunası", "PLN": "Polonya Zlotisi",
-    "RON": "Romanya Leyi", "CNY": "Çin Yuanı", "ARS": "Arjantin Pesosu", "ALL": "Arnavutluk Leki",
-    "AZN": "Azerbaycan Manatı", "BAM": "Bosna-Hersek Markı", "CLP": "Şili Pesosu", "COP": "Kolombiya Pesosu",
-    "CRC": "Kostarika Kolonu", "DZD": "Cezayir Dinarı", "EGP": "Mısır Lirası", "HKD": "Hong Kong Doları",
-    "ISK": "İzlanda Kronası", "JOD": "Ürdün Dinarı", "KRW": "Güney Kore Wonu", "KZT": "Kazak Tengesi",
-    "LBP": "Lübnan Lirası", "LKR": "Sri Lanka Rupisi", "MAD": "Fas Dirhemi", "MDL": "Moldovya Leusu",
-    "MKD": "Makedon Dinarı", "MYR": "Malezya Ringgiti", "OMR": "Umman Riyali", "PEN": "Peru İnti",
-    "PHP": "Filipinler Pesosu", "PKR": "Pakistan Rupisi", "QAR": "Katar Riyali", "RSD": "Sırbistan Dinarı",
-    "SGD": "Singapur Doları", "SYP": "Suriye Lirası", "THB": "Tayland Bahtı", "TWD": "Yeni Tayvan Doları",
-    "UAH": "Ukrayna Grivnası", "UYU": "Uruguay Pesosu", "GEL": "Gürcistan Larisi", "TND": "Tunus Dinarı",
-    "BGN": "Bulgar Levası"
+    "KWD": "Kuveyt Dinarı", "SAR": "Suudi Arabistan Riyali", "CNY": "Çin Yuanı",
+    "AZN": "Azerbaycan Manatı", "GEL": "Gürcistan Larisi"
 }
 KRIPTO_KODLAR = {
     "BTC": "Bitcoin", "ETH": "Ethereum", "XRP": "Ripple", "USDT": "Tether", "SOL": "Solana",
@@ -93,9 +81,11 @@ ALTIN_EMOJIS = {
     "CUM":"🪙","ATA":"🪙",
 }
 DOVIZ_EMOJIS = {
-    "USD":"🇺🇸","EUR":"🇪🇺","GBP":"🇬🇧","CHF":"🇨🇭",
-    "JPY":"🇯🇵","AUD":"🇦🇺","CAD":"🇨🇦","SAR":"🇸🇦",
-    "RUB":"🇷🇺","AED":"🇦🇪",
+    "USD":"🇺🇸", "EUR":"🇪🇺", "GBP":"🇬🇧", "CHF":"🇨🇭",
+    "CAD":"🇨🇦", "RUB":"🇷🇺", "AED":"🇦🇪", "AUD":"🇦🇺",
+    "DKK":"🇩🇰", "SEK":"🇸🇪", "NOK":"🇳🇴", "JPY":"🇯🇵",
+    "KWD":"🇰🇼", "SAR":"🇸🇦", "CNY":"🇨🇳",
+    "AZN":"🇦🇿", "GEL":"🇬🇪"
 }
 
 DEFAULT_FINANCE_ALTIN  = ["GRA","GUM","CEY","TAM"]
@@ -197,6 +187,8 @@ PILL_TOOLTIPS = {
     "🌡 Çiğ Noktası":   "Çiğ Noktası Sıcaklığı (°C)",
     "☀ Güneşlenme":     "Günlük Güneşlenme Süresi (saat)",
     "🌡 Hissedilen":    "Hissedilen (Apparent) Sıcaklık (°C)",
+    "🌅 G. Doğuşu":     "Güneşin Doğuş Saati (Yerel Saat)",
+    "🌇 G. Batışı":     "Güneşin Batış Saati (Yerel Saat)",
 }
 
 TRAY_ICONS = {
