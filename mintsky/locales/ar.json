@@ -97,5 +97,19 @@
   "settings_shortcut": "Add to Application Menu",
   "settings_shortcut_desc": "<small><i>Adds a shortcut named 'MintSky' to your app menu.\\nMust be run in the same folder as the icon (mintsky.png).</i></small>",
   "restart_required_title": "Restart Required",
-  "restart_required_msg": "Please restart MintSky for the language changes to take full effect."
+  "restart_required_msg": "Please restart MintSky for the language changes to take full effect.",
+  "lbl_precip_1h": "Precip 1h",
+  "lbl_precip_24h": "Precip 24h",
+  "lbl_snow": "Snow",
+  "lbl_precip_now": "Precip (now)",
+  "btn_gps_tt": "Find location via GPS",
+  "btn_pin_tt": "Set this location as default",
+  "btn_fav_tt": "Add/remove this location to favorites",
+  "btn_list_tt": "My favorite lists",
+  "search_city": "Select / Type City",
+  "search_district": "Select / Type District",
+  "lbl_last_update": "Last update",
+  "tray_show_hide": "Show / Hide Window",
+  "tray_refresh": "Refresh Weather",
+  "tray_update": "Check for Updates"
 }
