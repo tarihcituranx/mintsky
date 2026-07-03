@@ -49,7 +49,7 @@ VERSIYON = "7.2.0"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
-    "GRA": "Gram Altın", "GUM": "Gümüş (gr)", "BRE": "Brent Petrol", "ONS": "Altın ONS",
+    "GRA": "Gram Altın", "GUMUS": "Gümüş (gr)", "BRE": "Brent Petrol", "ONS": "Altın ONS",
     "HAS": "Has Gram Altın", "CEY": "Çeyrek Altın", "YAR": "Yarım Altın", "TAM": "Tam Altın",
     "CUM": "Cumhuriyet Altını", "ATA": "Ata Altını", "ODA": "14 Ayar Altın", "OSA": "18 Ayar Altın",
     "YIA": "22 Ayar Bilezik", "IKI": "İki Buçuk Altın", "BES": "Beşli Altın", "GRE": "Gremse Altın",
@@ -76,9 +76,9 @@ KRIPTO_KODLAR = {
 }
 
 ALTIN_EMOJIS = {
-    "GRA":"🥇","GUM":"🥈","CEY":"🏅","YAR":"🏅","TAM":"🏅",
-    "HAS":"🥇","ODA":"💍","OSA":"💍","YIA":"📿","GPL":"⚪",
-    "CUM":"🪙","ATA":"🪙",
+    "GRA":"🪙","GUMUS":"🥈","CEY":"🪙","YAR":"🪙","TAM":"🪙",
+    "HAS":"🪙","ODA":"💍","OSA":"💍","YIA":"💍","GPL":"⚪",
+    "CUM":"🪙","ATA":"🪙","BRE":"🛢️",
 }
 DOVIZ_EMOJIS = {
     "USD":"🇺🇸", "EUR":"🇪🇺", "GBP":"🇬🇧", "CHF":"🇨🇭",
@@ -88,7 +88,7 @@ DOVIZ_EMOJIS = {
     "AZN":"🇦🇿", "GEL":"🇬🇪"
 }
 
-DEFAULT_FINANCE_ALTIN  = ["GRA","GUM","CEY","TAM"]
+DEFAULT_FINANCE_ALTIN  = ["GRA","GUMUS","CEY","TAM"]
 DEFAULT_FINANCE_DOVIZ  = ["USD","EUR","GBP"]
 DEFAULT_FINANCE_KRIPTO = []
 

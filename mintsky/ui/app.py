@@ -145,7 +145,7 @@ class MintSkyApp(Gtk.Window):
         self.show_all()
         GLib.idle_add(self._initial_search)
         self._tray_update_loop()
-        GLib.timeout_add_seconds(1800, self._tray_update_loop)
+        GLib.timeout_add_seconds(60, self._tray_update_loop)
         # Finans: her 2 dakikada güncelle
         GLib.timeout_add_seconds(120, self._schedule_finance_refresh)
 
@@ -175,7 +175,7 @@ class MintSkyApp(Gtk.Window):
             elif event.button == 3:
                 self.begin_move_drag(event.button, int(event.x_root), int(event.y_root), event.time)
 
-    def _toggle_compact(self, *_):
+    def _toggle_compact(self, *args):
         self._is_compact = not self._is_compact
         if self._is_compact:
             self.unmaximize()
@@ -266,6 +266,7 @@ class MintSkyApp(Gtk.Window):
         self._groq_api_key       = d.get("groq_api_key",     "")
         self._show_finance       = d.get("show_finance",     False)
         self._fin_altin          = d.get("fin_altin",        DEFAULT_FINANCE_ALTIN)
+        self._fin_altin = ["GUMUS" if x == "GUM" else x for x in self._fin_altin]
         self._fin_doviz          = d.get("fin_doviz",        DEFAULT_FINANCE_DOVIZ)
         self._fin_kripto         = d.get("fin_kripto",       DEFAULT_FINANCE_KRIPTO)
 
@@ -456,7 +457,7 @@ class MintSkyApp(Gtk.Window):
                 if os.path.exists(AUTOSTART_FILE): os.remove(AUTOSTART_FILE)
         except Exception as e: print("Autostart hatası:", e)
 
-    def _install_as_app(self, *_):
+    def _install_as_app(self, *args):
         try:
             if os.path.exists(self.icon_path):
                 os.makedirs(ICON_DIR, exist_ok=True)
@@ -604,16 +605,16 @@ class MintSkyApp(Gtk.Window):
 
         self._status("İl ve ilçe seçerek veya yazarak arama yapın.")
 
-    def _open_mgm_simgeler(self, *_): webbrowser.open(MGM_SIMGELER)
+    def _open_mgm_simgeler(self, *args): webbrowser.open(MGM_SIMGELER)
 
-    def _manual_refresh(self, *_):
+    def _manual_refresh(self, *args):
         now = time.time()
         if now - self._last_api_call < 10:
             self._status(f"Lütfen {10-int(now-self._last_api_call)} saniye bekleyin.", error=True)
             return
         self._search(force=True)
 
-    def _make_default(self, *_):
+    def _make_default(self, *args):
         if not self._cur_il: return
         self._def_il, self._def_ilce = self._cur_il, self._cur_ilce
         self._save_settings()
@@ -703,7 +704,7 @@ class MintSkyApp(Gtk.Window):
         altin_grid = Gtk.Grid(); altin_grid.set_column_spacing(12); altin_grid.set_row_spacing(2)
         altin_chks = {}
         for idx, (kod, ad) in enumerate(ALTIN_KODLAR.items()):
-            chk = Gtk.CheckButton.new_with_label(f"{ALTIN_EMOJIS.get(kod,'🥇')} {ad}")
+            chk = Gtk.CheckButton.new_with_label(f"{ALTIN_EMOJIS.get(kod,'🪙')} {ad}")
             chk.set_active(kod in self._fin_altin)
             altin_chks[kod] = chk
             altin_grid.attach(chk, idx % 3, idx // 3, 1, 1)
@@ -744,7 +745,7 @@ class MintSkyApp(Gtk.Window):
         groq_entry.connect("icon-press", lambda e, *_: e.set_visibility(not e.get_visibility()))
         key_box.pack_start(groq_entry, True, True, 0)
         btn_test = Gtk.Button(label=_("settings_groq_test")); self._sc(btn_test, "btn-tool")
-        def _test_groq(*_):
+        def _test_groq(*args):
             k = groq_entry.get_text().strip()
             if not k: self._msg_dialog(dlg, "API Anahtarı Eksik", "Groq API anahtarı gerekli."); return
             btn_test.set_label("…"); btn_test.set_sensitive(False)
@@ -848,7 +849,7 @@ class MintSkyApp(Gtk.Window):
         dlg.destroy()
 
     # ──────────────────── Portföy Yönetim Diyaloğu ─────────────────────────
-    def _show_portfolio_dialog(self, *_):
+    def _show_portfolio_dialog(self, *args):
         """Portföy yönetimi: ekle/sil/görüntüle"""
         if self._show_finance:
             # Finans verisi yoksa önce çek
@@ -983,7 +984,7 @@ class MintSkyApp(Gtk.Window):
         # Tür seçimi
         cb_type = Gtk.ComboBoxText()
         all_codes = (
-            [(k, f"🥇 {v}") for k,v in ALTIN_KODLAR.items()] +
+            [(k, f"🪙 {v}") for k,v in ALTIN_KODLAR.items()] +
             [(k, f"{DOVIZ_EMOJIS.get(k,'🏳')} {v}") for k,v in DOVIZ_KODLAR.items()]
         )
         for kod, ad in all_codes:
@@ -1021,7 +1022,7 @@ class MintSkyApp(Gtk.Window):
 
         btn_add = Gtk.Button(label="Ekle")
         self._sc(btn_add, "btn-search")
-        def _add_item(*_):
+        def _add_item(*args):
             kod = cb_type.get_active_id()
             try: amt = float(entry_amt.get_text().replace(",","."))
             except ValueError: self._msg_dialog(dlg,"Hata","Geçersiz miktar."); return
@@ -1064,13 +1065,13 @@ class MintSkyApp(Gtk.Window):
         box.pack_start(lbl, False, False, 0)
 
     def _msg_dialog(self, parent, title, msg):
-        d = Gtk.MessageDialog(transient_for=parent, flags=0,
+        d = Gtk.MessageDialog(transient_for=parent, flags=Gtk.DialogFlags.MODAL,
                               message_type=Gtk.MessageType.INFO,
                               buttons=Gtk.ButtonsType.OK, text=title)
         d.format_secondary_text(msg); d.run(); d.destroy()
 
     # ──────────────────── Sürüm Notları ────────────────────────────────────
-    def _show_changelog(self, *_):
+    def _show_changelog(self, *args):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0,
                                 message_type=Gtk.MessageType.INFO,
                                 buttons=Gtk.ButtonsType.OK, text="Sürüm Notları")
@@ -1079,17 +1080,17 @@ class MintSkyApp(Gtk.Window):
             "• 🎨 <b>MintSky Grafik Devrimi</b> — Hava durumu ve finans menüsü SVG ikonlarla tamamen yenilendi.\n"
             "• 🌐 <b>Çoklu Dil Desteği (i18n)</b> — Yabancı dil destekli altyapı ve gelişmiş çeviriler.\n"
             "• 🌗 <b>Karanlık/Aydınlık Tema</b> — Ayarlar'dan seçilebilen gelişmiş tema altyapısı.\n"
-            "• 📡 <b>MGM & Open-Meteo Hibrit API</b> — Kesintisiz profesyonel veri ve rate-limit düzeltmeleri.\n"
-            "• 💰 <b>Finans & Portföy Modülü</b> — Altın/döviz fiyatları ve cüzdan takibi (widget destekli).\n"
+            "• 📡 <b>MGM &amp; Open-Meteo Hibrit API</b> — Kesintisiz profesyonel veri ve rate-limit düzeltmeleri.\n"
+            "• 💰 <b>Finans &amp; Portföy Modülü</b> — Altın/döviz fiyatları ve cüzdan takibi (widget destekli).\n"
             "• 🤖 <b>AI Danışman</b> — Gelişmiş yapay zeka entegrasyonu ile hava durumu analizleri.\n"
-            "• 🔄 <b>Widget & Sistem Tepsisi (Tray)</b> — Artış/azalış oranları ve sistem tepsisi eklentileri.\n\n"
+            "• 🔄 <b>Widget &amp; Sistem Tepsisi (Tray)</b> — Artış/azalış oranları ve sistem tepsisi eklentileri.\n\n"
             "<b>v5.0 - v7.0:</b> Modüler altyapı, Concurrent Fetch, Tema Motoru, Portföy Takibi.\n"
             "<b>v3.x - v4.x:</b> Temel API yapısı, Widget modu, MGM optimizasyonu.\n\n"
             f"<small>Geliştirici: Turan Kaya | {GITHUB_REPO}</small>"
         )
         dlg.run(); dlg.destroy()
 
-    def _show_about(self, *_):
+    def _show_about(self, *args):
         dlg = Gtk.AboutDialog()
         dlg.set_transient_for(self); dlg.set_modal(True)
         dlg.set_program_name(UYGULAMA_ADI); dlg.set_version(VERSIYON)
@@ -1214,7 +1215,7 @@ class MintSkyApp(Gtk.Window):
                 raise PermissionError("Geçersiz Groq API anahtarı.")
             raise RuntimeError(f"Groq API hatası: {err_msg[:120]}")
 
-    def _show_ai_dialog(self, *_):
+    def _show_ai_dialog(self, *args):
         if not self._groq_api_key:
             self._msg_dialog(self, "API Anahtarı Yok",
                              "Groq API anahtarını Ayarlar → Groq AI bölümünden ekleyin.\n"
@@ -1258,7 +1259,7 @@ class MintSkyApp(Gtk.Window):
         box.pack_start(q_row, False, False, 0)
         box.show_all()
 
-        def _play_audio(*_):
+        def _play_audio(*args):
             if not hasattr(self, "_last_ai_text"): return
             btn_dinle.set_sensitive(False)
             def _tts_thread():
@@ -1388,6 +1389,13 @@ class MintSkyApp(Gtk.Window):
 
     def _build_tray_menu(self):
         menu = Gtk.Menu()
+        if hasattr(self, "_last_tray_fetch") and self._last_tray_fetch > 0:
+            import datetime
+            last_dt = datetime.datetime.fromtimestamp(self._last_tray_fetch).strftime('%H:%M:%S')
+            m_time = Gtk.MenuItem.new_with_label(f"🕒 Son Güncelleme: {last_dt}")
+            m_time.set_sensitive(False); menu.append(m_time)
+            menu.append(Gtk.SeparatorMenuItem())
+            
         if hasattr(self, "_tray_hissedilen"):
             m1 = Gtk.MenuItem.new_with_label(f"🌡️ Hissedilen: {self._tray_hissedilen}°")
             m1.set_sensitive(False); menu.append(m1)
@@ -1449,15 +1457,15 @@ class MintSkyApp(Gtk.Window):
             self._tray.set_from_icon_name(icon_name)
             self._tray.set_tooltip_text(tooltip_text)
 
-    def _tray_toggle(self, *_):
+    def _tray_toggle(self, *args):
         if self.get_visible(): self.hide()
         else: self.show(); self.present()
 
     def _tray_popup(self, icon, button, t):
         self._build_tray_menu().popup(None, None, Gtk.StatusIcon.position_menu, icon, button, t)
 
-    def _on_delete(self, *_): self.hide(); return True
-    def _quit(self, *_):      Gtk.main_quit()
+    def _on_delete(self, *args): self.hide(); return True
+    def _quit(self, *args):      Gtk.main_quit()
 
     # ──────────────────── Tray Arka Plan Güncelleme ─────────────────────────
     def _tray_update_loop(self):
@@ -1568,7 +1576,7 @@ class MintSkyApp(Gtk.Window):
             with open(FAV_FILE,"r",encoding="utf-8") as f: return json.load(f)
         except Exception: return []
 
-    def _toggle_favorite(self, *_):
+    def _toggle_favorite(self, *args):
         if not self._cur_il: return
         favs  = self._get_favs()
         entry = {"il":self._cur_il,"ilce":self._cur_ilce}
@@ -1618,7 +1626,7 @@ class MintSkyApp(Gtk.Window):
         self.ilce_entry.set_text(fav.get("ilce",""))
         self._search(force=True)  # farklı konum = taze fetch
 
-    def _clear_favorites(self, *_):
+    def _clear_favorites(self, *args):
         with open(FAV_FILE,"w",encoding="utf-8") as f: json.dump([],f)
         self._sync_fav_button()
 
@@ -2190,7 +2198,7 @@ class MintSkyApp(Gtk.Window):
         btn_ref.set_tooltip_text(f"Finans verilerini şimdi yenile\n"
                                   f"(Min. yenileme: {FINANCE_CACHE_TTL} sn — "
                                   f"son istek atılmayacak)")
-        def _on_fin_refresh(*_):
+        def _on_fin_refresh(*args):
             btn_ref.set_label("⏳"); btn_ref.set_sensitive(False)
             self.finance_api.reset_cache()
             def _do():
@@ -2214,13 +2222,13 @@ class MintSkyApp(Gtk.Window):
         if altin_kodlar:
             fin_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
             fin_card.get_style_context().add_class("fin-card")
-            title_lbl = Gtk.Label(label="🥇 ALTIN & GÜMÜŞ")
+            title_lbl = Gtk.Label(label="🪙 ALTIN PİYASASI")
             title_lbl.get_style_context().add_class("fin-title")
             title_lbl.set_halign(Gtk.Align.START)
             fin_card.pack_start(title_lbl, False, False, 0)
             for kod in altin_kodlar:
                 self._add_fin_row(fin_card, kod, rates[kod],
-                    ALTIN_EMOJIS.get(kod,"🥇"), ALTIN_KODLAR.get(kod, kod))
+                    ALTIN_EMOJIS.get(kod,"🪙"), ALTIN_KODLAR.get(kod, kod))
             self.content.pack_start(fin_card, False, False, 0)
 
         # ── Döviz bölümü ──
@@ -2228,7 +2236,7 @@ class MintSkyApp(Gtk.Window):
         if doviz_kodlar:
             fin_card2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
             fin_card2.get_style_context().add_class("fin-card")
-            title_lbl2 = Gtk.Label(label="💵 DÖVİZ KURLARI")
+            title_lbl2 = Gtk.Label(label="💱 DÖVİZ KURLARI")
             title_lbl2.get_style_context().add_class("fin-title")
             title_lbl2.set_halign(Gtk.Align.START)
             fin_card2.pack_start(title_lbl2, False, False, 0)
