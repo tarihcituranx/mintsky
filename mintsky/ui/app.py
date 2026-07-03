@@ -1877,7 +1877,7 @@ class MintSkyApp(Gtk.Window):
                 lbl_txt += " + <span font_weight='bold'>Open-Meteo</span>"
 
         src_badge = Gtk.Label()
-        src_badge.set_markup(f"<small><span foreground='#8a9db0'>{lbl_txt}</span></small>")
+        src_badge.set_markup(lbl_txt)
         self._sc(src_badge,"om-badge"); src_badge.set_halign(Gtk.Align.START)
         lcol.pack_start(src_badge, False, False, 0)
         top.pack_start(lcol, True, True, 0)
@@ -1915,7 +1915,7 @@ class MintSkyApp(Gtk.Window):
                 el = get_svg_image(em, size=46); el.set_halign(Gtk.Align.CENTER)
                 vl = Gtk.Label(label=tmp);   self._sc(vl,"w3-temp");  vl.set_halign(Gtk.Align.CENTER)
                 hl = Gtk.Label(label=ksa);   self._sc(hl,"w3-desc");  hl.set_halign(Gtk.Align.CENTER)
-                nl = Gtk.Label(label=f"💧 %{nem_h}"); self._sc(nl,"w3-nem"); nl.set_halign(Gtk.Align.CENTER)
+                nl = Gtk.Label(label=f"💧 Nem: %{nem_h}"); self._sc(nl,"w3-nem"); nl.set_halign(Gtk.Align.CENTER)
                 bx.pack_start(tl, False, False, 0)
                 bx.pack_start(el, False, False, 0)
                 bx.pack_start(vl, False, False, 0)
@@ -2345,10 +2345,12 @@ class MintSkyApp(Gtk.Window):
             el = get_svg_image(em, size=32); el.set_halign(Gtk.Align.CENTER)
             if uz: el.set_tooltip_text(f"{ks}\n{uz}")
             ttl = Gtk.Label(label=val(item.get("sicaklik",-9999),suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
+            c_lbl = Gtk.Label(label=ks); self._sc(c_lbl, "h-wind"); c_lbl.set_halign(Gtk.Align.CENTER)
+            c_lbl.set_line_wrap(True); c_lbl.set_justify(Gtk.Justification.CENTER); c_lbl.set_max_width_chars(12)
             rh  = item.get("ruzgarHizi",-9999)
             wl  = Gtk.Label(label=f"{rh:.0f} km/s" if rh not in (-9999,None) else ""); self._sc(wl,"h-wind"); wl.set_halign(Gtk.Align.CENTER)
             hc.pack_start(tl,False,False,0); hc.pack_start(el,False,False,0)
-            hc.pack_start(ttl,False,False,0); hc.pack_start(wl,False,False,0)
+            hc.pack_start(ttl,False,False,0); hc.pack_start(c_lbl,False,False,0); hc.pack_start(wl,False,False,0)
             h_box.pack_start(hc, False, False, 0)
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
@@ -2374,10 +2376,12 @@ class MintSkyApp(Gtk.Window):
             if uz: el.set_tooltip_text(f"{ks}\n{uz}")
             tmp  = temps[i] if i<len(temps) else -9999
             ttl  = Gtk.Label(label=val(tmp,suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
+            c_lbl = Gtk.Label(label=ks); self._sc(c_lbl, "h-wind"); c_lbl.set_halign(Gtk.Align.CENTER)
+            c_lbl.set_line_wrap(True); c_lbl.set_justify(Gtk.Justification.CENTER); c_lbl.set_max_width_chars(12)
             wsp  = winds[i] if i<len(winds) else -9999
             wl   = Gtk.Label(label=f"{wsp:.0f} km/s" if wsp not in (-9999,None) else ""); self._sc(wl,"h-wind"); wl.set_halign(Gtk.Align.CENTER)
             hc.pack_start(tl,False,False,0); hc.pack_start(el,False,False,0)
-            hc.pack_start(ttl,False,False,0); hc.pack_start(wl,False,False,0)
+            hc.pack_start(ttl,False,False,0); hc.pack_start(c_lbl,False,False,0); hc.pack_start(wl,False,False,0)
             if i < len(probs) and probs[i] is not None:
                 pl = Gtk.Label(label=f"💧%{probs[i]:.0f}")
                 self._sc(pl,"h-wind"); pl.set_halign(Gtk.Align.CENTER)
@@ -2474,7 +2478,7 @@ class MintSkyApp(Gtk.Window):
     def _make_hscroll(self):
         hs = Gtk.ScrolledWindow()
         hs.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        hs.set_min_content_height(int(115 * self._get_scale()))
+        hs.set_min_content_height(int(165 * self._get_scale()))
         hs.set_margin_start(12); hs.set_margin_end(12)
         return hs
 

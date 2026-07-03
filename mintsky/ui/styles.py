@@ -114,7 +114,7 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 .cur-temp  {{ font-size:{fs(66)}px; font-weight:900; color:{text_main}; letter-spacing:-2px;
               text-shadow:0 3px 12px {pill_shadow}; }}
 .cur-feels {{ font-size:{fs(15)}px; font-weight:800; color:{text_sub}; margin-top:-{fs(4)}px; }}
-.om-badge  {{ font-size:{fs(12)}px; color:{text_accent}; font-weight:bold; margin-top:{fs(6)}px; }}
+.om-badge  {{ font-size:{fs(14)}px; color:{text_mut}; font-weight:normal; margin-top:{fs(6)}px; }}
 
 /* ─── Pill kartlar ─── */
 .pill-box {{ background:linear-gradient(145deg,{card_bg},{entry_bg});
@@ -131,7 +131,7 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 /* ─── Saatlik tahmin ─── */
 .h-card {{ background:linear-gradient(145deg,{entry_bg},{btn_bg}); border-radius:12px;
            padding:{fs(10)}px; margin:2px; border:1px solid {border};
-           min-width:{fs(75)}px;
+           min-width:{fs(95)}px;
            box-shadow:0 3px 8px {pill_shadow}, inset 0 1px 0 rgba(255,255,255,0.05); }}
 .h-time  {{ font-size:{fs(15)}px; color:{text_sub}; font-weight:700; }}
 .h-emoji {{ font-size:{fs(28)}px; }}
