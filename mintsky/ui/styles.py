@@ -133,21 +133,21 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
            padding:{fs(10)}px; margin:2px; border:1px solid {border};
            min-width:{fs(75)}px;
            box-shadow:0 3px 8px {pill_shadow}, inset 0 1px 0 rgba(255,255,255,0.05); }}
-.h-time  {{ font-size:{fs(13)}px; color:{text_sub}; font-weight:700; }}
-.h-emoji {{ font-size:{fs(26)}px; }}
-.h-temp  {{ font-size:{fs(16)}px; font-weight:700; color:{text_main}; }}
-.h-wind  {{ font-size:{fs(12)}px; color:{text_accent}; font-weight:600; }}
+.h-time  {{ font-size:{fs(15)}px; color:{text_sub}; font-weight:700; }}
+.h-emoji {{ font-size:{fs(28)}px; }}
+.h-temp  {{ font-size:{fs(18)}px; font-weight:700; color:{text_main}; }}
+.h-wind  {{ font-size:{fs(14)}px; color:{text_accent}; font-weight:600; }}
 
 /* ─── Günlük tahmin ─── */
 .fc-row  {{ background:linear-gradient(135deg,{entry_bg},{btn_bg});
             border-radius:12px; padding:{fs(12)}px {fs(14)}px;
             margin:{fs(3)}px {fs(12)}px; border:1px solid {border};
             box-shadow:0 3px 8px {pill_shadow}; }}
-.fc-day  {{ font-size:{fs(15)}px; color:{text_main}; font-weight:700; }}
-.fc-cond {{ font-size:{fs(14)}px; color:{text_sub}; }}
-.fc-desc {{ font-size:{fs(13)}px; color:{text_mut}; font-style:italic; margin-top:{fs(3)}px; }}
-.fc-hi   {{ font-size:{fs(17)}px; font-weight:800; color:{text_main}; }}
-.fc-lo   {{ font-size:{fs(15)}px; color:{text_sub}; }}
+.fc-day  {{ font-size:{fs(17)}px; color:{text_main}; font-weight:700; }}
+.fc-cond {{ font-size:{fs(16)}px; color:{text_sub}; }}
+.fc-desc {{ font-size:{fs(15)}px; color:{text_mut}; font-style:italic; margin-top:{fs(3)}px; }}
+.fc-hi   {{ font-size:{fs(19)}px; font-weight:800; color:{text_main}; }}
+.fc-lo   {{ font-size:{fs(17)}px; color:{text_sub}; }}
 
 /* ─── Uyarılar ─── */
 .alert-row {{ background:linear-gradient(135deg,rgba(248,81,73,0.10),rgba(248,81,73,0.05));
@@ -186,6 +186,8 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 .w3-time  {{ font-size:{fs(13)}px; color:{text_sub}; font-weight:700; }}
 .w3-emoji {{ font-size:{fs(24)}px; }}
 .w3-temp  {{ font-size:{fs(16)}px; font-weight:700; color:{text_main}; }}
+.w3-desc  {{ font-size:{fs(12)}px; color:{text_sub}; margin-top:{fs(2)}px; }}
+.w3-nem   {{ font-size:{fs(11)}px; color:{text_mut}; }}
 .w3-sep   {{ color:{text_mut}; font-size:{fs(20)}px; margin-top:{fs(8)}px; }}
 
 /* ─── Widget finans ─── */
