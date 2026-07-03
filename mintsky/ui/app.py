@@ -479,8 +479,15 @@ class MintSkyApp(Gtk.Window):
         btn = Gtk.Button()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
         box.set_margin_top(2); box.set_margin_bottom(2)
-        l1 = Gtk.Label(label=f"<span size='large'>{icon}</span>", use_markup=True)
-        l2 = Gtk.Label(label=f"<span size='small' color='#8b949e'>{text}</span>", use_markup=True)
+        if icon.endswith("-symbolic") or icon.startswith("system-") or icon.startswith("view-"):
+            l1 = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.DND)
+        else:
+            l1 = Gtk.Label(label=f"<span size='large'>{icon}</span>", use_markup=True)
+        
+        # Use simple label without hardcoded color markup so GTK CSS takes over
+        l2 = Gtk.Label(label=text)
+        self._sc(l2, "tool-btn-text")
+        
         box.pack_start(l1, True, True, 0)
         box.pack_start(l2, True, True, 0)
         btn.add(box)
@@ -528,11 +535,11 @@ class MintSkyApp(Gtk.Window):
         title_row.pack_start(Gtk.Box(), True, True, 0)  # spacer
 
         for icon, text, tooltip, cb in [
-            ("🔽", _("btn_widget"),   _("btn_widget_tt"),        self._toggle_compact),
-            ("🔄", _("btn_refresh"),  _("btn_refresh_tt"),        self._manual_refresh),
-            ("📜", _("btn_version"),  _("btn_version_tt"),        self._show_changelog),
-            ("ℹ️", _("btn_icons"),    _("btn_icons_tt"),          self._open_mgm_simgeler),
-            ("⚙️", _("btn_settings"), _("btn_settings_tt"),       self._show_settings),
+            ("view-restore-symbolic", _("btn_widget"),   _("btn_widget_tt"),        self._toggle_compact),
+            ("view-refresh-symbolic", _("btn_refresh"),  _("btn_refresh_tt"),        self._manual_refresh),
+            ("text-x-generic-symbolic", _("btn_version"),  _("btn_version_tt"),        self._show_changelog),
+            ("dialog-information-symbolic", _("btn_icons"),    _("btn_icons_tt"),          self._open_mgm_simgeler),
+            ("preferences-system-symbolic", _("btn_settings"), _("btn_settings_tt"),       self._show_settings),
         ]:
             title_row.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
@@ -568,15 +575,15 @@ class MintSkyApp(Gtk.Window):
         arow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         arow.set_margin_top(5)
         for icon, text, tooltip, cb in [
-            ("📍", _("btn_gps"), _("btn_gps_tt"),         lambda *args: self._fetch_location()),
-            ("🏠", _("btn_pin"), _("btn_pin_tt"),   self._make_default),
+            ("system-run-symbolic", _("btn_gps"), _("btn_gps_tt"),         lambda *args: self._fetch_location()),
+            ("go-home-symbolic", _("btn_pin"), _("btn_pin_tt"),   self._make_default),
         ]:
             arow.pack_start(self._create_tool_btn(icon, text, tooltip, cb), False, False, 0)
 
-        self.btn_fav = self._create_tool_btn("⭐", _("btn_fav_add"), _("btn_fav_tt"),
-                                              self._toggle_favorite)
+        self.btn_fav = self._create_tool_btn("non-starred-symbolic", _("btn_fav_add"), _("btn_fav_tt"),
+                                             self._toggle_favorite)
         arow.pack_start(self.btn_fav, False, False, 0)
-        arow.pack_start(self._create_tool_btn("📋", _("btn_list"), _("btn_list_tt"),
+        arow.pack_start(self._create_tool_btn("view-list-bullet-symbolic", _("btn_list"), _("btn_list_tt"),
                                                self._show_favorites_menu), False, False, 0)
         self.hdr.pack_start(arow, False, False, 0)
         root.pack_start(self.hdr, False, False, 0)
@@ -667,7 +674,7 @@ class MintSkyApp(Gtk.Window):
         _row(_("settings_src"), cb_src, p1)
         _sep(p1)
 
-        chk_saat  = Gtk.CheckButton.new_with_label(f"⏰ {_('settings_hourly')} (48 saat)")
+        chk_saat  = Gtk.CheckButton.new_with_label(f"🕐 {_('settings_hourly')} (48 saat)")
         chk_gun   = Gtk.CheckButton.new_with_label(f"📅 {_('settings_daily')}")
         chk_extra = Gtk.CheckButton.new_with_label(f"🔬 {_('settings_extra')}  (UV, yağış, kar, çiğ noktası…)")
         chk_saat.set_active(self._show_saatlik)
@@ -1368,7 +1375,7 @@ class MintSkyApp(Gtk.Window):
     def _build_tray(self):
         if HAS_INDICATOR:
             self._indicator = AppIndicator3.Indicator.new(
-                "mintsky-hava", _safe_icon("weather-clear"),
+                "MintSky", _safe_icon("weather-clear"),
                 AppIndicator3.IndicatorCategory.APPLICATION_STATUS
             )
             self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
@@ -1381,6 +1388,18 @@ class MintSkyApp(Gtk.Window):
 
     def _build_tray_menu(self):
         menu = Gtk.Menu()
+        if hasattr(self, "_tray_hissedilen"):
+            m1 = Gtk.MenuItem.new_with_label(f"🌡️ Hissedilen: {self._tray_hissedilen}°")
+            m1.set_sensitive(False); menu.append(m1)
+            
+            m2 = Gtk.MenuItem.new_with_label(f"💧 Nem: %{self._tray_nem}")
+            m2.set_sensitive(False); menu.append(m2)
+            
+            m3 = Gtk.MenuItem.new_with_label(f"🌬️ Rüzgar: {self._tray_ruzgar} km/s")
+            m3.set_sensitive(False); menu.append(m3)
+            
+            menu.append(Gtk.SeparatorMenuItem())
+                
         show = Gtk.MenuItem.new_with_label(f"🪟 {_('tray_show_hide')}")
         show.connect("activate", self._tray_toggle); menu.append(show)
         
@@ -1411,14 +1430,19 @@ class MintSkyApp(Gtk.Window):
         menu.show_all()
         return menu
 
-    def _apply_tray_data(self, emoji, temp_txt, sehir, icon_key, kisa_desc):
+    def _apply_tray_data(self, emoji, temp_txt, sehir, icon_key, kisa_desc, his_txt="-", nem_txt="-", ruzgar_txt="-"):
+        self._tray_hissedilen = his_txt
+        self._tray_nem = nem_txt
+        self._tray_ruzgar = ruzgar_txt
         raw = (WMO_TRAY.get(icon_key, "weather-clear") if isinstance(icon_key, int)
                else TRAY_ICONS.get(icon_key, "weather-clear"))
         icon_name    = _safe_icon(raw)
-        tooltip_text = f"☁️ MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
+        tooltip_text = f"MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
+        tooltip_text += f"\n🌡️ Hissedilen: {his_txt}°\n💧 Nem: %{nem_txt}\n🌬️ Rüzgar: {ruzgar_txt} km/s"
+            
         if HAS_INDICATOR:
-            self._indicator.set_icon_full(icon_name, kisa_desc)
-            self._indicator.set_title(f" {temp_txt}°")
+            self._indicator.set_icon_full(icon_name, tooltip_text)
+            self._indicator.set_title(f" {sehir} {temp_txt}°")
             # Menüyü yenile (finans eklenebilir)
             self._indicator.set_menu(self._build_tray_menu())
         else:
@@ -1473,7 +1497,13 @@ class MintSkyApp(Gtk.Window):
             sicak = sd.get("sicaklik",-9999)
             ttxt  = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
             sehir = f"{il} / {ilce}" if ilce else il
-            GLib.idle_add(self._apply_tray_data, emoji, ttxt, sehir, h_kod, kisa)
+            hissedilen_bg = sd.get("hissedilenSicaklik", sd.get("sicaklik", "-"))
+            nem_bg = sd.get("nem", "-")
+            r_yon_bg = sd.get("ruzgarYonu", -9999)
+            r_yon_txt_bg = yon(r_yon_bg) if r_yon_bg != -9999 else ""
+            r_hiz_bg = sd.get("ruzgarHizi", "-")
+            ruzgar_bg = f"{r_hiz_bg} {r_yon_txt_bg}".strip()
+            GLib.idle_add(self._apply_tray_data, emoji, ttxt, sehir, h_kod, kisa, hissedilen_bg, nem_bg, ruzgar_bg)
             self._last_tray_fetch = time.time()
 
             aktif = [a.get("baslik") for a in alarmlar_r
@@ -1551,13 +1581,16 @@ class MintSkyApp(Gtk.Window):
 
     def _refresh_fav_button(self, is_fav):
         ctx = self.btn_fav.get_style_context()
+        icon = self.btn_fav.get_child().get_children()[0]
         lbl = self.btn_fav.get_child().get_children()[1]
         if is_fav:
             ctx.remove_class("btn-tool"); ctx.add_class("btn-fav-active")
             lbl.set_markup("<span size='small'>Fav'dan Çıkar</span>")
+            if isinstance(icon, Gtk.Image): icon.set_from_icon_name("starred-symbolic", Gtk.IconSize.DND)
         else:
             ctx.remove_class("btn-fav-active"); ctx.add_class("btn-tool")
             lbl.set_markup("<span size='small' color='#8b949e'>Favorile</span>")
+            if isinstance(icon, Gtk.Image): icon.set_from_icon_name("non-starred-symbolic", Gtk.IconSize.DND)
 
     def _sync_fav_button(self):
         self._refresh_fav_button(any(
@@ -1619,12 +1652,58 @@ class MintSkyApp(Gtk.Window):
     def _make_pill(self, key, value, tooltip=None):
         pill = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
         self._sc(pill, "pill-box")
-        kl = Gtk.Label(label=key);   self._sc(kl, "pill-key"); kl.set_halign(Gtk.Align.START)
-        vl = Gtk.Label(label=value); self._sc(vl, "pill-val"); vl.set_halign(Gtk.Align.START)
-        pill.pack_start(kl, False, False, 0)
+        
+        # Lucide SVG İkon Eşleştirmeleri
+        lucide_map = {
+            "💧🌡️": "thermometer",
+            "🌬️⚡": "gust",
+            "💧": "droplets",
+            "🌬️": "wind",
+            "🎚️": "gauge",
+            "👁": "eye",
+            "🌧": "cloud-rain",
+            "🌊": "waves",
+            "☁": "cloud",
+            "❄": "cloud-snow",
+            "🔆": "sun",
+            "🌂": "umbrella",
+            "☀": "sun",
+            "🌅": "sunrise",
+            "🌇": "sunset",
+        }
+        
+        clean_key = key
+        matched_icon = None
+        for emoji_key, sys_icon in lucide_map.items():
+            if key.startswith(emoji_key):
+                matched_icon = sys_icon
+                clean_key = key.replace(emoji_key, "").strip(" \ufe0f")
+                break
+                
+        k_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        
+        if matched_icon:
+            img = get_svg_image(matched_icon, size=24, folder="pills")
+            if img:
+                self._sc(img, "pill-key")
+                k_box.pack_start(img, False, False, 0)
+                
+        kl = Gtk.Label(label=clean_key)
+        self._sc(kl, "pill-key")
+        kl.set_halign(Gtk.Align.START)
+        k_box.pack_start(kl, False, False, 0)
+        
+        vl = Gtk.Label(label=value)
+        self._sc(vl, "pill-val")
+        vl.set_halign(Gtk.Align.START)
+        
+        pill.pack_start(k_box, False, False, 0)
         pill.pack_start(vl, False, False, 0)
+        
         tt = tooltip or PILL_TOOLTIPS.get(key)
-        if tt: pill.set_has_tooltip(True); pill.set_tooltip_text(tt)
+        if tt:
+            pill.set_has_tooltip(True)
+            pill.set_tooltip_text(tt)
         return pill
 
     # ──────────────────── Ana Arama ────────────────────────────────────────
@@ -1719,9 +1798,10 @@ class MintSkyApp(Gtk.Window):
             for item in mgm_tahminler[:3]:
                 h_str = fmt_time(item.get("tarih",""))
                 h_int = int(h_str.split(":")[0]) if ":" in h_str else 12
-                em, _dummy1, _dummy2 = hadise_mgm(item.get("hadise",""), (h_int < 6 or h_int >= 19))
+                em, ksa, _dummy2 = hadise_mgm(item.get("hadise",""), (h_int < 6 or h_int >= 19))
+                nem_h = item.get("nem", "-")
                 tahmin_3s.append((h_str, em,
-                                  val(item.get("sicaklik",-9999),suffix="°")))
+                                  val(item.get("sicaklik",-9999),suffix="°"), ksa, nem_h))
         elif om_times:
             now_h = datetime.now().strftime("%Y-%m-%dT%H:")
             st = next((i for i,t in enumerate(om_times) if t.startswith(now_h[:13])), 0)
@@ -1729,9 +1809,10 @@ class MintSkyApp(Gtk.Window):
             wcodes_h = om_hourly.get("weather_code",[])
             for i in range(st, min(st+3, len(om_times))):
                 is_night_h = (om_hourly.get("is_day",[])[i] == 0) if i < len(om_hourly.get("is_day",[])) else False
-                em, _dummy1, _dummy2 = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None, is_night_h)
+                em, ksa, _dummy2 = hadise_wmo(wcodes_h[i] if i<len(wcodes_h) else None, is_night_h)
+                nem_h = om_hourly.get("relative_humidity_2m",[])[i] if i < len(om_hourly.get("relative_humidity_2m",[])) else "-"
                 tahmin_3s.append((om_times[i][11:16], em,
-                                  val(temps_h[i] if i<len(temps_h) else -9999, suffix="°")))
+                                  val(temps_h[i] if i<len(temps_h) else -9999, suffix="°"), ksa, nem_h))
 
         uv_val   = om_cur.get("uv_index")
         yag_olas = (om_hourly.get("precipitation_probability",[None])[0]
@@ -1788,9 +1869,15 @@ class MintSkyApp(Gtk.Window):
             desc.set_line_wrap(True); desc.set_max_width_chars(38)
             lcol.pack_start(desc, False, False, 0)
 
-        src_badge = Gtk.Label(
-            label=("📡 Open-Meteo" if use_om else "📡 MGM") +
-                  ("  +OM" if (not use_om and om_cur) else ""))
+        if use_om:
+            lbl_txt = "🛰 <span font_weight='bold'>Open-Meteo</span> API"
+        else:
+            lbl_txt = "🛰 <span font_weight='bold'>T.C. Meteoroloji Genel Müdürlüğü</span>"
+            if om_cur:
+                lbl_txt += " + <span font_weight='bold'>Open-Meteo</span>"
+
+        src_badge = Gtk.Label()
+        src_badge.set_markup(f"<small><span foreground='#8a9db0'>{lbl_txt}</span></small>")
         self._sc(src_badge,"om-badge"); src_badge.set_halign(Gtk.Align.START)
         lcol.pack_start(src_badge, False, False, 0)
         top.pack_start(lcol, True, True, 0)
@@ -1809,7 +1896,10 @@ class MintSkyApp(Gtk.Window):
 
         if self._cur_il == self._def_il and self._cur_ilce == self._def_ilce:
             ttxt = f"{sicak:.0f}" if sicak not in (-9999,None) else "--"
-            self._apply_tray_data(emoji, ttxt, sehir, h_kod_for_tray, kisa)
+            h_str = f"{his:.0f}" if his not in (-9999,None) else "--"
+            n_str = f"{nem_val:.0f}" if nem_val not in (-9999,None) else "--"
+            r_str = f"{ruzgar_hiz:.0f} {ruzgar_yon}".strip() if ruzgar_hiz not in (-9999,None) else "--"
+            self._apply_tray_data(emoji, ttxt, sehir, h_kod_for_tray, kisa, h_str, n_str, r_str)
 
         self.compact_content.pack_start(card, False, False, 0)
 
@@ -1818,15 +1908,19 @@ class MintSkyApp(Gtk.Window):
             w3_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
             w3_box.set_halign(Gtk.Align.CENTER)
             w3_box.set_margin_top(4); w3_box.set_margin_bottom(4)
-            for idx, (t_str, em, tmp) in enumerate(tahmin_3s):
+            for idx, (t_str, em, tmp, ksa, nem_h) in enumerate(tahmin_3s):
                 bx = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
                 self._sc(bx, "w3-card"); bx.set_halign(Gtk.Align.CENTER)
                 tl = Gtk.Label(label=t_str); self._sc(tl,"w3-time"); tl.set_halign(Gtk.Align.CENTER)
-                el = get_svg_image(em, size=24); el.set_halign(Gtk.Align.CENTER)
+                el = get_svg_image(em, size=46); el.set_halign(Gtk.Align.CENTER)
                 vl = Gtk.Label(label=tmp);   self._sc(vl,"w3-temp");  vl.set_halign(Gtk.Align.CENTER)
+                hl = Gtk.Label(label=ksa);   self._sc(hl,"w3-desc");  hl.set_halign(Gtk.Align.CENTER)
+                nl = Gtk.Label(label=f"💧 %{nem_h}"); self._sc(nl,"w3-nem"); nl.set_halign(Gtk.Align.CENTER)
                 bx.pack_start(tl, False, False, 0)
                 bx.pack_start(el, False, False, 0)
                 bx.pack_start(vl, False, False, 0)
+                bx.pack_start(hl, False, False, 0)
+                bx.pack_start(nl, False, False, 0)
                 w3_box.pack_start(bx, False, False, 0)
                 if idx < len(tahmin_3s) - 1:
                     sep_lbl = Gtk.Label(label="›"); self._sc(sep_lbl,"w3-sep")
@@ -1848,29 +1942,32 @@ class MintSkyApp(Gtk.Window):
             if nem_val not in (-9999,None):
                 pills_temel.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
             if ruzgar_hiz not in (-9999,None):
-                pills_temel.append((f"💨 {_('lbl_wind')}", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
+                pills_temel.append((f"🌬️ {_('lbl_wind')}", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
             if basinc not in (-9999,None):
-                pills_temel.append((f"🔵 {_('lbl_pressure')}", f"{basinc:.0f} hPa"))
+                pills_temel.append((f"🎚️ {_('lbl_pressure')}", f"{basinc:.0f} hPa"))
             if gorus_v not in (-9999,None):
                 pills_temel.append((f"👁 {_('lbl_visibility')}", f"{gorus_v/1000:.0f} km" if gorus_v >= 1000 else f"{gorus_v} m"))
             for key,fld,fmt,sfx in [
                 (f"🌧 {_('lbl_precip_1h')}","yagis1Saat",   "{:.1f}"," mm"),
                 (f"🌧 {_('lbl_precip_24h')}","yagis24Saat",  "{:.1f}"," mm"),
                 (f"🌊 {_('lbl_sea')}",    "denizSicaklik", "{:.0f}","°C"),
-                (f"☁ {_('lbl_clouds')}","kapalilik",     "{:.0f}","/8 okta"),
                 (f"❄ {_('lbl_snow')}",       "karYukseklik",  "{:.0f}"," cm"),
             ]:
                 v2 = sd.get(fld,-9999)
                 if v2 not in (-9999,None) and v2 > 0:
                     pills_ekstra.append((key, f"{fmt.format(v2)}{sfx}"))
+                    
+            v_kap = sd.get("kapalilik", -9999)
+            if v_kap not in (-9999, None) and v_kap > 0:
+                pills_ekstra.append((f"☁ {_('lbl_clouds')}", f"%{v_kap * 12.5:.0f}"))
         else:
             if nem_val is not None:
                 pills_temel.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
             if om_cur.get("wind_speed_10m") is not None:
                 ws = om_cur["wind_speed_10m"]
-                pills_temel.append((f"💨 {_('lbl_wind')}", f"{ws:.0f} km/s {ruzgar_yon}".strip()))
+                pills_temel.append((f"🌬️ {_('lbl_wind')}", f"{ws:.0f} km/s {ruzgar_yon}".strip()))
             if om_cur.get("surface_pressure") is not None:
-                pills_temel.append((f"🔵 {_('lbl_pressure')}", f"{om_cur['surface_pressure']:.0f} hPa"))
+                pills_temel.append((f"🎚️ {_('lbl_pressure')}", f"{om_cur['surface_pressure']:.0f} hPa"))
             if om_cur.get("visibility") is not None:
                 gv = om_cur["visibility"]
                 pills_temel.append((f"👁 {_('lbl_visibility')}", f"{gv/1000:.0f} km" if gv >= 1000 else f"{gv:.0f} m"))
@@ -1885,11 +1982,12 @@ class MintSkyApp(Gtk.Window):
                 else:               uv_lbl += " (Aşırı)"
                 pills_ekstra.append((f"🔆 {_('lbl_uv')}", uv_lbl))
             if gustu is not None:
-                pills_ekstra.append((f"💨 {_('lbl_wind_gust')}", f"{gustu:.0f} km/s"))
+                pills_ekstra.append((f"🌬️⚡ {_('lbl_wind_gust')}", f"{gustu:.0f} km/s"))
             if om_cur.get("dew_point_2m") is not None:
-                pills_ekstra.append((f"🌡 {_('lbl_dew_point')}", f"{om_cur['dew_point_2m']:.1f}°C"))
+                pills_ekstra.append((f"💧🌡️ {_('lbl_dew_point')}", f"{om_cur['dew_point_2m']:.1f}°C"))
             if om_cur.get("cloud_cover") is not None:
-                pills_ekstra.append((f"☁ {_('lbl_clouds')}", f"%{om_cur['cloud_cover']:.0f}"))
+                if not any(p[0] == f"☁ {_('lbl_clouds')}" for p in pills_ekstra):
+                    pills_ekstra.append((f"☁ {_('lbl_clouds')}", f"%{om_cur['cloud_cover']:.0f}"))
             if om_cur.get("precipitation") is not None and om_cur["precipitation"] > 0:
                 pills_ekstra.append((f"🌧 {_('lbl_precip_now')}", f"{om_cur['precipitation']:.1f} mm"))
             if yag_olas is not None:
@@ -1924,7 +2022,7 @@ class MintSkyApp(Gtk.Window):
         aktif_ma  = [ma for ma in (meteoalarm or [])
                      if ma.get("il","").upper()==il.upper() and int(ma.get("seviye",1))>=2]
         if aktif_mgm or aktif_ma:
-            self._section_title("⚠  AKTİF UYARILAR (Kaynak: MGM)")
+            self._section_title("⚠  AKTİF UYARILAR (Kaynak: T.C. Meteoroloji Genel Müdürlüğü)")
             for a in aktif_mgm[:4]:  self._add_alert_row(a.get("baslik",""))
             for ma in aktif_ma[:2]:
                 etkinlik = ma.get("etkinlik") or ma.get("tip") or "MeteoAlarm"
@@ -1959,7 +2057,17 @@ class MintSkyApp(Gtk.Window):
     # ──────────────────── Finans Render ────────────────────────────────────
     def _render_finance_widget(self, rates):
         """Widget modunda mini finans satırı"""
-        codes = self._fin_altin + self._fin_doviz
+        # Öncelikli olarak Gram Altın, Dolar ve Euro'yu göster (Kullanıcı seçmişse)
+        codes = []
+        if "GRA" in self._fin_altin: codes.append("GRA")
+        if "USD" in self._fin_doviz: codes.append("USD")
+        if "EUR" in self._fin_doviz: codes.append("EUR")
+        
+        # Seçili olan diğerlerini de boşluk kalırsa ekle (Maksimum 5 öğe)
+        for c in (self._fin_altin + self._fin_doviz):
+            if c not in codes and len(codes) < 5:
+                codes.append(c)
+
         if not codes: return
 
         wfin = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -1969,21 +2077,47 @@ class MintSkyApp(Gtk.Window):
         wfin.set_margin_bottom(4)
 
         shown = 0
-        for kod in codes[:4]:  # widget'ta max 4
+        for kod in codes:
             if kod not in rates: continue
             r = rates[kod]
             price = r.get("Buying") or r.get("Selling") or r.get("TRY_Price")
             if price is None: continue
             _dummy = r.get("Change", 0) or 0
-            em = ALTIN_EMOJIS.get(kod, DOVIZ_EMOJIS.get(kod,""))
-            short_name = (ALTIN_KODLAR.get(kod, DOVIZ_KODLAR.get(kod, kod)))[:8]
+            if kod == "USD": short_name = "ABD Doları"
+            elif kod == "EUR": short_name = "Euro"
+            elif kod == "GRA": short_name = "Gram Altın"
+            else: short_name = (ALTIN_KODLAR.get(kod, DOVIZ_KODLAR.get(kod, kod)))[:10]
+            
             col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
             col.set_halign(Gtk.Align.CENTER)
-            nm = Gtk.Label(label=f"{em} {short_name}")
+            
+            hdr_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            hdr_box.set_halign(Gtk.Align.CENTER)
+            
+            # Altın/Döviz flag SVG
+            flag = get_svg_image(kod.lower(), size=16, folder="flags")
+            if not flag:
+                # Altın veya bayrağı olmayan para birimi için fallback
+                fallback_icon = "view-list-symbolic" if kod in ALTIN_KODLAR else "money-symbolic"
+                flag = Gtk.Image.new_from_icon_name(fallback_icon, Gtk.IconSize.MENU)
+                
+            nm = Gtk.Label(label=short_name)
             nm.get_style_context().add_class("wfin-item")
-            vl = Gtk.Label(label=f"{price:,.0f}₺" if price >= 1 else f"{price:.4f}₺")
+            hdr_box.pack_start(flag, False, False, 0)
+            hdr_box.pack_start(nm, False, False, 0)
+            
+            # Değişim (Yüzde)
+            change = r.get("Change", 0) or 0
+            try: chg_f = float(str(change).replace("%","").replace(",","."))
+            except ValueError: chg_f = 0.0
+            sign = "+" if chg_f > 0 else ""
+            color = "#3fb950" if chg_f > 0 else ("#f85149" if chg_f < 0 else "gray")
+            
+            p_lbl = f"{price:,.0f}₺" if price >= 1 else f"{price:.4f}₺"
+            vl = Gtk.Label()
+            vl.set_markup(f"{p_lbl} <span color='{color}' font_size='10000'>{sign}{chg_f:.1f}%</span>")
             vl.get_style_context().add_class("wfin-val")
-            col.pack_start(nm, False, False, 0)
+            col.pack_start(hdr_box, False, False, 0)
             col.pack_start(vl, False, False, 0)
             wfin.pack_start(col, True, True, 0)
             shown += 1
@@ -2007,6 +2141,26 @@ class MintSkyApp(Gtk.Window):
                 pnl_col.pack_start(pl, False, False, 0)
                 pnl_col.pack_start(pv, False, False, 0)
                 wfin.pack_start(pnl_col, False, False, 0)
+
+        # Son Güncelleme Saati
+        sep2 = Gtk.Label(label="│")
+        sep2.get_style_context().add_class("wfin-item")
+        wfin.pack_start(sep2, False, False, 0)
+        
+        ts_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        ts_col.set_halign(Gtk.Align.CENTER)
+        ts_lbl1 = Gtk.Label(label="Son Veri")
+        ts_lbl1.get_style_context().add_class("wfin-item")
+        if self.finance_api._last_fetch > 0:
+            ts_str = datetime.fromtimestamp(self.finance_api._last_fetch).strftime("%H:%M")
+        else:
+            ts_str = "—"
+        ts_lbl2 = Gtk.Label()
+        ts_lbl2.set_markup(f"<span font_size='10000'>{ts_str}</span>")
+        ts_lbl2.get_style_context().add_class("wfin-val")
+        ts_col.pack_start(ts_lbl1, False, False, 0)
+        ts_col.pack_start(ts_lbl2, False, False, 0)
+        wfin.pack_start(ts_col, False, False, 0)
 
         if shown > 0:
             self.compact_content.pack_start(wfin, False, False, 0)
@@ -2178,7 +2332,7 @@ class MintSkyApp(Gtk.Window):
 
     # ──────────────────── Saatlik / Günlük Tahmin ──────────────────────────
     def _render_hourly_mgm(self, tahminler):
-        self._section_title("⏰  SAATLİK TAHMİN (Kaynak: MGM)")
+        self._section_title("🕐  SAATLİK TAHMİN (Kaynak: T.C. Meteoroloji Genel Müdürlüğü)")
         hs = self._make_hscroll()
         h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         h_box.set_margin_bottom(4)
@@ -2188,7 +2342,7 @@ class MintSkyApp(Gtk.Window):
             h_int = int(h_str.split(":")[0]) if ":" in h_str else 12
             tl = Gtk.Label(label=h_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
             em,ks,uz = hadise_mgm(item.get("hadise",""), (h_int < 6 or h_int >= 19))
-            el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
+            el = get_svg_image(em, size=32); el.set_halign(Gtk.Align.CENTER)
             if uz: el.set_tooltip_text(f"{ks}\n{uz}")
             ttl = Gtk.Label(label=val(item.get("sicaklik",-9999),suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
             rh  = item.get("ruzgarHizi",-9999)
@@ -2199,7 +2353,7 @@ class MintSkyApp(Gtk.Window):
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
     def _render_hourly_om(self, om_hourly, om_times):
-        self._section_title("⏰  SAATLİK TAHMİN (Kaynak: Open-Meteo)")
+        self._section_title("🕐  SAATLİK TAHMİN (Kaynak: Open-Meteo)")
         hs = self._make_hscroll()
         h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         h_box.set_margin_bottom(4)
@@ -2216,7 +2370,7 @@ class MintSkyApp(Gtk.Window):
             tl = Gtk.Label(label=t_str); self._sc(tl,"h-time"); tl.set_halign(Gtk.Align.CENTER)
             is_night_h = (om_hourly.get("is_day",[])[i] == 0) if i < len(om_hourly.get("is_day",[])) else False
             em,ks,uz = hadise_wmo(wcodes[i] if i<len(wcodes) else None, is_night_h)
-            el = Gtk.Label(label=em); self._sc(el,"h-emoji"); el.set_halign(Gtk.Align.CENTER)
+            el = get_svg_image(em, size=32); el.set_halign(Gtk.Align.CENTER)
             if uz: el.set_tooltip_text(f"{ks}\n{uz}")
             tmp  = temps[i] if i<len(temps) else -9999
             ttl  = Gtk.Label(label=val(tmp,suffix="°")); self._sc(ttl,"h-temp"); ttl.set_halign(Gtk.Align.CENTER)
@@ -2232,7 +2386,7 @@ class MintSkyApp(Gtk.Window):
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
     def _render_daily_mgm(self, gd):
-        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: MGM)")
+        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: T.C. Meteoroloji Genel Müdürlüğü)")
         fc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         fc_box.set_margin_bottom(20)
         for i in range(1,6):
@@ -2243,13 +2397,13 @@ class MintSkyApp(Gtk.Window):
             dl  = Gtk.Label(label=fmt_date(tarih)); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
             em,ksa,uzn = hadise_mgm(gd.get(f"hadiseGun{i}",""))
             cl = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-            c_ic = get_svg_image(em, size=20)
+            c_ic = get_svg_image(em, size=32)
             c_lb = Gtk.Label(label=ksa); self._sc(c_lb,"fc-cond")
             cl.pack_start(c_ic, False, False, 0); cl.pack_start(c_lb, False, False, 0)
             cl.set_halign(Gtk.Align.START)
             if uzn: cl.set_tooltip_text(uzn)
             rh2 = gd.get(f"ruzgarHizGun{i}",-9999)
-            rl  = Gtk.Label(label=f"💨 {rh2:.0f} km/s" if rh2 not in (-9999,None) else "")
+            rl  = Gtk.Label(label=f"🌬️ {rh2:.0f} km/s" if rh2 not in (-9999,None) else "")
             self._sc(rl,"fc-cond"); rl.set_halign(Gtk.Align.END)
             tb  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
             hl  = Gtk.Label(label=val(gd.get(f"enYuksekGun{i}",-9999),suffix="°")); self._sc(hl,"fc-hi")
@@ -2286,13 +2440,13 @@ class MintSkyApp(Gtk.Window):
             dl  = Gtk.Label(label=dt_fmt); self._sc(dl,"fc-day"); dl.set_halign(Gtk.Align.START)
             em,ksa,uzn = hadise_wmo(wc_arr[i] if i<len(wc_arr) else None)
             cl = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-            c_ic = get_svg_image(em, size=20)
+            c_ic = get_svg_image(em, size=32)
             c_lb = Gtk.Label(label=ksa); self._sc(c_lb,"fc-cond")
             cl.pack_start(c_ic, False, False, 0); cl.pack_start(c_lb, False, False, 0)
             cl.set_halign(Gtk.Align.START)
             if uzn: cl.set_tooltip_text(uzn)
             rh2 = rh_arr[i] if i<len(rh_arr) else None
-            rl  = Gtk.Label(label=f"💨 {rh2:.0f} km/s" if rh2 is not None else "")
+            rl  = Gtk.Label(label=f"🌬️ {rh2:.0f} km/s" if rh2 is not None else "")
             self._sc(rl,"fc-cond"); rl.set_halign(Gtk.Align.END)
             tb  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
             hl  = Gtk.Label(label=val(hi_arr[i] if i<len(hi_arr) else -9999, suffix="°")); self._sc(hl,"fc-hi")
