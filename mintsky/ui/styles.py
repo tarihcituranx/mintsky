@@ -104,21 +104,21 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 
 /* ─── Ana kart (şimdiki hava) ─── */
 .cur-card {{ background:{card_grad}; border-radius:16px;
-             margin:{fs(12)}px {fs(12)}px {fs(6)}px {fs(12)}px; padding:{fs(20)}px;
+             margin:{fs(12)}px {fs(12)}px {fs(6)}px {fs(12)}px; padding:{fs(12)}px;
              border:1px solid {border};
              box-shadow:0 8px 32px {pill_shadow}, 0 2px 8px {pill_shadow}; }}
 .cur-city  {{ font-size:{fs(24)}px; font-weight:800; color:{text_main};
               text-shadow:0 1px 4px {pill_shadow}; }}
 .cur-cond  {{ font-size:{fs(18)}px; color:{text_sub}; margin-top:{fs(2)}px; font-weight:600; }}
 .cur-desc  {{ font-size:{fs(14)}px; color:{text_sub}; margin-top:{fs(4)}px; }}
-.cur-temp  {{ font-size:{fs(66)}px; font-weight:900; color:{text_main}; letter-spacing:-2px;
+.cur-temp  {{ font-size:{fs(52)}px; font-weight:900; color:{text_main}; letter-spacing:-2px;
               text-shadow:0 3px 12px {pill_shadow}; }}
 .cur-feels {{ font-size:{fs(15)}px; font-weight:800; color:{text_sub}; margin-top:-{fs(4)}px; }}
 .om-badge  {{ font-size:{fs(14)}px; color:{text_mut}; font-weight:normal; margin-top:{fs(6)}px; }}
 
 /* ─── Pill kartlar ─── */
 .pill-box {{ background:linear-gradient(145deg,{card_bg},{entry_bg});
-             border-radius:12px; padding:{fs(10)}px {fs(14)}px; margin:3px;
+             border-radius:12px; padding:{fs(6)}px {fs(12)}px; margin:3px;
              border:1px solid {border};
              box-shadow:0 4px 12px {pill_shadow}, inset 0 1px 0 rgba(255,255,255,0.06); }}
 .pill-key {{ font-size:{fs(13)}px; color:{text_sub}; }}
