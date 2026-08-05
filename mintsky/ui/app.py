@@ -1057,8 +1057,8 @@ class MintSkyApp(Gtk.Window):
         box.pack_start(hint, False, False, 0)
 
         box.show_all()
-        dlg.run()
-        dlg.destroy()
+        dlg.connect("response", lambda d, r: d.destroy())
+        dlg.show_all()
 
     def _lbl_section(self, box, text):
         lbl = Gtk.Label()
@@ -1069,7 +1069,9 @@ class MintSkyApp(Gtk.Window):
         d = Gtk.MessageDialog(transient_for=parent, flags=Gtk.DialogFlags.MODAL,
                               message_type=Gtk.MessageType.INFO,
                               buttons=Gtk.ButtonsType.OK, text=title)
-        d.format_secondary_text(msg); d.run(); d.destroy()
+        d.format_secondary_text(msg)
+        d.connect("response", lambda dialog, response: dialog.destroy())
+        d.show_all()
 
     # ──────────────────── Sürüm Notları ────────────────────────────────────
     def _show_changelog(self, *args):
@@ -1089,7 +1091,8 @@ class MintSkyApp(Gtk.Window):
             "<b>v3.x - v4.x:</b> Temel API yapısı, Widget modu, MGM optimizasyonu.\n\n"
             f"<small>Geliştirici: Turan Kaya | {GITHUB_REPO}</small>"
         )
-        dlg.run(); dlg.destroy()
+        dlg.connect("response", lambda d, r: d.destroy())
+        dlg.show_all()
 
     def _show_about(self, *args):
         dlg = Gtk.AboutDialog()
@@ -1099,7 +1102,8 @@ class MintSkyApp(Gtk.Window):
                          "MGM resmi API + Open-Meteo + Groq AI + Truncgil Finance.")
         dlg.set_website(GELISTIRICI); dlg.set_website_label("GitHub: tarihcituranx")
         dlg.set_license_type(Gtk.License.MIT_X11); dlg.set_authors(["Turan Kaya"])
-        dlg.run(); dlg.destroy()
+        dlg.connect("response", lambda d, r: d.destroy())
+        dlg.show_all()
 
     def _check_for_updates_bg(self, forced=False):
         def _check():
@@ -1129,15 +1133,15 @@ class MintSkyApp(Gtk.Window):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.INFO,
                                 buttons=Gtk.ButtonsType.OK, text="Uygulama Güncel")
         dlg.format_secondary_text(f"MintSky'ın en güncel versiyonunu (v{VERSIYON}) kullanıyorsunuz.")
-        dlg.run()
-        dlg.destroy()
+        dlg.connect("response", lambda d, r: d.destroy())
+        dlg.show_all()
 
     def _notify_update_error(self, err):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.ERROR,
                                 buttons=Gtk.ButtonsType.OK, text="Güncelleme Kontrolü Başarısız")
         dlg.format_secondary_text(f"Bağlantı hatası: {err}")
-        dlg.run()
-        dlg.destroy()
+        dlg.connect("response", lambda d, r: d.destroy())
+        dlg.show_all()
 
     def _ask_update(self, latest, url):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.QUESTION,
