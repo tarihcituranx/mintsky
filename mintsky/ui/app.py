@@ -2182,7 +2182,14 @@ class MintSkyApp(Gtk.Window):
         ts_lbl1 = Gtk.Label(label="Son Veri")
         ts_lbl1.get_style_context().add_class("wfin-item")
         if self.finance_api._last_fetch > 0:
-            ts_str = datetime.fromtimestamp(self.finance_api._last_fetch).strftime("%H:%M")
+            if hasattr(self.finance_api, "_update_date") and self.finance_api._update_date:
+                try:
+                    dt = datetime.strptime(self.finance_api._update_date, "%Y-%m-%d %H:%M:%S")
+                    ts_str = dt.strftime("%d.%m %H:%M")
+                except:
+                    ts_str = self.finance_api._update_date[-5:]
+            else:
+                ts_str = datetime.fromtimestamp(self.finance_api._last_fetch).strftime("%H:%M")
         else:
             ts_str = "—"
         ts_lbl2 = Gtk.Label()
