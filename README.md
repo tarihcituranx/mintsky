@@ -12,14 +12,15 @@
 
 ## 🌟 Özellikler
 
-* 🌍 **Akıllı Çoklu API Motoru:** MGM (Türkiye resmi verileri), Open-Meteo (Global yedek) ve **MSN Hava Durumu (Ekstra Sensörler & Yedek)** sistemleri arasında otomatik geçiş yapar ve dünyadaki tüm şehirlerin hava durumunu anlık çeker.
+* 🌍 **Akıllı Çoklu API Motoru & AQI:** MGM (Türkiye resmi verileri), Open-Meteo (Global yedek) ve **MSN Hava Durumu (Ekstra Sensörler & Yedek)** sistemleri arasında otomatik geçiş yapar. İnteraktif Hava Kalitesi (AQI) uyarıları ile sağlığınızı korur.
 * 🤖 **Groq AI & Edge-TTS Asistan:** Hava durumuna göre "bugün ne giymelisin", "şemsiye almalı mısın" gibi yapay zeka tavsiyeleri verir. **Edge-TTS** altyapısıyla bu tavsiyeleri doğal bir insan sesiyle okur!
 * 📈 **Finans Modülü:** Canlı altın, döviz ve kripto para takibi ile portföy kar/zarar yönetimi.
+* 🎨 **Lucide Vektörel Tasarım & GTK3 Arayüzü:** Linux masaüstü ortamlarıyla tam uyumlu, modern Lucide çizgi ikonlarıyla donatılmış pürüzsüz ve sade bir arayüz. Ekrana sığma ve scroll problemleri tamamen çözülmüştür.
 * ♿ **Görme Engelli Erişilebilirliği:** Arayüzdeki tüm elementler (butonlar, arama çubukları, sekmeler) `Atk` kütüphanesiyle işaretlenmiş olup Linux Ekran Okuyucuları (Örn: Orca) ile %100 uyumludur. Sadece klavye kullanarak uygulamada gezebilirsiniz.
 * 🌐 **Çoklu Dil Desteği (i18n):** Türkçe, İngilizce, Almanca, Fransızca, Arapça, Farsça, Çince ve Azerbaycan Türkçesi dahil olmak üzere toplam 8 dil desteği! Telegram tarzı `.json` uzantılı modüler dil dosyaları ile anında geçiş yapın.
 * 🔔 **Sistem Tepsisi (AppIndicator3):** Arka planda hafif ve sessizce çalışarak sistem tepsisinden anlık durum takibi sunar.
 * 💬 **Masaüstü Bildirimleri:** `libnotify` entegrasyonu ile kritik hava durumu değişimlerinde anlık bildirimler gönderir.
-* 🎨 **GTK3 Arayüzü:** Linux masaüstü ortamlarıyla tam uyumlu, modern, sade ve kullanıcı dostu arayüz.
+* 🔄 **Otomatik Güncelleme:** GitHub Actions entegrasyonu sayesinde yeni sürüm yayınlandığında uygulama içinden anında haberdar olursunuz.
 
 ## 📸 Ekran Görüntüleri
 
@@ -60,7 +61,8 @@ python3 main.py
 | **GTK3 (PyGObject)** | Kullanıcı arayüzü kütüphanesi |
 | **AppIndicator3** | Sistem tepsisi (System Tray) entegrasyonu |
 | **Groq AI & Edge-TTS** | Yapay zeka destekli hava durumu yorumlama ve asistanlık |
-| **MGM, Open-Meteo & MSN** | Hava Durumu API'leri |
+| **MGM, Open-Meteo & MSN** | Dinamik yedekleme (fallback) mimarisine sahip hava durumu API'leri |
+| **Lucide Icons** | Uygulamanın modern ve bütüncül SVG çizgi simge (ikon) altyapısı |
 | **Truncgil Finance API**| Anlık finans ve borsa verileri |
 | **libnotify** | Masaüstü bildirim sistemi |
 

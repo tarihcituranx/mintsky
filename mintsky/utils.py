@@ -51,7 +51,7 @@ def fmt_date(iso):
         gun = [_("Pazartesi"),_("Salı"),_("Çarşamba"),_("Perşembe"),_("Cuma"),_("Cumartesi"),_("Pazar")][dt.weekday()]
         ay  = ["",_("Ocak"),_("Şubat"),_("Mart"),_("Nisan"),_("Mayıs"),_("Haziran"),_("Temmuz"),
                _("Ağustos"),_("Eylül"),_("Ekim"),_("Kasım"),_("Aralık")][dt.month]
-        return f"{gun} {dt.day} {ay}"
+        return f"{dt.day} {ay} {gun}"
     except (ValueError, TypeError, AttributeError): return iso
 
 def fmt_time(iso_z):

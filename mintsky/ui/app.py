@@ -2440,9 +2440,17 @@ class MintSkyApp(Gtk.Window):
             c_lbl = Gtk.Label(label=ks); self._sc(c_lbl, "h-wind"); c_lbl.set_halign(Gtk.Align.CENTER)
             c_lbl.set_line_wrap(True); c_lbl.set_justify(Gtk.Justification.CENTER); c_lbl.set_max_width_chars(12)
             rh  = item.get("ruzgarHizi",-9999)
-            wl  = Gtk.Label(label=f"{rh:.0f} km/s" if rh not in (-9999,None) else ""); self._sc(wl,"h-wind"); wl.set_halign(Gtk.Align.CENTER)
+            wl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+            wl_box.set_halign(Gtk.Align.CENTER)
+            if rh not in (-9999, None):
+                wl_ic = get_svg_image("wind", size=14, folder="pills")
+                wl_lbl = Gtk.Label(label=f"{rh:.0f} km/s")
+                self._sc(wl_lbl,"h-wind")
+                wl_box.pack_start(wl_ic, False, False, 0)
+                wl_box.pack_start(wl_lbl, False, False, 0)
+            
             hc.pack_start(tl,False,False,0); hc.pack_start(el,False,False,0)
-            hc.pack_start(ttl,False,False,0); hc.pack_start(c_lbl,False,False,0); hc.pack_start(wl,False,False,0)
+            hc.pack_start(ttl,False,False,0); hc.pack_start(c_lbl,False,False,0); hc.pack_start(wl_box,False,False,0)
             h_box.pack_start(hc, False, False, 0)
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
@@ -2471,13 +2479,26 @@ class MintSkyApp(Gtk.Window):
             c_lbl = Gtk.Label(label=ks); self._sc(c_lbl, "h-wind"); c_lbl.set_halign(Gtk.Align.CENTER)
             c_lbl.set_line_wrap(True); c_lbl.set_justify(Gtk.Justification.CENTER); c_lbl.set_max_width_chars(12)
             wsp  = winds[i] if i<len(winds) else -9999
-            wl   = Gtk.Label(label=f"{wsp:.0f} km/s" if wsp not in (-9999,None) else ""); self._sc(wl,"h-wind"); wl.set_halign(Gtk.Align.CENTER)
+            wl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+            wl_box.set_halign(Gtk.Align.CENTER)
+            if wsp not in (-9999, None):
+                wl_ic = get_svg_image("wind", size=14, folder="pills")
+                wl_lbl = Gtk.Label(label=f"{wsp:.0f} km/s")
+                self._sc(wl_lbl,"h-wind")
+                wl_box.pack_start(wl_ic, False, False, 0)
+                wl_box.pack_start(wl_lbl, False, False, 0)
+                
             hc.pack_start(tl,False,False,0); hc.pack_start(el,False,False,0)
-            hc.pack_start(ttl,False,False,0); hc.pack_start(c_lbl,False,False,0); hc.pack_start(wl,False,False,0)
+            hc.pack_start(ttl,False,False,0); hc.pack_start(c_lbl,False,False,0); hc.pack_start(wl_box,False,False,0)
             if i < len(probs) and probs[i] is not None:
-                pl = Gtk.Label(label=f"💧%{probs[i]:.0f}")
-                self._sc(pl,"h-wind"); pl.set_halign(Gtk.Align.CENTER)
-                hc.pack_start(pl, False, False, 0)
+                pl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+                pl_box.set_halign(Gtk.Align.CENTER)
+                pl_ic = get_svg_image("droplet", size=14, folder="pills")
+                pl_lbl = Gtk.Label(label=f"%{probs[i]:.0f}")
+                self._sc(pl_lbl,"h-wind")
+                pl_box.pack_start(pl_ic, False, False, 0)
+                pl_box.pack_start(pl_lbl, False, False, 0)
+                hc.pack_start(pl_box, False, False, 0)
             h_box.pack_start(hc, False, False, 0)
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
@@ -2499,14 +2520,20 @@ class MintSkyApp(Gtk.Window):
             cl.set_halign(Gtk.Align.START)
             if uzn: cl.set_tooltip_text(uzn)
             rh2 = gd.get(f"ruzgarHizGun{i}",-9999)
-            rl  = Gtk.Label(label=f"🌬️ {rh2:.0f} km/s" if rh2 not in (-9999,None) else "")
-            self._sc(rl,"fc-cond"); rl.set_halign(Gtk.Align.END)
+            rl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            rl_box.set_halign(Gtk.Align.END)
+            if rh2 not in (-9999, None):
+                rl_ic = get_svg_image("wind", size=16, folder="pills")
+                rl_lbl = Gtk.Label(label=f"{rh2:.0f} km/s")
+                self._sc(rl_lbl,"fc-cond")
+                rl_box.pack_start(rl_ic, False, False, 0)
+                rl_box.pack_start(rl_lbl, False, False, 0)
             tb  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
             hl  = Gtk.Label(label=val(gd.get(f"enYuksekGun{i}",-9999),suffix="°")); self._sc(hl,"fc-hi")
             ll  = Gtk.Label(label=val(gd.get(f"enDusukGun{i}", -9999),suffix="°")); self._sc(ll,"fc-lo")
             tb.pack_start(hl,False,False,0); tb.pack_start(ll,False,False,0)
             top_row.pack_start(dl,False,False,0); top_row.pack_start(cl,True,True,0)
-            top_row.pack_start(rl,False,False,0); top_row.pack_start(tb,False,False,0)
+            top_row.pack_start(rl_box,False,False,0); top_row.pack_start(tb,False,False,0)
             outer.pack_start(top_row,False,False,0)
             if uzn:
                 dl2 = Gtk.Label(label=uzn); self._sc(dl2,"fc-desc")
@@ -2542,27 +2569,42 @@ class MintSkyApp(Gtk.Window):
             cl.set_halign(Gtk.Align.START)
             if uzn: cl.set_tooltip_text(uzn)
             rh2 = rh_arr[i] if i<len(rh_arr) else None
-            rl  = Gtk.Label(label=f"🌬️ {rh2:.0f} km/s" if rh2 is not None else "")
-            self._sc(rl,"fc-cond"); rl.set_halign(Gtk.Align.END)
+            rl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+            rl_box.set_halign(Gtk.Align.END)
+            if rh2 is not None:
+                rl_ic = get_svg_image("wind", size=16, folder="pills")
+                rl_lbl = Gtk.Label(label=f"{rh2:.0f} km/s")
+                self._sc(rl_lbl,"fc-cond")
+                rl_box.pack_start(rl_ic, False, False, 0)
+                rl_box.pack_start(rl_lbl, False, False, 0)
             tb  = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
             hl  = Gtk.Label(label=val(hi_arr[i] if i<len(hi_arr) else -9999, suffix="°")); self._sc(hl,"fc-hi")
             ll  = Gtk.Label(label=val(lo_arr[i] if i<len(lo_arr) else -9999, suffix="°")); self._sc(ll,"fc-lo")
             tb.pack_start(hl,False,False,0); tb.pack_start(ll,False,False,0)
             top_row.pack_start(dl,False,False,0); top_row.pack_start(cl,True,True,0)
-            top_row.pack_start(rl,False,False,0); top_row.pack_start(tb,False,False,0)
+            top_row.pack_start(rl_box,False,False,0); top_row.pack_start(tb,False,False,0)
             outer.pack_start(top_row,False,False,0)
-            extras = []
             pr = pr_arr[i] if i<len(pr_arr) else None
             pp = pp_arr[i] if i<len(pp_arr) else None
             uv = uv_arr[i] if i<len(uv_arr) else None
-            if pr is not None and pr > 0: extras.append(f"🌧 {pr:.1f} mm")
-            if pp is not None:            extras.append(f"🌂 %{pp:.0f}")
-            if uv is not None:            extras.append(f"🔆 UV {uv:.1f}")
-            if extras:
-                ex_lbl = Gtk.Label(label="  ".join(extras))
-                self._sc(ex_lbl,"fc-desc"); ex_lbl.set_halign(Gtk.Align.START)
-                ex_lbl.set_tooltip_text("Yağış (mm) / Yağış olasılığı (%) / UV İndeksi maks")
-                outer.pack_start(ex_lbl,False,False,0)
+            if pr is not None or pp is not None or uv is not None:
+                ex_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+                ex_box.set_halign(Gtk.Align.START)
+                
+                def add_extra(icon_name, text):
+                    b = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+                    ic = get_svg_image(icon_name, size=14, folder="pills")
+                    lb = Gtk.Label(label=text)
+                    self._sc(lb, "fc-desc")
+                    b.pack_start(ic, False, False, 0); b.pack_start(lb, False, False, 0)
+                    ex_box.pack_start(b, False, False, 0)
+
+                if pr is not None and pr > 0: add_extra("cloud-rain", f"{pr:.1f} mm")
+                if pp is not None:            add_extra("umbrella", f"%{pp:.0f}")
+                if uv is not None:            add_extra("sun", f"UV {uv:.1f}")
+                
+                ex_box.set_tooltip_text("Yağış (mm) / Yağış olasılığı (%) / UV İndeksi maks")
+                outer.pack_start(ex_box,False,False,0)
             fc_box.pack_start(outer, False, False, 0)
         self.content.pack_start(fc_box, False, False, 0)
 

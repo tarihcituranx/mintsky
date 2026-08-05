@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="mintsky",
-    version="7.2.0",
-    description="Linux Mint Desktop & Taskbar Weather App",
+    version="7.3.0",
+    description="Linux Mint Masaüstü & Görev Çubuğu Hava Durumu, AQI, Finans ve AI Asistan Uygulaması",
     author="Turan Kaya (tarihcituranx)",
     url="https://github.com/tarihcituranx",
     packages=find_packages(),
