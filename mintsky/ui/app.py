@@ -2049,6 +2049,10 @@ class MintSkyApp(Gtk.Window):
             ts_val = om_cur.get("time", "")
         else:
             ts_val = sd.get("veriZamani", "")
+            if not ts_val and om_cur:
+                ts_val = om_cur.get("time", "")
+            if not ts_val and msn_cur:
+                ts_val = msn_cur.get("created", "")
 
         if ts_val:
             ts = Gtk.Label(label=f"{_('lbl_last_update')}: {fmt_dt(ts_val)}")
