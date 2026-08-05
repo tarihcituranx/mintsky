@@ -67,7 +67,7 @@
     "settings_cancel": "İptal",
     "settings_groq_key": "Groq API Anahtarı",
     "source_om": "Veri Sağlayıcı: Open-Meteo",
-    "source_mgm": "Veri Sağlayıcı: T.C. Meteoroloji Genel Müdürlüğü",
+    "source_mgm": "Veri Sağlayıcı: MGM",
     "source_mgm_om_supported": "& Open-Meteo",
     "pill_sunrise": "Gün Doğumu",
     "pill_sunset": "Gün Batımı",
