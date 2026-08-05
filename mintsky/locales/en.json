@@ -141,5 +141,6 @@
     "Fırtına": "Storm",
     "Bilinmiyor": "Unknown",
     "—": "—",
-    "src_msn": "MSN (Microsoft)"
+    "src_msn": "MSN (Microsoft)",
+    "lbl_aqi": "Air Quality"
 }

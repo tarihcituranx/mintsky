@@ -141,5 +141,6 @@
     "Kuvvetli Yağmurlu": "مطر غزير",
     "Aralıklı Yağışlı": "مطر متقطع",
     "Puslu": "ضبابي",
-    "src_msn": "MSN (Microsoft)"
+    "src_msn": "MSN (Microsoft)",
+    "lbl_aqi": "جودة الهواء"
 }
