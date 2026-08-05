@@ -2208,8 +2208,16 @@ class MintSkyApp(Gtk.Window):
         ts_lbl = Gtk.Label()
         self._sc(ts_lbl, "ts-lbl"); ts_lbl.set_halign(Gtk.Align.END)
         if self.finance_api._last_fetch > 0:
-            ts_str = datetime.fromtimestamp(self.finance_api._last_fetch).strftime("%H:%M:%S")
-            ts_lbl.set_text(f"🕐 {ts_str}")
+            if hasattr(self.finance_api, "_update_date") and self.finance_api._update_date:
+                # "2026-08-05 19:16:04" formatında geliyor, Türkçeye çevirelim
+                try:
+                    dt = datetime.strptime(self.finance_api._update_date, "%Y-%m-%d %H:%M:%S")
+                    ts_str = dt.strftime("%d.%m.%Y %H:%M:%S")
+                except:
+                    ts_str = self.finance_api._update_date
+            else:
+                ts_str = datetime.fromtimestamp(self.finance_api._last_fetch).strftime("%d.%m.%Y %H:%M:%S")
+            ts_lbl.set_text(f"🕐 Son Güncelleme: {ts_str}")
         else:
             ts_lbl.set_text("🕐 —")
         sec_row.pack_start(ts_lbl, False, False, 0)

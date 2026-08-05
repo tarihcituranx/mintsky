@@ -9,6 +9,7 @@ class FinanceAPI:
     def __init__(self):
         self._data = {}
         self._last_fetch = 0.0
+        self._update_date = ""
         self._lock = threading.Lock()
         self._fetching = False
 
@@ -37,6 +38,7 @@ class FinanceAPI:
             data = r.json()
             with self._lock:
                 self._data = data.get("Rates", {})
+                self._update_date = data.get("Meta_Data", {}).get("Update_Date", "")
                 self._last_fetch = time.time()
                 self._fetching = False
             success = True
