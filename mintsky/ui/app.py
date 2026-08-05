@@ -1858,6 +1858,7 @@ class MintSkyApp(Gtk.Window):
             return v if v not in (None, -9999, "") else None
 
         uv_val     = get_best(None, "uv_index", "uv")
+        aqi_val    = msn_cur.get("aqi") if msn_cur else None
         nem_val    = get_best("nem", "relative_humidity_2m", "rh")
         ruzgar_hiz = get_best("ruzgarHiz", "wind_speed_10m", "windSpd")
         r_yon_val  = get_best("ruzgarYon", "wind_direction_10m", "windDir")
@@ -2017,6 +2018,16 @@ class MintSkyApp(Gtk.Window):
             elif uv_val <= 10: uv_lbl += " (Çok Yüksek)"
             else:               uv_lbl += " (Aşırı)"
             all_pills.append((f"🔆 {_('lbl_uv')}", uv_lbl))
+            
+        if aqi_val is not None and self._show_extra:
+            aqi_lbl = f"{aqi_val:.0f}"
+            if aqi_val <= 50:    aqi_lbl += " (İyi)"
+            elif aqi_val <= 100: aqi_lbl += " (Orta)"
+            elif aqi_val <= 150: aqi_lbl += " (Hassas)"
+            elif aqi_val <= 200: aqi_lbl += " (Kötü)"
+            elif aqi_val <= 300: aqi_lbl += " (Çok Kötü)"
+            else:                aqi_lbl += " (Tehlikeli)"
+            all_pills.append((f"😷 {_('lbl_aqi')}", aqi_lbl))
 
         # 4. Güneş & Astronomi Grubu
         if self._show_extra:
