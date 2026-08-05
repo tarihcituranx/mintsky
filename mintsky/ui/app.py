@@ -1981,74 +1981,73 @@ class MintSkyApp(Gtk.Window):
                 self._render_finance_widget(fin_rates)
 
         # ── Pill kartlar ──
-        pills_temel  = []
-        pills_ekstra = []
+        all_pills = []
 
-        if not use_om:
-            if nem_val not in (-9999,None):
-                pills_temel.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
-            if ruzgar_hiz not in (-9999,None):
-                pills_temel.append((f"🌬️ {_('lbl_wind')}", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
-            if basinc not in (-9999,None):
-                pills_temel.append((f"🎚️ {_('lbl_pressure')}", f"{basinc:.0f} hPa"))
-            if gorus_v not in (-9999,None):
-                pills_temel.append((f"👁 {_('lbl_visibility')}", f"{gorus_v/1000:.0f} km" if gorus_v >= 1000 else f"{gorus_v} m"))
-            for key,fld,fmt,sfx in [
-                (f"🌧 {_('lbl_precip_1h')}","yagis1Saat",   "{:.1f}"," mm"),
-                (f"🌧 {_('lbl_precip_24h')}","yagis24Saat",  "{:.1f}"," mm"),
-                (f"🌊 {_('lbl_sea')}",    "denizSicaklik", "{:.0f}","°C"),
-                (f"❄ {_('lbl_snow')}",       "karYukseklik",  "{:.0f}"," cm"),
-            ]:
-                v2 = sd.get(fld,-9999)
-                if v2 not in (-9999,None) and v2 > 0:
-                    pills_ekstra.append((key, f"{fmt.format(v2)}{sfx}"))
-                    
-            v_kap = sd.get("kapalilik", -9999)
-            if v_kap not in (-9999, None) and v_kap > 0:
-                pills_ekstra.append((f"☁ {_('lbl_clouds')}", f"%{v_kap * 12.5:.0f}"))
-        else:
-            if nem_val is not None:
-                pills_temel.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
-            if om_cur.get("wind_speed_10m") is not None:
-                ws = om_cur["wind_speed_10m"]
-                pills_temel.append((f"🌬️ {_('lbl_wind')}", f"{ws:.0f} km/s {ruzgar_yon}".strip()))
-            if om_cur.get("surface_pressure") is not None:
-                pills_temel.append((f"🎚️ {_('lbl_pressure')}", f"{om_cur['surface_pressure']:.0f} hPa"))
-            if om_cur.get("visibility") is not None:
-                gv = om_cur["visibility"]
-                pills_temel.append((f"👁 {_('lbl_visibility')}", f"{gv/1000:.0f} km" if gv >= 1000 else f"{gv:.0f} m"))
+        # 1. Nem & Yağış Grubu
+        if nem_val not in (-9999, None):
+            all_pills.append((f"💧 {_('lbl_humidity')}", f"%{nem_val:.0f}"))
+        if om_cur and om_cur.get("dew_point_2m") is not None and self._show_extra:
+            all_pills.append((f"💧🌡️ {_('lbl_dew_point')}", f"{om_cur['dew_point_2m']:.1f}°C"))
+        if yag_olas is not None and self._show_extra:
+            all_pills.append((f"🌂 {_('lbl_rain_prob')}", f"%{yag_olas:.0f}"))
 
-        if om_cur and self._show_extra:
-            if uv_val is not None:
-                uv_lbl = f"{uv_val:.1f}"
-                if uv_val <= 2:    uv_lbl += " (Düşük)"
-                elif uv_val <= 5:  uv_lbl += " (Orta)"
-                elif uv_val <= 7:  uv_lbl += " (Yüksek)"
-                elif uv_val <= 10: uv_lbl += " (Çok Yüksek)"
-                else:               uv_lbl += " (Aşırı)"
-                pills_ekstra.append((f"🔆 {_('lbl_uv')}", uv_lbl))
-            if gustu is not None:
-                pills_ekstra.append((f"🌬️⚡ {_('lbl_wind_gust')}", f"{gustu:.0f} km/s"))
-            if om_cur.get("dew_point_2m") is not None:
-                pills_ekstra.append((f"💧🌡️ {_('lbl_dew_point')}", f"{om_cur['dew_point_2m']:.1f}°C"))
-            if om_cur.get("cloud_cover") is not None:
-                if not any(p[0] == f"☁ {_('lbl_clouds')}" for p in pills_ekstra):
-                    pills_ekstra.append((f"☁ {_('lbl_clouds')}", f"%{om_cur['cloud_cover']:.0f}"))
-            if om_cur.get("precipitation") is not None and om_cur["precipitation"] > 0:
-                pills_ekstra.append((f"🌧 {_('lbl_precip_now')}", f"{om_cur['precipitation']:.1f} mm"))
-            if yag_olas is not None:
-                pills_ekstra.append((f"🌂 {_('lbl_rain_prob')}", f"%{yag_olas:.0f}"))
+        # 2. Rüzgar & Hava Grubu
+        if ruzgar_hiz not in (-9999, None):
+            all_pills.append((f"🌬️ {_('lbl_wind')}", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()))
+        if gustu is not None and self._show_extra:
+            all_pills.append((f"🌬️⚡ {_('lbl_wind_gust')}", f"{gustu:.0f} km/s"))
+        if basinc not in (-9999, None):
+            all_pills.append((f"🎚️ {_('lbl_pressure')}", f"{basinc:.0f} hPa"))
+
+        # 3. Gökyüzü Grubu
+        if self._show_extra:
+            if om_cur and om_cur.get("cloud_cover") is not None:
+                all_pills.append((f"☁ {_('lbl_clouds')}", f"%{om_cur['cloud_cover']:.0f}"))
+            elif sd.get("kapalilik", -9999) not in (-9999, None) and sd.get("kapalilik") > 0:
+                all_pills.append((f"☁ {_('lbl_clouds')}", f"%{sd['kapalilik'] * 12.5:.0f}"))
+                
+        if gorus_v not in (-9999, None):
+            all_pills.append((f"👁 {_('lbl_visibility')}", f"{gorus_v/1000:.0f} km" if gorus_v >= 1000 else f"{gorus_v:.0f} m"))
+            
+        if uv_val is not None and self._show_extra:
+            uv_lbl = f"{uv_val:.1f}"
+            if uv_val <= 2:    uv_lbl += " (Düşük)"
+            elif uv_val <= 5:  uv_lbl += " (Orta)"
+            elif uv_val <= 7:  uv_lbl += " (Yüksek)"
+            elif uv_val <= 10: uv_lbl += " (Çok Yüksek)"
+            else:               uv_lbl += " (Aşırı)"
+            all_pills.append((f"🔆 {_('lbl_uv')}", uv_lbl))
+
+        # 4. Güneş & Astronomi Grubu
+        if self._show_extra:
             sun_list = (om_data.get("daily",{}).get("sunshine_duration",[]) if om_data else [])
             if sun_list and sun_list[0] is not None:
-                pills_ekstra.append((f"☀ {_('lbl_sunshine')}", f"{sun_list[0]/3600:.1f} saat"))
+                all_pills.append((f"☀ {_('lbl_sunshine')}", f"{sun_list[0]/3600:.1f} saat"))
             sunrise_list = (om_data.get("daily",{}).get("sunrise",[]) if om_data else [])
-            sunset_list = (om_data.get("daily",{}).get("sunset",[]) if om_data else [])
             if sunrise_list and sunrise_list[0]:
-                pills_ekstra.append((f"🌅 {_('pill_sunrise')}", f"{sunrise_list[0][-5:]}"))
+                all_pills.append((f"🌅 {_('pill_sunrise')}", f"{sunrise_list[0][-5:]}"))
+            sunset_list = (om_data.get("daily",{}).get("sunset",[]) if om_data else [])
             if sunset_list and sunset_list[0]:
-                pills_ekstra.append((f"🌇 {_('pill_sunset')}", f"{sunset_list[0][-5:]}"))
+                all_pills.append((f"🌇 {_('pill_sunset')}", f"{sunset_list[0][-5:]}"))
 
-        all_pills = pills_temel + (pills_ekstra if self._show_extra else [])
+        # 5. Ekstralar (Deniz Suyu, Kar, Anlık Yağış)
+        if self._show_extra:
+            if om_cur and om_cur.get("precipitation") is not None and om_cur["precipitation"] > 0:
+                all_pills.append((f"🌧 {_('lbl_precip_now')}", f"{om_cur['precipitation']:.1f} mm"))
+            elif sd.get("yagis1Saat", -9999) not in (-9999, None) and sd.get("yagis1Saat") > 0:
+                all_pills.append((f"🌧 {_('lbl_precip_1h')}", f"{sd['yagis1Saat']:.1f} mm"))
+            
+            if sd.get("yagis24Saat", -9999) not in (-9999, None) and sd.get("yagis24Saat") > 0:
+                all_pills.append((f"🌧 {_('lbl_precip_24h')}", f"{sd['yagis24Saat']:.1f} mm"))
+            
+            deniz = sd.get("denizSicaklik", -9999)
+            if deniz not in (-9999, None) and deniz > 0:
+                all_pills.append((f"🌊 {_('lbl_sea')}", f"{deniz:.0f}°C"))
+                
+            kar = sd.get("karYukseklik", -9999)
+            if kar not in (-9999, None) and kar > 0:
+                all_pills.append((f"❄ {_('lbl_snow')}", f"{kar:.0f} cm"))
+
         if all_pills:
             grid = Gtk.Grid()
             grid.set_column_spacing(4); grid.set_row_spacing(4)
