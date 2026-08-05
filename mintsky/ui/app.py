@@ -1895,13 +1895,16 @@ class MintSkyApp(Gtk.Window):
             self._sc(desc,"cur-desc"); desc.set_halign(Gtk.Align.START)
             desc.set_line_wrap(True); desc.set_max_width_chars(38)
             lcol.pack_start(desc, False, False, 0)
-
-        if use_om:
+        if use_msn:
+            lbl_txt = "🛰 <span font_weight='bold'>MSN</span> Hava Durumu"
+        elif use_om:
             lbl_txt = "🛰 <span font_weight='bold'>Open-Meteo</span> API"
         else:
             lbl_txt = "🛰 <span font_weight='bold'>MGM</span>"
             if om_cur:
                 lbl_txt += " + <span font_weight='bold'>Open-Meteo</span>"
+            if msn_cur:
+                lbl_txt += " + <span font_weight='bold'>MSN</span>"
 
         src_badge = Gtk.Label()
         src_badge.set_markup(lbl_txt)
@@ -2359,7 +2362,7 @@ class MintSkyApp(Gtk.Window):
 
     # ──────────────────── Saatlik / Günlük Tahmin ──────────────────────────
     def _render_hourly_mgm(self, tahminler):
-        self._section_title("🕐  SAATLİK TAHMİN (Kaynak: MGM)")
+        self._section_title("🕐  SAATLİK TAHMİN (Kaynak: MGM + Open-Meteo)")
         hs = self._make_hscroll()
         h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         h_box.set_margin_bottom(4)
@@ -2417,7 +2420,7 @@ class MintSkyApp(Gtk.Window):
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
     def _render_daily_mgm(self, gd):
-        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: MGM)")
+        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: MGM + Open-Meteo)")
         fc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         fc_box.set_margin_bottom(20)
         for i in range(1,6):
