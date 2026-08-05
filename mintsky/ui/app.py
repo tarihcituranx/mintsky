@@ -2027,7 +2027,16 @@ class MintSkyApp(Gtk.Window):
             elif aqi_val <= 200: aqi_lbl += " (Kötü)"
             elif aqi_val <= 300: aqi_lbl += " (Çok Kötü)"
             else:                aqi_lbl += " (Tehlikeli)"
-            all_pills.append((f"😷 {_('lbl_aqi')}", aqi_lbl))
+            
+            aqi_tt = (
+                "0-50: İyi\n"
+                "51-100: Orta\n"
+                "101-150: Hassas\n"
+                "151-200: Kötü\n"
+                "201-300: Çok Kötü\n"
+                "300+: Tehlikeli"
+            )
+            all_pills.append((f"😷 {_('lbl_aqi')}", aqi_lbl, aqi_tt))
 
         # 4. Güneş & Astronomi Grubu
         if self._show_extra:
@@ -2064,8 +2073,8 @@ class MintSkyApp(Gtk.Window):
             grid.set_column_spacing(4); grid.set_row_spacing(4)
             grid.set_column_homogeneous(True)
             grid.set_margin_start(12); grid.set_margin_end(12)
-            for i,(k,v2) in enumerate(all_pills):
-                grid.attach(self._make_pill(k, v2), i%3, i//3, 1, 1)
+            for i, item in enumerate(all_pills):
+                grid.attach(self._make_pill(*item), i%3, i//3, 1, 1)
             self.content.pack_start(grid, False, False, 0)
 
         ts_val = ""
