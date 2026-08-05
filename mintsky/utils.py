@@ -48,9 +48,9 @@ def yon(derece):
 def fmt_date(iso):
     try:
         dt  = datetime.strptime(iso.split("T")[0], "%Y-%m-%d")
-        gun = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][dt.weekday()]
-        ay  = ["","Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz",
-               "Ağustos","Eylül","Ekim","Kasım","Aralık"][dt.month]
+        gun = [_("Pazartesi"),_("Salı"),_("Çarşamba"),_("Perşembe"),_("Cuma"),_("Cumartesi"),_("Pazar")][dt.weekday()]
+        ay  = ["",_("Ocak"),_("Şubat"),_("Mart"),_("Nisan"),_("Mayıs"),_("Haziran"),_("Temmuz"),
+               _("Ağustos"),_("Eylül"),_("Ekim"),_("Kasım"),_("Aralık")][dt.month]
         return f"{gun} {dt.day} {ay}"
     except (ValueError, TypeError, AttributeError): return iso
 
