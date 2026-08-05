@@ -765,7 +765,7 @@ class MintSkyApp(Gtk.Window):
         cb_theme.set_active_id(self._theme)
         _row(_("settings_theme"), cb_theme, p3)
 
-        adj = Gtk.Adjustment(value=self._manual_scale, lower=0.5, upper=3.0,
+        adj = Gtk.Adjustment(value=self._manual_scale, lower=0.5, upper=5.0,
                              step_increment=0.1, page_increment=0.5)
         scale_sl = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
         scale_sl.set_digits(1); scale_sl.set_value_pos(Gtk.PositionType.RIGHT)

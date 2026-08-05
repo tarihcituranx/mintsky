@@ -1,5 +1,5 @@
 def make_css(scale_val, theme="dark"):
-    def fs(n): return int(round(n * scale_val))
+    def fs(n): return int(round(n * scale_val * 1.35))
     if theme == "light":
         bg,card_bg       = "#f0f4f8","#ffffff"
         card_grad        = "linear-gradient(145deg,#ffffff 0%,#eef2f7 100%)"
