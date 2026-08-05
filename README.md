@@ -12,7 +12,7 @@
 
 ## 🌟 Özellikler
 
-* 🌍 **Dünya Şehirleri (Global API):** Hem MGM üzerinden Türkiye verilerini hem de Open-Meteo üzerinden dünyadaki tüm şehirleri otomatik tanır ve hava durumunu anlık çeker.
+* 🌍 **Akıllı Çoklu API Motoru:** MGM (Türkiye resmi verileri), Open-Meteo (Global yedek) ve **MSN Hava Durumu (Ekstra Sensörler & Yedek)** sistemleri arasında otomatik geçiş yapar ve dünyadaki tüm şehirlerin hava durumunu anlık çeker.
 * 🤖 **Groq AI & Edge-TTS Asistan:** Hava durumuna göre "bugün ne giymelisin", "şemsiye almalı mısın" gibi yapay zeka tavsiyeleri verir. **Edge-TTS** altyapısıyla bu tavsiyeleri doğal bir insan sesiyle okur!
 * 📈 **Finans Modülü:** Canlı altın, döviz ve kripto para takibi ile portföy kar/zarar yönetimi.
 * ♿ **Görme Engelli Erişilebilirliği:** Arayüzdeki tüm elementler (butonlar, arama çubukları, sekmeler) `Atk` kütüphanesiyle işaretlenmiş olup Linux Ekran Okuyucuları (Örn: Orca) ile %100 uyumludur. Sadece klavye kullanarak uygulamada gezebilirsiniz.
@@ -60,7 +60,7 @@ python3 main.py
 | **GTK3 (PyGObject)** | Kullanıcı arayüzü kütüphanesi |
 | **AppIndicator3** | Sistem tepsisi (System Tray) entegrasyonu |
 | **Groq AI & Edge-TTS** | Yapay zeka destekli hava durumu yorumlama ve asistanlık |
-| **MGM & Open-Meteo** | Hava Durumu API'leri |
+| **MGM, Open-Meteo & MSN** | Hava Durumu API'leri |
 | **Truncgil Finance API**| Anlık finans ve borsa verileri |
 | **libnotify** | Masaüstü bildirim sistemi |
 

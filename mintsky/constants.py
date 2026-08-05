@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 MintSky — Linux Mint Masaüstü & Görev Çubuğu Uygulaması
-MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
+MGM resmi API + Open-Meteo yedek + MSN Hava Durumu (Global) + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
