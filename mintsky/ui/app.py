@@ -422,7 +422,7 @@ class MintSkyApp(Gtk.Window):
 
     def _do_in_app_update(self, btn):
         btn.set_sensitive(False)
-        btn.set_label("⏳ Güncelleniyor...")
+        btn.set_label("⏳ " + _("Güncelleniyor..."))
         def _bg():
             import subprocess
             try:
@@ -1131,27 +1131,29 @@ class MintSkyApp(Gtk.Window):
 
     def _notify_no_update(self):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.INFO,
-                                buttons=Gtk.ButtonsType.OK, text="Uygulama Güncel")
-        dlg.format_secondary_text(f"MintSky'ın en güncel versiyonunu (v{VERSIYON}) kullanıyorsunuz.")
+                                buttons=Gtk.ButtonsType.OK, text=_("Uygulama Güncel"))
+        dlg.format_secondary_text(_("MintSky'ın en güncel versiyonunu (v{VERSIYON}) kullanıyorsunuz.").format(VERSIYON=VERSIYON))
         dlg.connect("response", lambda d, r: d.destroy())
         dlg.show_all()
 
     def _notify_update_error(self, err):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.ERROR,
-                                buttons=Gtk.ButtonsType.OK, text="Güncelleme Kontrolü Başarısız")
-        dlg.format_secondary_text(f"Bağlantı hatası: {err}")
+                                buttons=Gtk.ButtonsType.OK, text=_("Güncelleme Kontrolü Başarısız"))
+        dlg.format_secondary_text(_("Bağlantı hatası: {err}").format(err=err))
         dlg.connect("response", lambda d, r: d.destroy())
         dlg.show_all()
 
     def _ask_update(self, latest, url):
         dlg = Gtk.MessageDialog(transient_for=self, flags=0, message_type=Gtk.MessageType.QUESTION,
-                                buttons=Gtk.ButtonsType.YES_NO, text=f"Yeni Sürüm Mevcut: {latest}")
-        dlg.format_secondary_text(f"MintSky'ın yeni bir versiyonu ({latest}) var. İndirme sayfasına gitmek ister misiniz?\n\nİndirme bağlatısından Linux için derlenmiş hazır 'MintSky-Linux-x86_64.tar.gz' paketini indirebilirsiniz.")
-        response = dlg.run()
-        dlg.destroy()
-        if response == Gtk.ResponseType.YES:
-            import webbrowser
-            webbrowser.open(url)
+                                buttons=Gtk.ButtonsType.YES_NO, text=_("Yeni Sürüm Mevcut: {latest}").format(latest=latest))
+        dlg.format_secondary_text(_("MintSky'ın yeni bir versiyonu ({latest}) var. İndirme sayfasına gitmek ister misiniz?\n\nİndirme bağlatısından Linux için derlenmiş hazır 'MintSky-Linux-x86_64.tar.gz' paketini indirebilirsiniz.").format(latest=latest))
+        def _on_res(d, res):
+            if res == Gtk.ResponseType.YES:
+                import webbrowser
+                webbrowser.open(url)
+            d.destroy()
+        dlg.connect("response", _on_res)
+        dlg.show_all()
 
     # ──────────────────── Groq AI ──────────────────────────────────────────
     def _test_groq_key(self, key):
@@ -2016,29 +2018,29 @@ class MintSkyApp(Gtk.Window):
             
         if uv_val is not None and self._show_extra:
             uv_lbl = f"{uv_val:.1f}"
-            if uv_val <= 2:    uv_lbl += " (Düşük)"
-            elif uv_val <= 5:  uv_lbl += " (Orta)"
-            elif uv_val <= 7:  uv_lbl += " (Yüksek)"
-            elif uv_val <= 10: uv_lbl += " (Çok Yüksek)"
-            else:               uv_lbl += " (Aşırı)"
+            if uv_val <= 2:    uv_lbl += f" ({_('Düşük')})"
+            elif uv_val <= 5:  uv_lbl += f" ({_('Orta')})"
+            elif uv_val <= 7:  uv_lbl += f" ({_('Yüksek')})"
+            elif uv_val <= 10: uv_lbl += f" ({_('Çok Yüksek')})"
+            else:               uv_lbl += f" ({_('Aşırı')})"
             all_pills.append((f"🔆 {_('lbl_uv')}", uv_lbl))
             
         if aqi_val is not None and self._show_extra:
             aqi_lbl = f"{aqi_val:.0f}"
-            if aqi_val <= 50:    aqi_lbl += " (İyi)"
-            elif aqi_val <= 100: aqi_lbl += " (Orta)"
-            elif aqi_val <= 150: aqi_lbl += " (Hassas)"
-            elif aqi_val <= 200: aqi_lbl += " (Kötü)"
-            elif aqi_val <= 300: aqi_lbl += " (Çok Kötü)"
-            else:                aqi_lbl += " (Tehlikeli)"
+            if aqi_val <= 50:    aqi_lbl += f" ({_('İyi')})"
+            elif aqi_val <= 100: aqi_lbl += f" ({_('Orta')})"
+            elif aqi_val <= 150: aqi_lbl += f" ({_('Hassas')})"
+            elif aqi_val <= 200: aqi_lbl += f" ({_('Kötü')})"
+            elif aqi_val <= 300: aqi_lbl += f" ({_('Çok Kötü')})"
+            else:                aqi_lbl += f" ({_('Tehlikeli')})"
             
             aqi_tt = (
-                "0-50: İyi\n"
-                "51-100: Orta\n"
-                "101-150: Hassas\n"
-                "151-200: Kötü\n"
-                "201-300: Çok Kötü\n"
-                "300+: Tehlikeli"
+                f"0-50: {_('İyi')}\n"
+                f"51-100: {_('Orta')}\n"
+                f"101-150: {_('Hassas')}\n"
+                f"151-200: {_('Kötü')}\n"
+                f"201-300: {_('Çok Kötü')}\n"
+                f"300+: {_('Tehlikeli')}"
             )
             all_pills.append((f"😷 {_('lbl_aqi')}", aqi_lbl, aqi_tt))
 
@@ -2428,7 +2430,7 @@ class MintSkyApp(Gtk.Window):
 
     # ──────────────────── Saatlik / Günlük Tahmin ──────────────────────────
     def _render_hourly_mgm(self, tahminler):
-        self._section_title("🕐  SAATLİK TAHMİN (Kaynak: MGM + Open-Meteo)")
+        self._section_title(_("🕐  SAATLİK TAHMİN (Kaynak: MGM + Open-Meteo)"))
         hs = self._make_hscroll()
         h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         h_box.set_margin_bottom(4)
@@ -2459,7 +2461,7 @@ class MintSkyApp(Gtk.Window):
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
     def _render_hourly_om(self, om_hourly, om_times):
-        self._section_title("🕐  SAATLİK TAHMİN (Kaynak: Open-Meteo)")
+        self._section_title(_("🕐  SAATLİK TAHMİN (Kaynak: Open-Meteo)"))
         hs = self._make_hscroll()
         h_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         h_box.set_margin_bottom(4)
@@ -2507,7 +2509,7 @@ class MintSkyApp(Gtk.Window):
         hs.add(h_box); self.content.pack_start(hs, False, False, 0)
 
     def _render_daily_mgm(self, gd):
-        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: MGM + Open-Meteo)")
+        self._section_title(_("📅  5 GÜNLÜK TAHMİN (Kaynak: MGM + Open-Meteo)"))
         fc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         fc_box.set_margin_bottom(20)
         for i in range(1,6):
@@ -2548,7 +2550,7 @@ class MintSkyApp(Gtk.Window):
         self.content.pack_start(fc_box, False, False, 0)
 
     def _render_daily_om(self, daily):
-        self._section_title("📅  5 GÜNLÜK TAHMİN (Kaynak: Open-Meteo)")
+        self._section_title(_("📅  5 GÜNLÜK TAHMİN (Kaynak: Open-Meteo)"))
         fc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         fc_box.set_margin_bottom(20)
         dates  = daily.get("time",[])
