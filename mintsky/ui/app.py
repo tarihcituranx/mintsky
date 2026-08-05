@@ -671,6 +671,7 @@ class MintSkyApp(Gtk.Window):
         cb_src = Gtk.ComboBoxText()
         cb_src.append("mgm",       _("src_mgm"))
         cb_src.append("openmeteo", _("src_om"))
+        cb_src.append("msn",       _("src_msn"))
         cb_src.set_active_id(self._api_source)
         _row(_("settings_src"), cb_src, p1)
         _sep(p1)
@@ -1764,7 +1765,7 @@ class MintSkyApp(Gtk.Window):
         return False
 
     # ──────────────────── Render ───────────────────────────────────────────
-    def _render(self, merkez, sd, gd, sk, alarmlar, meteoalarm, om_data):
+    def _render(self, merkez, sd, gd, sk, alarmlar, meteoalarm, om_data, msn_data={}):
         self._clear()
         il    = merkez.get("il","")
         ilce  = merkez.get("ilce","")
@@ -1772,10 +1773,28 @@ class MintSkyApp(Gtk.Window):
         self._cur_il, self._cur_ilce = il, ilce
         self._sync_fav_button()
 
-        om_cur = om_data.get("current", {}) if om_data else {}
-        use_om = (self._api_source == "openmeteo" and om_cur) or (not sd and om_cur)
+        msn_cur = {}
+        if msn_data and "responses" in msn_data and msn_data["responses"]:
+            try: msn_cur = msn_data["responses"][0]["weather"][0]["current"]
+            except: pass
 
-        if use_om:
+        om_cur = om_data.get("current", {}) if om_data else {}
+        use_msn = (self._api_source == "msn" and msn_cur)
+        use_om = (self._api_source == "openmeteo" and om_cur) or (not sd and om_cur and not use_msn)
+
+        if use_msn:
+            cap = msn_cur.get("cap", "")
+            emoji, kisa, uzun = "🌤️", cap, cap
+            sicak = msn_cur.get("temp", -9999)
+            his   = msn_cur.get("feels", -9999)
+            h_kod_for_tray = 0
+            if sd is None or not isinstance(sd, dict): sd = {}
+            sd["nem"] = msn_cur.get("rh", -9999)
+            sd["ruzgarHiz"] = msn_cur.get("windSpd", -9999)
+            sd["denizeIndirgenmisBasinc"] = msn_cur.get("baro", -9999)
+            sd["gorus"] = msn_cur.get("vis", -9999)
+            om_cur["uv_index"] = msn_cur.get("uv", -9999)
+        elif use_om:
             wmo_kod = om_cur.get("weather_code")
             is_night = (om_cur.get("is_day", 1) == 0)
             emoji, kisa, uzun = hadise_wmo(wmo_kod, is_night)

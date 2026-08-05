@@ -35,7 +35,8 @@ class WeatherAPI:
                 }
                 
                 om_data = cls.fetch_openmeteo(m["enlem"], m["boylam"])
-                return True, "", (m, {}, {}, {}, [], [], om_data)
+                msn_data = cls.fetch_msn(m['enlem'], m['boylam'])
+                return True, "", (m, {}, {}, {}, [], [], om_data, msn_data)
 
             m = merk[0]
             lat = m.get("enlem") or m.get("lat")
@@ -63,6 +64,7 @@ class WeatherAPI:
             om_data = {}
             if lat and lon:
                 om_data = cls.fetch_openmeteo(lat, lon)
+            msn_data = cls.fetch_msn(lat, lon)
 
             sd_data    = results.get("sd",  [{}])[0] if results.get("sd")  else {}
             gd_data    = results.get("gd",  [{}])[0] if results.get("gd")  else {}
@@ -70,12 +72,35 @@ class WeatherAPI:
             alarmlar   = results.get("alarmlar",   [])
             meteoalarm = results.get("meteoalarm", [])
 
-            return True, "", (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data)
+            return True, "", (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data, msn_data)
         except Exception as e:
             return False, f"MGM Bağlantı Hatası — Lütfen Yenileyin.\nDetay: {str(e)[:60]}", None
 
+
+    @classmethod
+    def fetch_msn(cls, lat, lon):
+        try:
+            url = "https://api.msn.com/weatherfalcon/weather/current"
+            params = {
+                "apikey": "j5i4gDqHL6nGYwx5wi5kRhXjtf2c5qgFX9fzfk0TOo",
+                "appId": "9e21380c-ff19-4c78-b4ea-19558e93a5d3",
+                "latLongList": f"{lat},{lon}",
+                "units": "C",
+                "locale": "tr-tr"
+            }
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Referer": "https://www.msn.com/",
+                "Origin": "https://www.msn.com"
+            }
+            r = session.get(url, params=params, headers=headers, timeout=TIMEOUT)
+            if r.status_code == 200: return r.json()
+        except Exception: pass
+        return {}
+
     @classmethod
     def fetch_openmeteo(cls, lat, lon):
+
         try:
             params = {
                 "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 5,
