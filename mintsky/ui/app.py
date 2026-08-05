@@ -1841,17 +1841,33 @@ class MintSkyApp(Gtk.Window):
                 tahmin_3s.append((om_times[i][11:16], em,
                                   val(temps_h[i] if i<len(temps_h) else -9999, suffix="°"), ksa, nem_h))
 
-        uv_val   = om_cur.get("uv_index")
+        def get_best(sd_key, om_key, msn_key):
+            v = None
+            if use_msn:
+                v = msn_cur.get(msn_key) if msn_key else None
+                if v in (None, -9999, "") and om_cur and om_key: v = om_cur.get(om_key)
+                if v in (None, -9999, "") and sd and sd_key: v = sd.get(sd_key)
+            elif use_om:
+                v = om_cur.get(om_key) if om_key else None
+                if v in (None, -9999, "") and msn_cur and msn_key: v = msn_cur.get(msn_key)
+                if v in (None, -9999, "") and sd and sd_key: v = sd.get(sd_key)
+            else:
+                v = sd.get(sd_key) if sd and sd_key else None
+                if v in (None, -9999, "") and om_cur and om_key: v = om_cur.get(om_key)
+                if v in (None, -9999, "") and msn_cur and msn_key: v = msn_cur.get(msn_key)
+            return v if v not in (None, -9999, "") else None
+
+        uv_val     = get_best(None, "uv_index", "uv")
+        nem_val    = get_best("nem", "relative_humidity_2m", "rh")
+        ruzgar_hiz = get_best("ruzgarHiz", "wind_speed_10m", "windSpd")
+        r_yon_val  = get_best("ruzgarYon", "wind_direction_10m", "windDir")
+        ruzgar_yon = yon(r_yon_val) if r_yon_val is not None else ""
+        basinc     = get_best("denizeIndirgenmisBasinc", "surface_pressure", "baro")
+        gorus_v    = get_best("gorus", "visibility", "vis")
+        gustu      = get_best(None, "wind_gusts_10m", "windGust")
+        
         yag_olas = (om_hourly.get("precipitation_probability",[None])[0]
                     if om_hourly.get("precipitation_probability") else None)
-        gustu    = om_cur.get("wind_gusts_10m")
-        nem_val  = (sd.get("nem") if not use_om else om_cur.get("relative_humidity_2m"))
-        ruzgar_hiz = (sd.get("ruzgarHiz") if not use_om else om_cur.get("wind_speed_10m"))
-        ruzgar_yon = (yon(sd.get("ruzgarYon",-9999)) if not use_om
-                      else yon(om_cur.get("wind_direction_10m")))
-        basinc   = (sd.get("denizeIndirgenmisBasinc") if not use_om
-                    else om_cur.get("surface_pressure"))
-        gorus_v  = (sd.get("gorus") if not use_om else om_cur.get("visibility"))
 
         self._last_render_data = {
             "sehir":     sehir,
