@@ -2042,8 +2042,16 @@ class MintSkyApp(Gtk.Window):
                 grid.attach(self._make_pill(k, v2), i%3, i//3, 1, 1)
             self.content.pack_start(grid, False, False, 0)
 
-        if not use_om and sd.get("veriZamani",""):
-            ts = Gtk.Label(label=f"{_('lbl_last_update')}: {fmt_dt(sd['veriZamani'])}")
+        ts_val = ""
+        if use_msn:
+            ts_val = msn_cur.get("created", "")
+        elif use_om:
+            ts_val = om_cur.get("time", "")
+        else:
+            ts_val = sd.get("veriZamani", "")
+
+        if ts_val:
+            ts = Gtk.Label(label=f"{_('lbl_last_update')}: {fmt_dt(ts_val)}")
             self._sc(ts,"ts-lbl"); ts.set_halign(Gtk.Align.END); ts.set_margin_end(12)
             self.content.pack_start(ts, False, False, 0)
 
