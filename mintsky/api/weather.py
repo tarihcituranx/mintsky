@@ -28,17 +28,27 @@ class WeatherAPI:
                 if not nom_data:
                     return False, f"'{il}' verisi bulunamadı.", None
                 
-                m = {
-                    "il": nom_data[0].get("display_name", il).split(",")[0],
-                    "ilce": "",
-                    "enlem": float(nom_data[0].get("lat")),
-                    "boylam": float(nom_data[0].get("lon")),
-                    "merkezId": 0
-                }
+                try:
+                    lat_str = nom_data[0].get("lat")
+                    lon_str = nom_data[0].get("lon")
+                    if not lat_str or not lon_str:
+                        return False, "Koordinat verisi geçersiz.", None
+                    m = {
+                        "il": nom_data[0].get("display_name", il).split(",")[0],
+                        "ilce": "",
+                        "enlem": float(lat_str),
+                        "boylam": float(lon_str),
+                        "merkezId": 0
+                    }
+                except (IndexError, ValueError, TypeError):
+                    return False, "Konum bulunamadı veya veri bozuk.", None
                 
                 om_data = cls.fetch_openmeteo(m["enlem"], m["boylam"])
                 msn_data = cls.fetch_msn(m['enlem'], m['boylam'])
                 return True, "", (m, {}, {}, {}, [], [], om_data, msn_data)
+
+            if not merk or not isinstance(merk, list) or len(merk) == 0:
+                return False, "MGM API boş veya geçersiz yanıt döndürdü.", None
 
             m = merk[0]
             lat = m.get("enlem") or m.get("lat")
@@ -54,7 +64,7 @@ class WeatherAPI:
             }
             results = {}
             def get_url(key, url):
-                return cls.safe_json(session.get(f"{BASE_MGM}{url}", timeout=TIMEOUT))
+                return cls.safe_json(requests.get(f"{BASE_MGM}{url}", headers=MGM_HEADERS, timeout=TIMEOUT))
             
             with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
                 fmap = {ex.submit(get_url, k, v): k for k, v in urls.items()}
@@ -68,11 +78,18 @@ class WeatherAPI:
                 om_data = cls.fetch_openmeteo(lat, lon)
             msn_data = cls.fetch_msn(lat, lon)
 
-            sd_data    = results.get("sd",  [{}])[0] if results.get("sd")  else {}
-            gd_data    = results.get("gd",  [{}])[0] if results.get("gd")  else {}
-            sk_data    = results.get("sk",  [{}])[0] if results.get("sk")  else {}
-            alarmlar   = results.get("alarmlar",   [])
-            meteoalarm = results.get("meteoalarm", [])
+            def get_first(d, k):
+                val = d.get(k)
+                return val[0] if isinstance(val, list) and len(val) > 0 else {}
+
+            sd_data    = get_first(results, "sd")
+            gd_data    = get_first(results, "gd")
+            sk_data    = get_first(results, "sk")
+            
+            alarmlar   = results.get("alarmlar")
+            alarmlar   = alarmlar if isinstance(alarmlar, list) else []
+            meteoalarm = results.get("meteoalarm")
+            meteoalarm = meteoalarm if isinstance(meteoalarm, list) else []
 
             return True, "", (m, sd_data, gd_data, sk_data, alarmlar, meteoalarm, om_data, msn_data)
         except Exception as e:

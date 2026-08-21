@@ -271,7 +271,7 @@ class MintSkyApp(Gtk.Window):
         self._fin_kripto         = d.get("fin_kripto",       DEFAULT_FINANCE_KRIPTO)
 
     def _save_settings(self):
-        core_save_settings({
+        success = core_save_settings({
             "theme":self._theme, "language":self._language, "scale":self._manual_scale,
             "autostart":self._autostart, "def_il":self._def_il,
             "def_ilce":self._def_ilce, "notify":self._notify_enabled,
@@ -281,6 +281,8 @@ class MintSkyApp(Gtk.Window):
             "fin_altin":self._fin_altin, "fin_doviz":self._fin_doviz,
             "fin_kripto":self._fin_kripto,
         })
+        if not success and self._groq_api_key:
+            self._msg_dialog(self, "Uyarı", "Sistemde güvenli parola deposu (keyring) bulunamadı. API anahtarı kaydedilemedi.")
 
     # ──────────────────── Portföy ──────────────────────────────────────────
     def _load_portfolio(self):
@@ -313,47 +315,60 @@ class MintSkyApp(Gtk.Window):
     # ──────────────────── Portföy hesaplama ────────────────────────────────
     def _calc_portfolio_pnl(self):
         """Toplam portföy değeri ve kar/zarar"""
-        total_cost    = 0.0
-        total_current = 0.0
+        from decimal import Decimal, InvalidOperation
+        total_cost    = Decimal('0.0')
+        total_current = Decimal('0.0')
         details       = []
         for item in self._portfolio:
             kod        = item.get("kod","")
-            amount     = float(item.get("amount", 0))
-            buy_price  = float(item.get("buy_price", 0))
-            cur_price  = self.finance_api.get_rate_price(kod)
+            try:
+                amount     = Decimal(str(item.get("amount", 0)))
+                buy_price  = Decimal(str(item.get("buy_price", 0)))
+            except InvalidOperation:
+                amount = Decimal('0.0')
+                buy_price = Decimal('0.0')
+
+            cur_price_val = self.finance_api.get_rate_price(kod)
+            
             cost       = amount * buy_price
-            if cur_price is not None:
+            if cur_price_val is not None:
+                try:
+                    cur_price = Decimal(str(cur_price_val))
+                except InvalidOperation:
+                    cur_price = Decimal('0.0')
                 current    = amount * cur_price
                 pnl        = current - cost
-                pnl_pct    = (pnl / cost * 100) if cost > 0 else 0
+                pnl_pct    = (pnl / cost * Decimal('100')) if cost > Decimal('0') else Decimal('0')
                 total_cost    += cost
                 total_current += current
                 details.append({
                     "kod":      kod,
                     "name":     item.get("name", kod),
-                    "amount":   amount,
-                    "buy_price":buy_price,
-                    "cur_price":cur_price,
-                    "cost":     cost,
-                    "current":  current,
-                    "pnl":      pnl,
-                    "pnl_pct":  pnl_pct,
+                    "amount":   float(amount),
+                    "buy_price":float(buy_price),
+                    "cur_price":float(cur_price),
+                    "cost":     float(cost),
+                    "current":  float(current),
+                    "pnl":      float(pnl),
+                    "pnl_pct":  float(pnl_pct),
                 })
             else:
                 details.append({
                     "kod":      kod,
                     "name":     item.get("name", kod),
-                    "amount":   amount,
-                    "buy_price":buy_price,
+                    "amount":   float(amount),
+                    "buy_price":float(buy_price),
                     "cur_price":None,
-                    "cost":     cost,
+                    "cost":     float(cost),
                     "current":  None,
                     "pnl":      None,
                     "pnl_pct":  None,
                 })
-        total_pnl     = total_current - total_cost if total_cost > 0 else None
-        total_pnl_pct = (total_pnl / total_cost * 100) if (total_cost > 0 and total_pnl is not None) else None
-        return total_cost, total_current, total_pnl, total_pnl_pct, details
+        
+        from decimal import Decimal
+        total_pnl = total_current - total_cost if total_cost > Decimal('0') else None
+        total_pnl_pct = (total_pnl / total_cost * Decimal('100')) if (total_cost > Decimal('0') and total_pnl is not None) else None
+        return float(total_cost), float(total_current), (float(total_pnl) if total_pnl is not None else None), (float(total_pnl_pct) if total_pnl_pct is not None else None), details
 
     # ──────────────────── GitHub Güncelleme Kontrolü ───────────────────────
     def _check_update(self):

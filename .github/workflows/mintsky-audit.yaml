@@ -141,7 +141,6 @@ jobs:
       - name: 🛡️ Güvenlik Taraması (Bandit)
         id: bandit
         if: always()
-        continue-on-error: true           # Birleştirmeyi engellemez
         run: |
           echo "🔐 Güvenlik açıkları aranıyor..."
           set -o pipefail
@@ -180,6 +179,20 @@ jobs:
             echo "✅ Import sıralaması doğru."
           else
             echo "⚠️  Düzeltmek için: isort ."
+            exit 1
+          fi
+
+      - name: 🧪 Runtime Testleri (pytest)
+        id: pytest
+        if: always()
+        run: |
+          echo "🧪 Testler (pytest) çalıştırılıyor..."
+          pip install pytest pytest-mock
+          pip install -e .
+          if pytest tests/ -v 2>&1 | tee /tmp/pytest.txt; then
+            echo "✅ Tüm testler başarıyla geçti."
+          else
+            echo "❌ Test hatası tespit edildi!"
             exit 1
           fi
 
@@ -234,6 +247,20 @@ jobs:
               echo "| 3 | 🧹 Kritik Lint | \`flake8\` | ❌ Başarısız | ${{ steps.lint.outputs.critical_errors || '?' }} kritik hata |"
             fi
 
+            # Bandit
+            if [ "${{ steps.bandit.outcome }}" = "success" ]; then
+              echo "| 4 | 🛡️ Güvenlik Taraması | \`bandit\` | ✅ Geçti | Temiz |"
+            else
+              echo "| 4 | 🛡️ Güvenlik Taraması | \`bandit\` | ❌ Başarısız | Güvenlik açıkları var |"
+            fi
+
+            # Pytest
+            if [ "${{ steps.pytest.outcome }}" = "success" ]; then
+              echo "| 5 | 🧪 Runtime Test | \`pytest\` | ✅ Geçti | Tüm testler başarılı |"
+            else
+              echo "| 5 | 🧪 Runtime Test | \`pytest\` | ❌ Başarısız | Test(ler) fail oldu |"
+            fi
+
             echo ""
             echo "### 💡 Kalite Önerileri *(birleştirmeyi engellemez)*"
             echo ""
@@ -242,23 +269,16 @@ jobs:
 
             # Black
             if [ "${{ steps.format.outcome }}" = "success" ]; then
-              echo "| 4 | 🎨 Kod Formatı | \`black\` | ✅ Uyumlu | — |"
+              echo "| 6 | 🎨 Kod Formatı | \`black\` | ✅ Uyumlu | — |"
             else
-              echo "| 4 | 🎨 Kod Formatı | \`black\` | ⚠️ Uyarı | \`black .\` |"
+              echo "| 6 | 🎨 Kod Formatı | \`black\` | ⚠️ Uyarı | \`black .\` |"
             fi
 
             # isort
             if [ "${{ steps.isort.outcome }}" = "success" ]; then
-              echo "| 5 | 📐 Import Sırası | \`isort\` | ✅ Uyumlu | — |"
+              echo "| 7 | 📐 Import Sırası | \`isort\` | ✅ Uyumlu | — |"
             else
-              echo "| 5 | 📐 Import Sırası | \`isort\` | ⚠️ Uyarı | \`isort .\` |"
-            fi
-
-            # Bandit
-            if [ "${{ steps.bandit.outcome }}" = "success" ]; then
-              echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ✅ Temiz | — |"
-            else
-              echo "| 6 | 🛡️ Güvenlik Taraması | \`bandit\` | ⚠️ Uyarı | Güvenlik İncelemesi Önerilir |"
+              echo "| 7 | 📐 Import Sırası | \`isort\` | ⚠️ Uyarı | \`isort .\` |"
             fi
 
             echo ""

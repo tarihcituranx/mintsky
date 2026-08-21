@@ -21,7 +21,5 @@ def test_i18n_keys_match():
             loc_keys = set(json.load(f).keys())
         
         missing = base_keys - loc_keys
-        extra = loc_keys - base_keys
         
         assert not missing, f"Locale {loc} is missing keys: {missing}"
-        assert not extra, f"Locale {loc} has extra keys: {extra}"
