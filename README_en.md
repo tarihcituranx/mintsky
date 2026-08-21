@@ -2,10 +2,10 @@
 
 ![MintSky Header](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-docs-update.yaml?branch=main&label=MintSky%20CI)](https://github.com/tarihcituranx/mintsky/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-audit.yaml?branch=main&label=MintSky%20CI)](https://github.com/tarihcituranx/mintsky/actions)
 ![Python 3](https://img.shields.io/badge/Python-3-3776AB?style=flat&logo=python&logoColor=white)
 ![GTK3](https://img.shields.io/badge/GTK-3-7FE717?style=flat&logo=gnome&logoColor=white)
-![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 ![Platform: Linux](https://img.shields.io/badge/Platform-Linux-E34F26?style=flat&logo=linux&logoColor=white)
 
 <p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Weather+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Track+from+System+Tray+%F0%9F%94%94;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
@@ -48,16 +48,15 @@ git clone https://github.com/tarihcituranx/mintsky.git
 cd mintsky
 ```
 
-### 3. Install Python Packages
-
+### 3. Install the Application
 ```bash
-pip3 install -r requirements.txt
+pip3 install .
 ```
 
 ### 4. Run the Application
 
 ```bash
-python3 main.py
+mintsky
 ```
 
 ## ⚙️ Configuration

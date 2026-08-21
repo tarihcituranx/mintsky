@@ -55,9 +55,16 @@ class FinanceAPI:
             if not self._data or kod not in self._data:
                 return None
             r = self._data[kod]
-            if r.get("Type") == "CryptoCurrency":
-                return r.get("TRY_Price")
-            return r.get("Buying") or r.get("Selling")
+            try:
+                if r.get("Type") == "CryptoCurrency":
+                    val = r.get("TRY_Price")
+                else:
+                    val = r.get("Buying") or r.get("Selling")
+                if isinstance(val, str):
+                    val = val.replace('.', '').replace(',', '.')
+                return float(val) if val else None
+            except Exception:
+                return None
 
     def reset_cache(self):
         with self._lock:

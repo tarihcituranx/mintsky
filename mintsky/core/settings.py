@@ -2,14 +2,36 @@ import os
 import json
 from mintsky.constants import CONFIG_DIR, SETTING_FILE
 
+import keyring
+
 def load_settings():
     try:
         with open(SETTING_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except Exception:
-        return {}
+        data = {}
+    
+    try:
+        key = keyring.get_password("mintsky", "groq_api_key")
+        if key:
+            data["groq_api_key"] = key
+    except Exception:
+        pass
+        
+    return data
 
 def save_settings(data):
     os.makedirs(CONFIG_DIR, exist_ok=True)
+    
+    if "groq_api_key" in data:
+        key = data.pop("groq_api_key")
+        try:
+            if key:
+                keyring.set_password("mintsky", "groq_api_key", key)
+            else:
+                keyring.delete_password("mintsky", "groq_api_key")
+        except Exception:
+            pass
+            
     with open(SETTING_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)

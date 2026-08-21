@@ -1,3 +1,4 @@
+import os
 import concurrent.futures
 import requests
 from mintsky.constants import BASE_MGM, MGM_HEADERS, TIMEOUT, BASE_OM
@@ -21,7 +22,8 @@ class WeatherAPI:
             if not merk:
                 import urllib.parse
                 q = urllib.parse.quote(f"{ilce} {il}".strip())
-                nom_req = session.get(f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1", headers={"User-Agent": "MintSky/7.0"}, timeout=TIMEOUT)
+                from mintsky.constants import NOM_HEADERS
+                nom_req = session.get(f"https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1", headers=NOM_HEADERS, timeout=TIMEOUT)
                 nom_data = cls.safe_json(nom_req)
                 if not nom_data:
                     return False, f"'{il}' verisi bulunamadı.", None
@@ -82,8 +84,8 @@ class WeatherAPI:
         try:
             url = "https://api.msn.com/weatherfalcon/weather/current"
             params = {
-                "apikey": "j5i4gDqHL6nGYwx5wi5kRhXjtf2c5qgFX9fzfk0TOo",
-                "appId": "9e21380c-ff19-4c78-b4ea-19558e93a5d3",
+                "apikey": os.environ.get("MSN_API_KEY", ""),
+                "appId": os.environ.get("MSN_APP_ID", ""),
                 "latLongList": f"{lat},{lon}",
                 "units": "C",
                 "locale": "tr-tr"

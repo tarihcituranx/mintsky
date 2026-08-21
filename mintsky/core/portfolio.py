@@ -14,3 +14,4 @@ def save_portfolio(items):
     os.makedirs(CONFIG_DIR, exist_ok=True)
     with open(PORTFOLIO_FILE, "w", encoding="utf-8") as f:
         json.dump({"items": items}, f, ensure_ascii=False, indent=2)
+    os.chmod(PORTFOLIO_FILE, 0o600)

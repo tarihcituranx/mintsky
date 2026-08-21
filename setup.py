@@ -11,7 +11,8 @@ setup(
         "requests>=2.34.2",
         "PyGObject>=3.56.3",
         "groq>=1.4.0",
-        "edge-tts>=7.0.0"
+        "edge-tts>=7.0.0",
+        "keyring>=24.0.0"
     ],
     entry_points={
         "console_scripts": [
@@ -23,5 +24,5 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: POSIX :: Linux",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.10",
 )

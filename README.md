@@ -2,10 +2,10 @@
 
 ![MintSky Başlık](https://capsule-render.vercel.app/api?type=waving&color=0:667eea,100:764ba2&height=200&section=header&text=MintSky&fontSize=70&fontColor=ffffff)
 
-[![MintSky CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-docs-update.yaml?branch=main&label=MintSky%20CI)](https://github.com/tarihcituranx/mintsky/actions)
+[![MintSky CI](https://img.shields.io/github/actions/workflow/status/tarihcituranx/mintsky/mintsky-audit.yaml?branch=main&label=MintSky%20CI)](https://github.com/tarihcituranx/mintsky/actions)
 [![Python 3](https://img.shields.io/badge/Python-3-blue.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![GTK3](https://img.shields.io/badge/GTK-3-orange.svg?style=flat&logo=gnome&logoColor=white)](https://www.gtk.org/)
-[![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://opensource.org/licenses/GPL-3.0)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform: Linux](https://img.shields.io/badge/Platform-Linux-lightgrey.svg?style=flat&logo=linux)](https://www.linux.org/)
 
 <p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
@@ -40,11 +40,11 @@ sudo apt install python3 python3-pip python3-gi python3-gi-cairo gir1.2-appindic
 git clone https://github.com/tarihcituranx/mintsky.git
 cd mintsky
 
-# 3. Python bağımlılıklarını yükleyin
-pip3 install -r requirements.txt
+# 3. Uygulamayı sisteminize kurun
+pip3 install .
 
 # 4. Uygulamayı çalıştırın
-python3 main.py
+mintsky
 ```
 
 ## 🛠️ Yapılandırma
