@@ -10,6 +10,8 @@
 
 <p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=450&lines=MintSky+-+Linux+Hava+Durumu+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;Sistem+Tepsisinden+Takip+Et+%F0%9F%94%94;A%C3%A7%C4%B1k+Kaynak+%26+%C3%9Ccretsiz+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
 
+![MintSky Ekran Görüntüsü](assets/screenshot1.png)
+
 ## 🌟 Özellikler
 
 * 🌍 **Akıllı Çoklu API Motoru & AQI:** MGM (Türkiye resmi verileri), Open-Meteo (Global yedek) ve **MSN Hava Durumu (Ekstra Sensörler & Yedek)** sistemleri arasında otomatik geçiş yapar. İnteraktif Hava Kalitesi (AQI) uyarıları ile sağlığınızı korur.
