@@ -10,9 +10,9 @@ setup(
     install_requires=[
         "requests>=2.34.2",
         "PyGObject>=3.56.3",
-        "groq>=1.4.0",
-        "edge-tts>=7.0.0",
-        "keyring>=24.0.0"
+        "groq>=1.6.0",
+        "edge-tts>=7.2.8",
+        "keyring>=25.7.0"
     ],
     entry_points={
         "console_scripts": [
