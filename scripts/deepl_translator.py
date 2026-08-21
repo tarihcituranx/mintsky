@@ -21,7 +21,7 @@ import os
 AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY", "BURAYA_API_ANAHTARINI_GİRİN")
 URL = "https://api-free.deepl.com/v2/translate"
 LOCALES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mintsky", "locales")
-FORCE_ALL = False # True yapılırsa mevcut tüm çevirileri baştan DeepL ile değiştirir. False ise sadece eksikleri çevirir.
+FORCE_ALL = True # True yapılırsa mevcut tüm çevirileri baştan DeepL ile değiştirir. False ise sadece eksikleri çevirir.
 
 # Ekstra çevrilecek kelimeleri sabitlerden topla
 import sys
