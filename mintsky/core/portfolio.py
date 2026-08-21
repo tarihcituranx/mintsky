@@ -1,6 +1,8 @@
-import os
 import json
+import os
+
 from mintsky.constants import CONFIG_DIR, PORTFOLIO_FILE
+
 
 def load_portfolio():
     try:
@@ -9,6 +11,7 @@ def load_portfolio():
             return data.get("items", [])
     except Exception:
         return []
+
 
 def save_portfolio(items):
     os.makedirs(CONFIG_DIR, exist_ok=True)

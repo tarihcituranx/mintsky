@@ -4,6 +4,7 @@ import os
 _translations = {}
 _current_lang = "tr"
 
+
 def load_language(lang="tr"):
     global _translations, _current_lang
     _current_lang = lang
@@ -18,6 +19,7 @@ def load_language(lang="tr"):
                 _translations = {}
     else:
         _translations = {}
+
 
 def _(key):
     return _translations.get(key, key)

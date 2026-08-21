@@ -1,9 +1,13 @@
-import os
 import json
+import os
+
 import pytest
 
+
 def test_i18n_keys_match():
-    locales_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mintsky", "locales")
+    locales_dir = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "mintsky", "locales"
+    )
     if not os.path.exists(locales_dir):
         pytest.skip("Locales directory not found")
 
@@ -19,7 +23,7 @@ def test_i18n_keys_match():
             continue
         with open(os.path.join(locales_dir, loc), "r", encoding="utf-8") as f:
             loc_keys = set(json.load(f).keys())
-        
+
         missing = base_keys - loc_keys
-        
+
         assert not missing, f"Locale {loc} is missing keys: {missing}"

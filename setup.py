@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="mintsky",
@@ -12,7 +12,7 @@ setup(
         "PyGObject>=3.56.3",
         "groq>=1.6.0",
         "edge-tts>=7.2.8",
-        "keyring>=25.7.0"
+        "keyring>=25.7.0",
     ],
     entry_points={
         "console_scripts": [

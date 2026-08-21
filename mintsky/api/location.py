@@ -1,17 +1,22 @@
-import os
 import json
+import os
 import threading
+
 import requests
+
 from mintsky.constants import CONFIG_DIR, LOC_FILE
+
 
 class LocationAPI:
     def fetch_locations_bg(self, callback):
         """Fetches locations in background and returns sorted_provinces and locs dictionary."""
+
         def _do():
             success, locs = self._fetch_locations()
             if success and callback:
                 sorted_provinces = sorted(locs.keys())
                 callback(sorted_provinces, locs)
+
         threading.Thread(target=_do, daemon=True).start()
 
     def _fetch_locations(self):

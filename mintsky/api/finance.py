@@ -1,9 +1,12 @@
-import time
 import threading
+import time
+
 import requests
+
 from mintsky.constants import FINANCE_API, FINANCE_CACHE_TTL, TIMEOUT
 
 session = requests.Session()
+
 
 class FinanceAPI:
     def __init__(self):
@@ -15,10 +18,12 @@ class FinanceAPI:
 
     def fetch_bg(self, force=False, callback=None):
         """Arka planda finans çekimi yapar ve tamamlandığında callback(success) çağırır."""
+
         def _do():
             success, _ = self.fetch(force=force)
             if callback:
                 callback(success)
+
         threading.Thread(target=_do, daemon=True).start()
 
     def fetch(self, force=False):
@@ -46,7 +51,7 @@ class FinanceAPI:
             print(f"[MintSky Finans API] Hatası: {e}")
             with self._lock:
                 self._fetching = False
-                
+
         return success, self._data
 
     def get_rate_price(self, kod):
@@ -61,7 +66,7 @@ class FinanceAPI:
                 else:
                     val = r.get("Buying") or r.get("Selling")
                 if isinstance(val, str):
-                    val = val.replace('.', '').replace(',', '.')
+                    val = val.replace(".", "").replace(",", ".")
                 return float(val) if val else None
             except Exception:
                 return None

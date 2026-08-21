@@ -29,16 +29,13 @@ jobs:
       - name: 📦 Kodu İndir
         uses: actions/checkout@v7
 
-      - name: 🐍 Python 3.11 Kurulumu
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-
       - name: 📥 Analiz Araçlarını Yükle
         run: |
-          python -m pip install --upgrade pip --quiet
-          pip install flake8 black isort pyflakes bandit yamllint --quiet
-          echo "✅ Araçlar hazır: flake8 | black | isort | pyflakes | bandit | yamllint"
+          sudo apt-get update -qq
+          sudo apt-get install -y python3-pip python3-pytest python3-pytest-mock python3-gi python3-gi-cairo gir1.2-gtk-3.0 xvfb libcairo2-dev pkg-config
+          python3 -m pip install flake8 black isort pyflakes bandit yamllint --quiet --break-system-packages
+          python3 -m pip install -r requirements.txt --quiet --break-system-packages || true
+          echo "✅ Araçlar hazır"
           
       - name: ⚙️ YAML / Workflow Denetimi (actionlint & yamllint)
         id: yaml_lint
@@ -72,7 +69,7 @@ jobs:
 
           PASS=0; FAIL=0
           for f in "${FILES[@]}"; do
-            if python -m py_compile "$f" 2>/tmp/syn_err.txt; then
+            if python3 -m py_compile "$f" 2>/tmp/syn_err.txt; then
               echo "  ✅ $f"
               PASS=$((PASS+1))
             else
@@ -187,11 +184,8 @@ jobs:
         if: always()
         run: |
           echo "🧪 Testler (pytest) çalıştırılıyor..."
-          sudo apt-get update -qq
-          sudo apt-get install -y libcairo2-dev libgirepository1.0-dev pkg-config python3-dev gir1.2-gtk-3.0 xvfb
-          pip install pytest pytest-mock
-          pip install -e .
-          if xvfb-run -a pytest tests/ -v 2>&1 | tee /tmp/pytest.txt; then
+          export PYTHONPATH="$(pwd)"
+          if xvfb-run -a python3 -m pytest tests/ -v 2>&1 | tee /tmp/pytest.txt; then
             echo "✅ Tüm testler başarıyla geçti."
           else
             echo "❌ Test hatası tespit edildi!"
