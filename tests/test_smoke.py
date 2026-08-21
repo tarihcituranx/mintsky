@@ -13,7 +13,6 @@ def test_app_imports():
     except Exception as e:
         pytest.fail(f"Import failed: {e}")
 
-@pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true", reason="GTK cannot run in headless CI without xvfb")
 def test_app_instantiation():
     """Tests if the app can be instantiated without crashing."""
     import gi
