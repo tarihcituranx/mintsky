@@ -33,23 +33,23 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y python3-pip python3-pytest python3-pytest-mock python3-gi python3-gi-cairo gir1.2-gtk-3.0 xvfb libcairo2-dev pkg-config
-          python3 -m pip install flake8 black isort pyflakes bandit yamllint --quiet --break-system-packages
+          python3 -m pip install flake8 black isort pyflakes bandit yamllint keyring requests groq edge-tts --quiet --break-system-packages
           python3 -m pip install -r requirements.txt --quiet --break-system-packages || true
           echo "✅ Araçlar hazır"
-          
+
       - name: ⚙️ YAML / Workflow Denetimi (actionlint & yamllint)
         id: yaml_lint
         run: |
           echo "🔎 YAML ve GitHub Actions dosyaları kontrol ediliyor..."
           set -o pipefail
-          
+
           echo "1. Yamllint kontrolü..."
           yamllint .github/workflows/ || echo "⚠️ Sadece temel yaml hataları raporlandı."
-          
+
           echo "2. Actionlint kontrolü..."
           bash <(curl -sfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.6.27
           ./actionlint -color || { echo "❌ GitHub Actions YAML hatası!"; exit 1; }
-          
+
           echo "yaml_status=pass" >> "$GITHUB_OUTPUT"
           echo "✅ YAML / Workflow dosyaları sorunsuz."
 
@@ -185,6 +185,7 @@ jobs:
         run: |
           echo "🧪 Testler (pytest) çalıştırılıyor..."
           export PYTHONPATH="$(pwd)"
+          set -o pipefail
           if xvfb-run -a python3 -m pytest tests/ -v 2>&1 | tee /tmp/pytest.txt; then
             echo "✅ Tüm testler başarıyla geçti."
           else
@@ -295,4 +296,4 @@ jobs:
             echo "---"
             echo "*🤖 Bu rapor GitHub Actions tarafından otomatik oluşturulmuştur.*  "
             echo "*⚠️ = Öneri (engellemez) · ❌ = Hata (birleştirmeyi engeller)*"
-          } >> "$GITHUB_STEP_SUMMARY" 
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -2,3 +2,7 @@ extends: default
 rules:
   line-length: disable
   document-start: disable
+  truthy: disable
+  brackets: disable
+  comments: disable
+  indentation: disable

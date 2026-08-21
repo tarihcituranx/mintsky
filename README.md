@@ -67,6 +67,12 @@ mintsky
 * **Konum Sabitleme:** Şehir araması yaptıktan sonra "Sabitle" butonuna basarsanız her açılışta o lokasyonun verileri yüklenir.
 * **Finans Paneli:** Sağ üstteki `Finans` butonundan piyasalara göz atabilirsiniz, ayarlar ekranından portföy entegrasyonlarını yapabilirsiniz.
 
+## 🚀 Yol Haritası (Planlanan Özellikler)
+
+* **Bukalemun Hibrit Mimari:** 
+  * GNOME ve Fedora kullanıcıları için native **GTK4/Libadwaita** desteği.
+  * Windows ve macOS kullanıcıları için **çapraz platform arayüz (PyQt/Tkinter)** desteği (Uygulamanın çalıştırıldığı işletim sistemine göre native arayüz otomatik yüklenecek).
+
 ## 💻 Teknoloji Yığını
 
 | Teknoloji | Tür | Açıklama |

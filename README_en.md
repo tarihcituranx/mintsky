@@ -67,6 +67,12 @@ mintsky
 * **Pin Location:** After searching for a city, click the "Pin" (Sabitle) button to load that location's data by default on every startup.
 * **Finance Dashboard:** Access live markets from the `Finance` button at the top right, and configure your portfolio assets via the settings screen.
 
+## 🚀 Roadmap (Planned Features)
+
+* **Chameleon Hybrid Architecture:** 
+  * Native **GTK4/Libadwaita** support for GNOME and Fedora users.
+  * Native **Cross-Platform GUI (PyQt/Tkinter)** support for Windows and macOS users (The UI will adapt and load automatically based on the host OS).
+
 ## 💻 Technology Stack
 
 | Technology | Type | Description |

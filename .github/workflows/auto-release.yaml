@@ -17,12 +17,12 @@ jobs:
     steps:
       - name: Kodu Çek
         uses: actions/checkout@v7
-        
+
       - name: Python Kur
         uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-          
+
       - name: Bağımlılıkları Yükle
         run: |
           sudo apt-get update
@@ -41,7 +41,7 @@ jobs:
             --hidden-import "gi.repository.Pango" \
             --hidden-import "gi.repository.AppIndicator3" \
             mintsky/main.py
-            
+
           cd dist && tar -czvf MintSky-Linux-x86_64.tar.gz MintSky/
 
       - name: GitHub Release Oluştur
