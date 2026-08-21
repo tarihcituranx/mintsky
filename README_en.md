@@ -27,12 +27,12 @@ MintSky is a next-generation, **GTK3-based desktop weather and assistant applica
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="assets/screenshot1.png" width="48%" alt="MintSky Overview" />
-  <img src="assets/screenshot2.png" width="48%" alt="Hourly and Daily Forecasts" />
+  <img src="assets/scr_main.png" width="48%" alt="MintSky Overview" />
+  <img src="assets/scr_daily.png" width="48%" alt="Hourly and Daily Forecasts" />
 </p>
 <p align="center">
-  <img src="assets/screenshot3.png" width="48%" alt="AI Comments and Details" />
-  <img src="assets/screenshot4.png" width="48%" alt="Live Finance Module" />
+  <img src="assets/scr_ai.png" width="48%" alt="AI Comments and Details" />
+  <img src="assets/scr_finance.png" width="48%" alt="Live Finance Module" />
 </p>
 
 ## ⚙️ Installation & Usage

@@ -27,12 +27,12 @@ MintSky, Linux masaüstü ortamları (özellikle Linux Mint, Ubuntu, Debian tür
 ## 📸 Ekran Görüntüleri
 
 <p align="center">
-  <img src="assets/screenshot1.png" width="48%" alt="MintSky Genel Bakış" />
-  <img src="assets/screenshot2.png" width="48%" alt="Saatlik ve Günlük Tahminler" />
+  <img src="assets/scr_main.png" width="48%" alt="MintSky Genel Bakış" />
+  <img src="assets/scr_daily.png" width="48%" alt="Saatlik ve Günlük Tahminler" />
 </p>
 <p align="center">
-  <img src="assets/screenshot3.png" width="48%" alt="Yapay Zeka Yorumları ve Detaylar" />
-  <img src="assets/screenshot4.png" width="48%" alt="Canlı Finans Modülü" />
+  <img src="assets/scr_ai.png" width="48%" alt="Yapay Zeka Yorumları ve Detaylar" />
+  <img src="assets/scr_finance.png" width="48%" alt="Canlı Finans Modülü" />
 </p>
 
 ## ⚙️ Kurulum & Çalıştırma
