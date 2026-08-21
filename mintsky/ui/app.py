@@ -22,6 +22,7 @@ try:
     HAS_NOTIFY = True
 except Exception:
     HAS_NOTIFY = False
+gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 try:
