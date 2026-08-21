@@ -4,9 +4,11 @@ on:
   push:
     paths:
       - "**.py"
+      - "**.yaml"
   pull_request:
     paths:
       - "**.py"
+      - "**.yaml"
 
 # Aynı dal için eski çalışmaları iptal et
 concurrency:
