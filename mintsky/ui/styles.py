@@ -51,6 +51,27 @@ def make_css(scale_val, theme="dark"):
 * {{ font-family:"Inter","Noto Sans","Ubuntu","Cantarell",sans-serif; font-size:{fs(15)}px; }}
 #main-win {{ background-color:{bg}; }}
 
+/* ─── Scrollbars (BiP Style Sleek Overlay) ─── */
+scrollbar {{
+    background-color: transparent;
+    -GtkScrollbar-has-backward-stepper: false;
+    -GtkScrollbar-has-forward-stepper: false;
+}}
+scrollbar trough {{
+    background-color: transparent;
+    border: none;
+}}
+scrollbar slider {{
+    background-color: alpha({text_main}, 0.20);
+    border-radius: 6px;
+    border: none;
+    min-width: 6px;
+    min-height: 20px;
+}}
+scrollbar slider:hover {{
+    background-color: {text_accent};
+}}
+
 /* ─── Header ─── */
 .hdr {{ background:{hdr_grad}; padding:{fs(14)}px {fs(18)}px {fs(10)}px {fs(18)}px;
         border-bottom:2px solid {border};

@@ -1733,7 +1733,13 @@ class MintSkyApp(Gtk.Window):
             destroy_with_parent=True,
         )
         dlg.get_style_context().add_class("mintsky-dialog")
-        dlg.set_default_size(500, 480)
+        dlg.set_default_size(520, 500)
+        dlg.set_resizable(False)
+        if self:
+            dlg.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
+        else:
+            dlg.set_position(Gtk.WindowPosition.CENTER)
+
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
         hb.set_title(f"MintSky v{VERSIYON}")
@@ -1741,13 +1747,14 @@ class MintSkyApp(Gtk.Window):
         dlg.set_titlebar(hb)
 
         content = dlg.get_content_area()
-        sc = Gtk.ScrolledWindow()
-        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        vbox.set_margin_start(18)
-        vbox.set_margin_end(18)
-        vbox.set_margin_top(14)
-        vbox.set_margin_bottom(14)
+        content.set_spacing(0)
+        content.set_border_width(0)
+
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        main_box.set_margin_start(20)
+        main_box.set_margin_end(20)
+        main_box.set_margin_top(14)
+        main_box.set_margin_bottom(16)
 
         card = Gtk.Frame()
         card.get_style_context().add_class("about-card")
@@ -1776,7 +1783,7 @@ class MintSkyApp(Gtk.Window):
         b_lbl.set_halign(Gtk.Align.START)
         c_box.pack_start(b_lbl, False, False, 0)
         card.add(c_box)
-        vbox.pack_start(card, False, False, 0)
+        main_box.pack_start(card, False, False, 0)
 
         card_past = Gtk.Frame()
         card_past.get_style_context().add_class("about-disclaimer")
@@ -1801,18 +1808,15 @@ class MintSkyApp(Gtk.Window):
         pt_lbl.set_halign(Gtk.Align.START)
         p_box.pack_start(pt_lbl, False, False, 0)
         card_past.add(p_box)
-        vbox.pack_start(card_past, False, False, 0)
-
-        sc.add(vbox)
-        content.pack_start(sc, True, True, 0)
+        main_box.pack_start(card_past, False, False, 0)
 
         btn_close = Gtk.Button(label="Kapat")
         btn_close.get_style_context().add_class("about-btn")
         btn_close.set_halign(Gtk.Align.CENTER)
-        btn_close.set_margin_top(8)
-        btn_close.set_margin_bottom(12)
         btn_close.connect("clicked", lambda _: dlg.response(Gtk.ResponseType.CLOSE))
-        content.pack_start(btn_close, False, False, 0)
+        main_box.pack_start(btn_close, False, False, 4)
+
+        content.pack_start(main_box, True, True, 0)
 
         dlg.show_all()
         dlg.run()
