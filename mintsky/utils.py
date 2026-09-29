@@ -168,6 +168,40 @@ EMOJI_TO_SVG = {
     "🌡️": "unknown",
 }
 
+SVG_TO_EMOJI = {
+    "clear-day": "☀️",
+    "clear-night": "🌙",
+    "partly-cloudy-day": "🌤️",
+    "partly-cloudy-night": "🌙☁️",
+    "cloudy": "☁️",
+    "overcast": "☁️",
+    "fog": "🌫️",
+    "rain": "🌧️",
+    "drizzle": "🌦️",
+    "thunderstorm": "⛈️",
+    "snow": "❄️",
+    "wind": "💨",
+    "wind_breeze": "🍃",
+    "wind_strong": "💨",
+    "wind_gale": "🌪️",
+    "wind_storm": "🌪️",
+    "wind_hurricane": "🌀",
+    "unknown": "🌤️",
+}
+
+
+def svg_to_emoji(val):
+    """Converts SVG asset names, icon slugs or emojis into a clean emoji string."""
+    if not val:
+        return "🌤️"
+    v = str(val).strip()
+    if v in SVG_TO_EMOJI:
+        return SVG_TO_EMOJI[v]
+    # If the string contains no ASCII alphabetic characters, assume it's already an emoji
+    if not any(c.isascii() and c.isalpha() for c in v):
+        return v
+    return "🌤️"
+
 
 def hadise_mgm(kod, is_night=False):
     icon, label, desc = HADISE.get(kod) or ("🌡️", kod or "—", "")
@@ -186,6 +220,7 @@ def hadise_wmo(kod, is_night=False):
     if is_night:
         icon = icon.replace("☀️", "🌙").replace("🌤️", "🌙☁️").replace("⛅", "☁️")
     return EMOJI_TO_SVG.get(icon, "unknown"), _(label), _(desc)
+
 
 
 # ─── CSS ──────────────────────────────────────────────────────────────────

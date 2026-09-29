@@ -112,11 +112,12 @@ def test_tray_menu_shows_current_city_and_weather(monkeypatch):
 
     app = MintSkyApp()
     try:
-        app._apply_tray_data("🌧️", "19", "Samsun / Atakum", 51, "Hafif Sağanak Yağışlı", "19", "88", "6 km/h · Hafif KB")
+        app._apply_tray_data("drizzle", "19", "Samsun / Atakum", 51, "Hafif Sağanak Yağışlı", "19", "88", "6 km/h · Hafif KB")
         menu = app._build_tray_menu()
         labels = [item.get_label() for item in menu.get_children() if hasattr(item, "get_label") and item.get_label()]
         assert any("📍 Samsun / Atakum" in l for l in labels)
-        assert any("19°C · Hafif Sağanak Yağışlı" in l for l in labels)
+        assert any("🌦️ 19°C · Hafif Sağanak Yağışlı" in l for l in labels)
+        assert not any("drizzle" in l.lower() for l in labels)
         assert any("Hissedilen: 19°" in l for l in labels)
         assert any("💧 %88" in l for l in labels)
     finally:

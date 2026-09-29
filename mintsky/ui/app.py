@@ -103,6 +103,7 @@ from mintsky.utils import (
     get_svg_image,
     hadise_mgm,
     hadise_wmo,
+    svg_to_emoji,
     val,
     wind_level_key,
     yon,
@@ -2243,7 +2244,7 @@ class MintSkyApp(Gtk.Window):
 
         temp_str = getattr(self, "_tray_temp", None)
         desc_str = getattr(self, "_tray_desc", None)
-        emoji_str = getattr(self, "_tray_emoji", "🌤️")
+        emoji_str = svg_to_emoji(getattr(self, "_tray_emoji", "🌤️"))
         if temp_str and temp_str not in ("-", "--", None):
             cond_label = f"{emoji_str} {temp_str}°C"
             if desc_str and desc_str not in ("-", "--", None):
@@ -2430,7 +2431,8 @@ class MintSkyApp(Gtk.Window):
         nem_txt="-",
         ruzgar_txt="-",
     ):
-        self._tray_emoji = emoji
+        clean_emoji = svg_to_emoji(emoji)
+        self._tray_emoji = clean_emoji
         self._tray_temp = temp_txt
         self._tray_sehir = sehir
         self._tray_desc = kisa_desc
@@ -2443,7 +2445,7 @@ class MintSkyApp(Gtk.Window):
             else TRAY_ICONS.get(icon_key, "weather-clear")
         )
         icon_name = _safe_icon(raw)
-        tooltip_text = f"MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
+        tooltip_text = f"MintSky | {sehir}\n{clean_emoji} {temp_txt}° | {kisa_desc}"
         tooltip_text += f"\n🌡️ {_('lbl_feels_like')}: {his_txt}°\n💧 {_('lbl_humidity')}: %{nem_txt}\n🌬️ {_('lbl_wind')}: {ruzgar_txt}"
 
         title_text = f"{sehir} {temp_txt}° · {kisa_desc}"
