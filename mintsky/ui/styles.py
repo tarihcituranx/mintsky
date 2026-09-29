@@ -163,6 +163,18 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
     font-weight: 500;
 }}
 
+.about-section-header {{
+    font-weight: bold;
+    font-size: {fs(11)}px;
+    color: {text_accent};
+}}
+
+.about-changelog-header {{
+    font-weight: 800;
+    font-size: {fs(15)}px;
+    color: {text_accent};
+}}
+
 .about-src-text {{
     color: {text_sub};
     font-size: {fs(12)}px;
@@ -171,6 +183,26 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 .about-changelog-text {{
     color: {text_main};
     font-size: {fs(13)}px;
+}}
+
+.about-card linkbutton,
+.about-disclaimer linkbutton {{
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}}
+.about-card linkbutton label,
+.about-disclaimer linkbutton label {{
+    color: {text_accent};
+    font-weight: 600;
+}}
+
+.about-card .dim-label,
+.about-disclaimer .dim-label,
+.dim-label {{
+    color: {text_mut};
+    font-size: {fs(12)}px;
 }}
 
 .badge-version {{

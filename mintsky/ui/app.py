@@ -249,10 +249,8 @@ class MintSkyAboutDialog(Gtk.Dialog):
         src_box.set_margin_top(8)
         src_box.set_margin_bottom(8)
 
-        lbl_src_h = Gtk.Label()
-        lbl_src_h.set_markup(
-            '<span font_weight="bold" font_size="8500" foreground="#38bdf8">🛰️ VERİ VE ENTEGRASYON SERVİSLERİ</span>'
-        )
+        lbl_src_h = Gtk.Label(label="🛰️ VERİ VE ENTEGRASYON SERVİSLERİ")
+        lbl_src_h.get_style_context().add_class("about-section-header")
         lbl_src_h.set_halign(Gtk.Align.START)
         src_box.pack_start(lbl_src_h, False, False, 0)
 
@@ -1759,8 +1757,8 @@ class MintSkyApp(Gtk.Window):
         c_box.set_margin_top(10)
         c_box.set_margin_bottom(10)
 
-        h_lbl = Gtk.Label()
-        h_lbl.set_markup(f"<span weight='bold' size='large' color='#38bdf8'>🚀 v{VERSIYON} İyileştirmeleri</span>")
+        h_lbl = Gtk.Label(label=f"🚀 v{VERSIYON} İyileştirmeleri")
+        h_lbl.get_style_context().add_class("about-changelog-header")
         h_lbl.set_halign(Gtk.Align.START)
         c_box.pack_start(h_lbl, False, False, 0)
 
@@ -1788,8 +1786,8 @@ class MintSkyApp(Gtk.Window):
         p_box.set_margin_top(8)
         p_box.set_margin_bottom(8)
 
-        ph_lbl = Gtk.Label()
-        ph_lbl.set_markup("<span weight='bold' color='#94a3b8'>📦 Geçmiş Sürümler</span>")
+        ph_lbl = Gtk.Label(label="📦 Geçmiş Sürümler")
+        ph_lbl.get_style_context().add_class("about-section-header")
         ph_lbl.set_halign(Gtk.Align.START)
         p_box.pack_start(ph_lbl, False, False, 0)
 
