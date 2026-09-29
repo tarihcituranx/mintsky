@@ -2225,6 +2225,78 @@ class MintSkyApp(Gtk.Window):
 
     def _build_tray_menu(self):
         menu = Gtk.Menu()
+
+        # ── 1. Mevcut Tanımlı / Aktif Konum & Anlık Hava Durumu Başlığı ──
+        cur_city = getattr(self, "_tray_sehir", None)
+        if not cur_city:
+            cur_city = f"{self._def_il} / {self._def_ilce}" if self._def_ilce else self._def_il
+
+        is_def = (
+            getattr(self, "_cur_il", "") == self._def_il
+            and (not self._def_ilce or getattr(self, "_cur_ilce", "") == self._def_ilce)
+        )
+        tag_str = " (Tanımlı Konum)" if is_def else ""
+
+        m_city = Gtk.MenuItem.new_with_label(f"📍 {cur_city}{tag_str}")
+        m_city.connect("activate", self._tray_toggle)
+        menu.append(m_city)
+
+        temp_str = getattr(self, "_tray_temp", None)
+        desc_str = getattr(self, "_tray_desc", None)
+        emoji_str = getattr(self, "_tray_emoji", "🌤️")
+        if temp_str and temp_str not in ("-", "--", None):
+            cond_label = f"{emoji_str} {temp_str}°C"
+            if desc_str and desc_str not in ("-", "--", None):
+                cond_label += f" · {desc_str}"
+            m_cond = Gtk.MenuItem.new_with_label(cond_label)
+            m_cond.connect("activate", self._tray_toggle)
+            menu.append(m_cond)
+
+        # Detaylar: Hissedilen, Nem, Rüzgar
+        details = []
+        his_str = getattr(self, "_tray_hissedilen", None)
+        if his_str and his_str not in ("-", "--", None):
+            details.append(f"🌡️ Hissedilen: {his_str}°")
+        nem_str = getattr(self, "_tray_nem", None)
+        if nem_str and nem_str not in ("-", "--", None):
+            details.append(f"💧 %{nem_str}")
+        ruzgar_str = getattr(self, "_tray_ruzgar", None)
+        if ruzgar_str and ruzgar_str not in ("-", "--", None):
+            details.append(f"🌬️ {ruzgar_str}")
+
+        if details:
+            m_det = Gtk.MenuItem.new_with_label("   ".join(details))
+            m_det.set_sensitive(False)
+            menu.append(m_det)
+
+        # Ekstra hava parametreleri (Basınç, UV, Yağış Olasılığı)
+        if getattr(self, "_last_render_data", None):
+            extra = []
+            if self._last_render_data.get("basinc"):
+                extra.append(f"⏱️ {self._last_render_data['basinc']:.0f} hPa")
+            if self._last_render_data.get("uv") is not None:
+                extra.append(f"☀️ UV {self._last_render_data['uv']:.1f}")
+            if self._last_render_data.get("yagis_olas") is not None and self._last_render_data["yagis_olas"] > 0:
+                extra.append(f"🌧️ %{self._last_render_data['yagis_olas']:.0f} Yağış")
+            if extra:
+                m_extra = Gtk.MenuItem.new_with_label("   ".join(extra))
+                m_extra.set_sensitive(False)
+                menu.append(m_extra)
+
+        # MGM Aktif Uyarılar (Varsa ve Türkçe ise):
+        if getattr(self, "_last_render_data", None) and self._language == "tr":
+            uyarilar = self._last_render_data.get("uyarilar", [])
+            if uyarilar:
+                menu.append(Gtk.SeparatorMenuItem())
+                for u in uyarilar[:2]:
+                    u_title = u.get("baslik", "Meteorolojik Uyarı")
+                    m_warn = Gtk.MenuItem.new_with_label(f"⚠️ {u_title}")
+                    m_warn.connect("activate", self._tray_toggle)
+                    menu.append(m_warn)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # ── 2. Canlı Ölçüm Saatleri ──
         ts_list = getattr(self, "_weather_timestamps", [])
         if ts_list:
             for ts_item in ts_list:
@@ -2243,21 +2315,64 @@ class MintSkyApp(Gtk.Window):
             menu.append(m_time)
             menu.append(Gtk.SeparatorMenuItem())
 
-        if hasattr(self, "_tray_hissedilen"):
-            m1 = Gtk.MenuItem.new_with_label(f"🌡️ Hissedilen: {self._tray_hissedilen}°")
-            m1.set_sensitive(False)
-            menu.append(m1)
+        # ── 3. Hızlı Konum & Favoriler ──
+        def_loc_str = f"{self._def_il} / {self._def_ilce}" if self._def_ilce else self._def_il
+        if getattr(self, "_cur_il", None) and (self._cur_il != self._def_il or (self._cur_ilce and self._cur_ilce != self._def_ilce)):
+            m_back_def = Gtk.MenuItem.new_with_label(f"📌 Tanımlı Şehre Dön ({def_loc_str})")
+            m_back_def.connect("activate", lambda *_: self._load_default_city())
+            menu.append(m_back_def)
 
-            m2 = Gtk.MenuItem.new_with_label(f"💧 Nem: %{self._tray_nem}")
-            m2.set_sensitive(False)
-            menu.append(m2)
+        # Favori Şehirler Alt Menüsü:
+        favs = self._get_favs() if hasattr(self, "_get_favs") else []
+        if favs:
+            fav_item = Gtk.MenuItem.new_with_label("⭐ Favori Konumlar")
+            fav_sub = Gtk.Menu()
+            fav_item.set_submenu(fav_sub)
+            for f in favs:
+                lbl = f"{f['il']} / {f['ilce']}" if f.get("ilce") else f["il"]
+                it = Gtk.MenuItem.new_with_label(f"📍 {lbl}")
+                it.connect("activate", lambda _, fav=f: self._load_favorite_and_present(fav))
+                fav_sub.append(it)
+            menu.append(fav_item)
 
-            m3 = Gtk.MenuItem.new_with_label(f"🌬️ Rüzgar: {self._tray_ruzgar}")
-            m3.set_sensitive(False)
-            menu.append(m3)
+        # GPS ile Konum Bul:
+        m_gps = Gtk.MenuItem.new_with_label("🧭 GPS ile Konumumu Bul")
+        m_gps.connect("activate", lambda *_: (self._fetch_location(), self.show(), self.present()))
+        menu.append(m_gps)
 
-            menu.append(Gtk.SeparatorMenuItem())
+        menu.append(Gtk.SeparatorMenuItem())
 
+        # ── 4. Canlı Piyasa & Finans (Eğer Finans Etkinse) ──
+        if self._show_finance and hasattr(self, "finance_api") and getattr(self.finance_api, "_data", None):
+            rates = self.finance_api._data
+            if rates:
+                fin_item = Gtk.MenuItem.new_with_label(f"💰 {_('btn_finance')} (Canlı Kurlar)")
+                fin_sub = Gtk.Menu()
+                fin_item.set_submenu(fin_sub)
+
+                quick_keys = [
+                    ("USD", "💵 Dolar"),
+                    ("EUR", "💶 Euro"),
+                    ("GRA", "🪙 Gram Altın"),
+                    ("BTC", "₿ Bitcoin"),
+                ]
+                for code, label_name in quick_keys:
+                    if code in rates and isinstance(rates[code], dict):
+                        val_txt = rates[code].get("alis") or rates[code].get("fiyat") or rates[code].get("satis") or "-"
+                        unit = "$" if code == "BTC" else "₺"
+                        r_it = Gtk.MenuItem.new_with_label(f"{label_name}: {val_txt} {unit}")
+                        r_it.set_sensitive(False)
+                        fin_sub.append(r_it)
+
+                fin_sub.append(Gtk.SeparatorMenuItem())
+                port_it = Gtk.MenuItem.new_with_label("💼 Portföy Yönetimi & Detaylar...")
+                port_it.connect("activate", lambda *_: self._show_portfolio_dialog())
+                fin_sub.append(port_it)
+
+                menu.append(fin_item)
+                menu.append(Gtk.SeparatorMenuItem())
+
+        # ── 5. Temel Uygulama İşlemleri ──
         show = Gtk.MenuItem.new_with_label(f"🪟 {_('tray_show_hide')}")
         show.connect("activate", self._tray_toggle)
         menu.append(show)
@@ -2266,19 +2381,20 @@ class MintSkyApp(Gtk.Window):
         refresh.connect("activate", lambda *_: self._search(force=True))
         menu.append(refresh)
 
-        menu.append(Gtk.SeparatorMenuItem())
-
-        if self._show_finance:
-            fin_item = Gtk.MenuItem.new_with_label(f"💰 {_('btn_finance')}")
-            fin_item.connect("activate", self._show_portfolio_dialog)
-            menu.append(fin_item)
-            menu.append(Gtk.SeparatorMenuItem())
+        if hasattr(self, "_show_groq_ai_dialog") and getattr(self, "_groq_key", None):
+            ai_item = Gtk.MenuItem.new_with_label("🤖 Groq AI Danışmanı")
+            ai_item.connect("activate", lambda *_: self._show_groq_ai_dialog())
+            menu.append(ai_item)
 
         update_chk = Gtk.MenuItem.new_with_label(f"🔄 {_('tray_update')}")
         update_chk.connect(
             "activate", lambda *_: self._check_for_updates_bg(forced=True)
         )
         menu.append(update_chk)
+
+        settings_it = Gtk.MenuItem.new_with_label(f"⚙️ {_('btn_settings')}")
+        settings_it.connect("activate", self._show_settings)
+        menu.append(settings_it)
 
         ab = Gtk.MenuItem.new_with_label(f"ℹ️ {_('app_about') if _('app_about') != 'app_about' else 'Hakkında'}")
         ab.connect("activate", self._show_about)
@@ -2291,6 +2407,18 @@ class MintSkyApp(Gtk.Window):
         menu.show_all()
         return menu
 
+    def _load_default_city(self):
+        self.il_entry.set_text(self._def_il)
+        self.ilce_entry.set_text(self._def_ilce)
+        self._search(force=True)
+        self.show()
+        self.present()
+
+    def _load_favorite_and_present(self, fav):
+        self._load_favorite(None, fav)
+        self.show()
+        self.present()
+
     def _apply_tray_data(
         self,
         emoji,
@@ -2302,6 +2430,10 @@ class MintSkyApp(Gtk.Window):
         nem_txt="-",
         ruzgar_txt="-",
     ):
+        self._tray_emoji = emoji
+        self._tray_temp = temp_txt
+        self._tray_sehir = sehir
+        self._tray_desc = kisa_desc
         self._tray_hissedilen = his_txt
         self._tray_nem = nem_txt
         self._tray_ruzgar = ruzgar_txt
@@ -3145,18 +3277,17 @@ class MintSkyApp(Gtk.Window):
                 timestamp_parts.append(f"{source}: {fmt_dt(value)}")
         self._weather_timestamps = timestamp_parts
 
-        if self._cur_il == self._def_il and self._cur_ilce == self._def_ilce:
-            ttxt = f"{sicak:.0f}" if sicak not in (-9999, None) else "--"
-            h_str = f"{his:.0f}" if his not in (-9999, None) else "--"
-            n_str = f"{nem_val:.0f}" if nem_val not in (-9999, None) else "--"
-            r_str = (
-                self._format_wind(ruzgar_hiz, ruzgar_yon)
-                if ruzgar_hiz not in (-9999, None)
-                else "--"
-            )
-            self._apply_tray_data(
-                emoji, ttxt, sehir, h_kod_for_tray, kisa, h_str, n_str, r_str
-            )
+        ttxt = f"{sicak:.0f}" if sicak not in (-9999, None) else "--"
+        h_str = f"{his:.0f}" if his not in (-9999, None) else "--"
+        n_str = f"{nem_val:.0f}" if nem_val not in (-9999, None) else "--"
+        r_str = (
+            self._format_wind(ruzgar_hiz, ruzgar_yon)
+            if ruzgar_hiz not in (-9999, None)
+            else "--"
+        )
+        self._apply_tray_data(
+            emoji, ttxt, sehir, h_kod_for_tray, kisa, h_str, n_str, r_str
+        )
 
         self.compact_content.pack_start(card, False, False, 0)
 
