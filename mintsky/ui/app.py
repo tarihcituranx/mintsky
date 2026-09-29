@@ -1927,14 +1927,14 @@ class MintSkyApp(Gtk.Window):
         if HAS_INDICATOR:
             self._indicator = AppIndicator3.Indicator.new(
                 "MintSky",
-                "clear-day",
+                _safe_icon("weather-clear"),
                 AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
             )
             self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
             self._indicator.set_menu(self._build_tray_menu())
         else:
             self._tray = Gtk.StatusIcon()
-            self._tray.set_from_icon_name("clear-day")
+            self._tray.set_from_icon_name(_safe_icon("weather-clear"))
             self._tray.connect("activate", self._tray_toggle)
             self._tray.connect("popup-menu", self._tray_popup)
 
@@ -2018,17 +2018,7 @@ class MintSkyApp(Gtk.Window):
             if isinstance(icon_key, int)
             else TRAY_ICONS.get(icon_key, "weather-clear")
         )
-        # Use the bundled, consistent weather set instead of whichever legacy
-        # weather icon names happen to be installed by the desktop theme.
-        bundled_icon = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "assets", "weather", f"{emoji}.svg",
-        )
-        icon_name = (
-            os.path.splitext(os.path.basename(bundled_icon))[0]
-            if os.path.isfile(bundled_icon)
-            else _safe_icon(raw)
-        )
+        icon_name = _safe_icon(raw)
         tooltip_text = f"MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
         tooltip_text += f"\n🌡️ Hissedilen: {his_txt}°\n💧 Nem: %{nem_txt}\n🌬️ Rüzgar: {ruzgar_txt}"
 
