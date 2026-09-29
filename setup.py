@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="mintsky",
-    version="7.3.0",
+    version="7.4.0",
     description="Linux Mint Masaüstü & Görev Çubuğu Hava Durumu, AQI, Finans ve AI Asistan Uygulaması",
     author="Turan Kaya (tarihcituranx)",
     url="https://github.com/tarihcituranx",

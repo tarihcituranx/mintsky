@@ -11,11 +11,14 @@ Lisans      : MIT
 """
 
 import json
+import math
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import gi
 
+gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, Gtk
 
@@ -23,6 +26,14 @@ from .constants import HADISE, WMO_HADISE, YONLER
 from .i18n import _
 
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
+TR_TIMEZONE = ZoneInfo("Europe/Istanbul")
+
+
+def _format_tr_time(value, pattern):
+    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(TR_TIMEZONE)
+    return dt.strftime(pattern)
 
 
 def get_svg_image(icon_name, size=24, folder="weather"):
@@ -86,24 +97,16 @@ def fmt_date(iso):
 
 def fmt_time(iso_z):
     try:
-        return (
-            datetime.fromisoformat(iso_z.replace("Z", "+00:00"))
-            .astimezone()
-            .strftime("%H:%M")
-        )
+        return _format_tr_time(iso_z, "%H:%M")
     except (ValueError, TypeError, AttributeError):
-        return str(iso_z)[11:16]
+        return str(iso_z)
 
 
 def fmt_dt(iso_z):
     try:
-        return (
-            datetime.fromisoformat(iso_z.replace("Z", "+00:00"))
-            .astimezone()
-            .strftime("%d.%m.%Y %H:%M")
-        )
+        return _format_tr_time(iso_z, "%d.%m.%Y %H:%M")
     except (ValueError, TypeError, AttributeError):
-        return str(iso_z)[:16]
+        return str(iso_z)
 
 
 def val(v, fmt="{:.0f}", suffix=""):
@@ -122,6 +125,30 @@ def fmt_pct(v):
         return "—"
     sign = "+" if v >= 0 else ""
     return f"{sign}{v:.2f}%"
+
+
+def wind_level_key(speed):
+    """Return the localized Beaufort-style label key used by the MGM guide."""
+    try:
+        speed = float(speed)
+        if not math.isfinite(speed) or speed < 0:
+            return None
+    except (TypeError, ValueError):
+        return None
+    thresholds = (
+        (2, "wind_calm"),
+        (6, "wind_breeze"),
+        (12, "wind_light"),
+        (20, "wind_mild"),
+        (29, "wind_moderate"),
+        (39, "wind_fresh"),
+        (50, "wind_strong"),
+        (62, "wind_near_gale"),
+        (75, "wind_gale"),
+        (89, "wind_strong_gale"),
+        (103, "wind_storm"),
+    )
+    return next((key for limit, key in thresholds if speed < limit), "wind_hurricane")
 
 
 EMOJI_TO_SVG = {

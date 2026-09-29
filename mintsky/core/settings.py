@@ -4,6 +4,7 @@ import os
 import keyring
 
 from mintsky.constants import CONFIG_DIR, SETTING_FILE
+from mintsky.core.storage import save_json_atomic
 
 
 def load_settings():
@@ -35,6 +36,7 @@ def load_settings():
 
 def save_settings(data):
     os.makedirs(CONFIG_DIR, exist_ok=True)
+    data = dict(data)
 
     keyring_failed = False
     if "groq_api_key" in data:
@@ -47,7 +49,6 @@ def save_settings(data):
         except Exception:
             keyring_failed = True
 
-    with open(SETTING_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+    save_json_atomic(SETTING_FILE, data)
 
     return not keyring_failed

@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek/hybrid + Groq AI Hava Danışmanı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 7.0
+Versiyon    : 7.4.0
 Lisans      : MIT
 """
 
@@ -39,6 +39,7 @@ except Exception:
     except Exception:
         HAS_INDICATOR = False
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -103,6 +104,7 @@ from mintsky.utils import (
     hadise_mgm,
     hadise_wmo,
     val,
+    wind_level_key,
     yon,
 )
 
@@ -153,6 +155,8 @@ class MintSkyApp(Gtk.Window):
         self._weather_cache_ts = 0.0
         self._weather_cache_key = ""  # "il|ilce"
         self._fetch_in_progress = False  # eş zamanlı fetch engeli
+        self._weather_request_id = 0
+        self._finance_section = None
 
         # ── Finans API ─────────────────────────────────────────────────────
         self.finance_api = FinanceAPI()
@@ -205,11 +209,51 @@ class MintSkyApp(Gtk.Window):
         threading.Thread(target=self._check_update, daemon=True).start()
 
         self.show_all()
+        if not self._start_as_widget:
+            self.maximize()
         GLib.idle_add(self._initial_search)
         self._tray_update_loop()
         GLib.timeout_add_seconds(60, self._tray_update_loop)
         # Finans: her 2 dakikada güncelle
         GLib.timeout_add_seconds(120, self._schedule_finance_refresh)
+
+    @staticmethod
+    def _format_wind(speed, direction=""):
+        try:
+            numeric_speed = float(speed)
+            if not (-9998 < numeric_speed < 10000):
+                return "—"
+        except (TypeError, ValueError):
+            return "—"
+        level = _(wind_level_key(numeric_speed))
+        return f"{numeric_speed:.0f} km/h · {level} {direction}".strip()
+
+    @staticmethod
+    def _mgm_alert_matches_city(alert, city):
+        title = str(alert.get("baslik", ""))
+        if str(alert.get("il", "")).casefold() == city.casefold():
+            return True
+        if city.casefold() in title.casefold():
+            return True
+        coastal_regions = {
+            "karadeniz": {
+                "Artvin", "Rize", "Trabzon", "Giresun", "Ordu", "Samsun",
+                "Sinop", "Kastamonu", "Bartın", "Zonguldak", "Düzce", "Sakarya",
+            },
+            "marmara": {
+                "İstanbul", "Tekirdağ", "Edirne", "Kırklareli", "Bursa",
+                "Balıkesir", "Çanakkale", "Kocaeli", "Sakarya", "Yalova",
+            },
+            "kuzey ege": {"Çanakkale", "Balıkesir", "İzmir"},
+            "güney ege": {"İzmir", "Aydın", "Muğla"},
+            "akdeniz": {"Antalya", "Mersin", "Adana", "Hatay"},
+        }
+        title_folded = title.casefold()
+        return any(
+            region in title_folded
+            and city.casefold() in {name.casefold() for name in cities}
+            for region, cities in coastal_regions.items()
+        )
 
     # ──────────────────── Başlangıç ────────────────────────────────────────
     def _initial_search(self):
@@ -382,11 +426,9 @@ class MintSkyApp(Gtk.Window):
     def _schedule_finance_refresh(self):
         """GLib timer callback — arka planda finans güncelle"""
         if self._show_finance:
-
             def _cb(success):
                 if success:
-                    GLib.idle_add(self._render_from_cache)
-
+                    GLib.idle_add(self._refresh_finance_section)
             self.finance_api.fetch_bg(force=False, callback=_cb)
         return True  # devam et
 
@@ -404,9 +446,23 @@ class MintSkyApp(Gtk.Window):
                     or False
                 )
             if success:
-                GLib.idle_add(self._render_from_cache)
+                GLib.idle_add(self._refresh_finance_section)
 
         self.finance_api.fetch_bg(force=True, callback=_cb)
+
+    def _on_finance_fetched(self, success):
+        if success:
+            GLib.idle_add(self._refresh_finance_section)
+
+    def _refresh_finance_section(self):
+        if not self._show_finance or self._is_compact or not hasattr(self, "content"):
+            return False
+        with self.finance_api._lock:
+            rates = dict(self.finance_api._data)
+        if rates:
+            self._render_finance_main(rates)
+            self._finance_section.show_all()
+        return False
 
     # ──────────────────── Portföy hesaplama ────────────────────────────────
     def _calc_portfolio_pnl(self):
@@ -1154,20 +1210,31 @@ class MintSkyApp(Gtk.Window):
             self._save_settings()
             self._apply_css()
             if old_lang != self._language:
-                self._msg_dialog(
-                    None, _("restart_required_title"), _("restart_required_msg")
-                )
+                dlg.destroy()
+                GLib.timeout_add(150, self._restart_for_language_change)
+                return
             self._apply_autostart_logic()
             with self.finance_api._lock:
                 has_fin = bool(self.finance_api._data)
             if self._show_finance and not has_fin:
-                self.finance_api.fetch_bg()
+                self.finance_api.fetch_bg(callback=self._on_finance_fetched)
             if self._api_source != old_api_source:
                 self._weather_cache = None
                 GLib.idle_add(lambda: self._search(force=True))
             else:
                 GLib.idle_add(self._render_from_cache)
         dlg.destroy()
+
+    def _restart_for_language_change(self):
+        """Reload translated interface strings after a language change."""
+        try:
+            os.execv(
+                sys.executable,
+                [sys.executable, self.script_path, *sys.argv[1:]],
+            )
+        except OSError as exc:
+            print(f"[MintSky] Dil değişikliğinden sonra yeniden başlatılamadı: {exc}")
+        return False
 
     # ──────────────────── Portföy Yönetim Diyaloğu ─────────────────────────
     def _show_portfolio_dialog(self, *args):
@@ -1446,14 +1513,13 @@ class MintSkyApp(Gtk.Window):
             text="Sürüm Notları",
         )
         dlg.format_secondary_markup(
-            f"<b>v{VERSIYON} (Bu Sürüm) — Güncel versiyon</b>\n"
-            "• 🎨 <b>MintSky Grafik Devrimi</b> — Hava durumu ve finans menüsü SVG ikonlarla tamamen yenilendi.\n"
-            "• 🌐 <b>Çoklu Dil Desteği (i18n)</b> — Yabancı dil destekli altyapı ve gelişmiş çeviriler.\n"
-            "• 🌗 <b>Karanlık/Aydınlık Tema</b> — Ayarlar'dan seçilebilen gelişmiş tema altyapısı.\n"
-            "• 📡 <b>MGM &amp; Open-Meteo Hibrit API</b> — Kesintisiz profesyonel veri ve rate-limit düzeltmeleri.\n"
-            "• 💰 <b>Finans &amp; Portföy Modülü</b> — Altın/döviz fiyatları ve cüzdan takibi (widget destekli).\n"
-            "• 🤖 <b>AI Danışman</b> — Gelişmiş yapay zeka entegrasyonu ile hava durumu analizleri.\n"
-            "• 🔄 <b>Widget &amp; Sistem Tepsisi (Tray)</b> — Artış/azalış oranları ve sistem tepsisi eklentileri.\n\n"
+            f"<b>v{VERSIYON} — İyileştirmeler</b>\n"
+            "• 🎨 Arayüz tipografisi ve kart yoğunluğu yenilendi; tray/widget hava ikonları ortak SVG setine alındı.\n"
+            "• 🌐 Dil değişikliği artık yeniden başlatılarak tam uygulanıyor; İngilizce hava durumu etiketleri düzeltildi.\n"
+            "• 📍 Konum bulma GeoClue, yaklaşık IP konumu ve MGM'nin en yakın istasyon verisini kullanıyor.\n"
+            "• 🌬️ Rüzgâr hızları doğru km/h birimiyle ve Beaufort açıklamasıyla gösteriliyor.\n"
+            "• ⚡ Arama sonuçları, finans yenileme ve API yanıt doğrulaması iyileştirildi.\n"
+            "• 🔐 Ayarlar/portföy dosyaları atomik ve kullanıcıya özel izinlerle kaydediliyor.\n\n"
             "<b>v5.0 - v7.0:</b> Modüler altyapı, Concurrent Fetch, Tema Motoru, Portföy Takibi.\n"
             "<b>v3.x - v4.x:</b> Temel API yapısı, Widget modu, MGM optimizasyonu.\n\n"
             f"<small>Geliştirici: Turan Kaya | {GITHUB_REPO}</small>"
@@ -1605,7 +1671,7 @@ class MintSkyApp(Gtk.Window):
         if d.get("yagis_olas") is not None:
             lines.append(f"Yağış Olasılığı: %{d['yagis_olas']:.0f}")
         if d.get("gustu") is not None:
-            lines.append(f"Rüzgar Gustu: {d['gustu']:.0f} km/s")
+            lines.append(f"Rüzgar Gustu: {self._format_wind(d['gustu'])}")
         if d.get("uyarilar"):
             lines.append("Aktif Uyarılar: " + ", ".join(d["uyarilar"]))
         if d.get("tahmin_3s"):
@@ -1854,17 +1920,21 @@ class MintSkyApp(Gtk.Window):
 
     # ──────────────────── Tray ─────────────────────────────────────────────
     def _build_tray(self):
+        self._weather_icon_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "weather"
+        )
+        Gtk.IconTheme.get_default().append_search_path(self._weather_icon_dir)
         if HAS_INDICATOR:
             self._indicator = AppIndicator3.Indicator.new(
                 "MintSky",
-                _safe_icon("weather-clear"),
+                "clear-day",
                 AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
             )
             self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
             self._indicator.set_menu(self._build_tray_menu())
         else:
             self._tray = Gtk.StatusIcon()
-            self._tray.set_from_icon_name(_safe_icon("weather-clear"))
+            self._tray.set_from_icon_name("clear-day")
             self._tray.connect("activate", self._tray_toggle)
             self._tray.connect("popup-menu", self._tray_popup)
 
@@ -1890,7 +1960,7 @@ class MintSkyApp(Gtk.Window):
             m2.set_sensitive(False)
             menu.append(m2)
 
-            m3 = Gtk.MenuItem.new_with_label(f"🌬️ Rüzgar: {self._tray_ruzgar} km/s")
+            m3 = Gtk.MenuItem.new_with_label(f"🌬️ Rüzgar: {self._tray_ruzgar}")
             m3.set_sensitive(False)
             menu.append(m3)
 
@@ -1948,9 +2018,19 @@ class MintSkyApp(Gtk.Window):
             if isinstance(icon_key, int)
             else TRAY_ICONS.get(icon_key, "weather-clear")
         )
-        icon_name = _safe_icon(raw)
+        # Use the bundled, consistent weather set instead of whichever legacy
+        # weather icon names happen to be installed by the desktop theme.
+        bundled_icon = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "assets", "weather", f"{emoji}.svg",
+        )
+        icon_name = (
+            os.path.splitext(os.path.basename(bundled_icon))[0]
+            if os.path.isfile(bundled_icon)
+            else _safe_icon(raw)
+        )
         tooltip_text = f"MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
-        tooltip_text += f"\n🌡️ Hissedilen: {his_txt}°\n💧 Nem: %{nem_txt}\n🌬️ Rüzgar: {ruzgar_txt} km/s"
+        tooltip_text += f"\n🌡️ Hissedilen: {his_txt}°\n💧 Nem: %{nem_txt}\n🌬️ Rüzgar: {ruzgar_txt}"
 
         if HAS_INDICATOR:
             self._indicator.set_icon_full(icon_name, tooltip_text)
@@ -2047,10 +2127,10 @@ class MintSkyApp(Gtk.Window):
             sehir = f"{il} / {ilce}" if ilce else il
             hissedilen_bg = sd.get("hissedilenSicaklik", sd.get("sicaklik", "-"))
             nem_bg = sd.get("nem", "-")
-            r_yon_bg = sd.get("ruzgarYonu", -9999)
+            r_yon_bg = sd.get("ruzgarYon", -9999)
             r_yon_txt_bg = yon(r_yon_bg) if r_yon_bg != -9999 else ""
-            r_hiz_bg = sd.get("ruzgarHizi", "-")
-            ruzgar_bg = f"{r_hiz_bg} {r_yon_txt_bg}".strip()
+            r_hiz_bg = sd.get("ruzgarHiz", "-")
+            ruzgar_bg = self._format_wind(r_hiz_bg, r_yon_txt_bg)
             GLib.idle_add(
                 self._apply_tray_data,
                 emoji,
@@ -2117,10 +2197,27 @@ class MintSkyApp(Gtk.Window):
 
     def _location_thread(self):
         try:
-            data = requests.get("http://ip-api.com/json/?lang=tr", timeout=8).json()
-            lat, lon = data.get("lat"), data.get("lon")
-            if not (lat and lon):
-                GLib.idle_add(self._apply_location, data.get("city", ""), "")
+            # Linux masaüstülerinde GPS donanımı çoğunlukla yoktur. Önce GeoClue
+            # (izin verildiyse Wi-Fi/ağ tabanlı sistem konumu), sonra HTTPS IP
+            # konumu kullanılır. IP sonucu yaklaşık olabilir.
+            coords = self._geoclue_coordinates()
+            if coords:
+                lat, lon = coords
+                data = {}
+            else:
+                response = requests.get("https://ipapi.co/json/", timeout=8)
+                response.raise_for_status()
+                data = response.json()
+                lat, lon = data.get("latitude"), data.get("longitude")
+                if data.get("error") or lat is None or lon is None:
+                    raise ValueError("Konum sağlayıcısı koordinat döndürmedi")
+            nearest = WeatherAPI.find_nearest_location(lat, lon)
+            if nearest:
+                GLib.idle_add(
+                    self._apply_location,
+                    nearest.get("il", ""),
+                    nearest.get("ilce", ""),
+                )
                 return
             addr = (
                 requests.get(
@@ -2129,7 +2226,7 @@ class MintSkyApp(Gtk.Window):
                         "lat": lat,
                         "lon": lon,
                         "format": "json",
-                        "accept-language": "tr",
+                        "accept-language": self._language or "tr",
                         "zoom": 10,
                     },
                     headers=NOM_HEADERS,
@@ -2142,7 +2239,7 @@ class MintSkyApp(Gtk.Window):
                 (
                     addr.get("province")
                     or addr.get("state")
-                    or data.get("regionName", "")
+                    or data.get("region", "")
                     or data.get("city", "")
                 )
                 .replace(" ili", "")
@@ -2154,6 +2251,7 @@ class MintSkyApp(Gtk.Window):
                     addr.get("county")
                     or addr.get("town")
                     or addr.get("city_district")
+                    or data.get("city", "")
                     or ""
                 )
                 .replace(" İlçesi", "")
@@ -2163,7 +2261,60 @@ class MintSkyApp(Gtk.Window):
             )
             GLib.idle_add(self._apply_location, il, ilce)
         except Exception as e:
-            GLib.idle_add(self._status, f"Konum hatası: {e}", True)
+            GLib.idle_add(self._location_failed, str(e))
+
+    def _geoclue_coordinates(self):
+        """Return system location when GeoClue is available and permits access."""
+        try:
+            from gi.repository import Gio, GLib as _GLib
+
+            bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+            manager = Gio.DBusProxy.new_sync(
+                bus, Gio.DBusProxyFlags.NONE, None,
+                "org.freedesktop.GeoClue2", "/org/freedesktop/GeoClue2/Manager",
+                "org.freedesktop.GeoClue2.Manager", None,
+            )
+            object_path = manager.call_sync(
+                "GetClient", None, Gio.DBusCallFlags.NONE, 5000, None
+            ).unpack()[0]
+            client = Gio.DBusProxy.new_sync(
+                bus, Gio.DBusProxyFlags.NONE, None, "org.freedesktop.GeoClue2",
+                object_path, "org.freedesktop.GeoClue2.Client", None,
+            )
+            client.call_sync(
+                "org.freedesktop.DBus.Properties.Set",
+                _GLib.Variant("(ssv)", ("org.freedesktop.GeoClue2.Client", "DesktopId", _GLib.Variant("s", "mintsky"))),
+                Gio.DBusCallFlags.NONE, 5000, None,
+            )
+            client.call_sync(
+                "org.freedesktop.DBus.Properties.Set",
+                _GLib.Variant("(ssv)", ("org.freedesktop.GeoClue2.Client", "RequestedAccuracyLevel", _GLib.Variant("u", 6))),
+                Gio.DBusCallFlags.NONE, 5000, None,
+            )
+            client.call_sync("Start", None, Gio.DBusCallFlags.NONE, 5000, None)
+            location_path = None
+            for _ in range(20):
+                location_variant = client.get_cached_property("Location")
+                if location_variant:
+                    location_path = location_variant.unpack()
+                    if location_path != "/":
+                        break
+                time.sleep(0.25)
+            if not location_path or location_path == "/":
+                return None
+            location = Gio.DBusProxy.new_sync(
+                bus, Gio.DBusProxyFlags.NONE, None, "org.freedesktop.GeoClue2",
+                location_path, "org.freedesktop.GeoClue2.Location", None,
+            )
+            lat = location.get_cached_property("Latitude").unpack()
+            lon = location.get_cached_property("Longitude").unpack()
+            return (lat, lon) if -90 <= lat <= 90 and -180 <= lon <= 180 else None
+        except Exception:
+            return None
+
+    def _location_failed(self, error):
+        self._status(f"Konum alınamadı ({error}). İl/ilçeyi elle seçebilirsiniz.", True)
+        return False
 
     def _apply_location(self, il, ilce):
         self.il_entry.set_text(il)
@@ -2377,32 +2528,46 @@ class MintSkyApp(Gtk.Window):
         self._status("⏳ Veriler alınıyor…")
         self._last_api_call = time.time()
         self._fetch_in_progress = True
+        self._weather_request_id += 1
+        request_id = self._weather_request_id
 
         with self.finance_api._lock:
             has_fin = bool(self.finance_api._data)
         if self._show_finance and not has_fin:
-            self.finance_api.fetch_bg()
+            self.finance_api.fetch_bg(callback=self._on_finance_fetched)
 
         def _fetch(il, ilce):
             try:
-                data = WeatherAPI.fetch_weather(il, ilce)
-                success, _, data_content = data
-                if not success:
-                    GLib.idle_add(self._status, "Hata", True)
-                    return
-
-                c_key = f"{il}|{ilce}"
-                self._weather_cache = data_content
-                self._weather_cache_ts = time.time()
-                self._weather_cache_key = c_key
-
-                GLib.idle_add(self._render, *data_content)
+                success, message, data_content = WeatherAPI.fetch_weather(il, ilce)
             except Exception as e:
                 print(f"Fetch hatası: {e}")
-            finally:
-                self._fetch_in_progress = False
+                success, message, data_content = False, str(e), None
+
+            GLib.idle_add(
+                self._finish_weather_search,
+                request_id,
+                key,
+                success,
+                message,
+                data_content,
+            )
 
         threading.Thread(target=_fetch, args=(il, ilce), daemon=True).start()
+        return False
+
+    def _finish_weather_search(self, request_id, key, success, message, data):
+        """Apply only the newest network result, on GTK's main thread."""
+        if request_id != self._weather_request_id:
+            return False
+        self._fetch_in_progress = False
+        if not success or not data:
+            self._status(message or "Hava durumu verisi alınamadı.", error=True)
+            return False
+
+        self._weather_cache = data
+        self._weather_cache_ts = time.time()
+        self._weather_cache_key = key
+        self._render(*data)
         return False
 
     # ──────────────────── Render ───────────────────────────────────────────
@@ -2548,6 +2713,12 @@ class MintSkyApp(Gtk.Window):
         ruzgar_yon = yon(r_yon_val) if r_yon_val is not None else ""
         basinc = get_best("denizeIndirgenmisBasinc", "surface_pressure", "baro")
         gorus_v = get_best("gorus", "visibility", "vis")
+        # MSN reports visibility in km, while MGM and Open-Meteo use metres.
+        if use_msn and msn_cur.get("vis") not in (None, -9999, ""):
+            try:
+                gorus_v = float(msn_cur["vis"]) * 1000
+            except (TypeError, ValueError):
+                gorus_v = None
         gustu = get_best(None, "wind_gusts_10m", "windGust")
 
         yag_olas = (
@@ -2563,11 +2734,7 @@ class MintSkyApp(Gtk.Window):
             "sicak_str": val(sicak, suffix="°C"),
             "his_str": (val(his, suffix="°C") if his not in (-9999, None) else ""),
             "nem": nem_val,
-            "ruzgar": (
-                f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip()
-                if ruzgar_hiz not in (-9999, None)
-                else None
-            ),
+            "ruzgar": self._format_wind(ruzgar_hiz, ruzgar_yon),
             "basinc": basinc if basinc not in (-9999, None) else None,
             "gorus": gorus_v if gorus_v not in (-9999, None) else None,
             "uv": uv_val,
@@ -2644,7 +2811,7 @@ class MintSkyApp(Gtk.Window):
             h_str = f"{his:.0f}" if his not in (-9999, None) else "--"
             n_str = f"{nem_val:.0f}" if nem_val not in (-9999, None) else "--"
             r_str = (
-                f"{ruzgar_hiz:.0f} {ruzgar_yon}".strip()
+                self._format_wind(ruzgar_hiz, ruzgar_yon)
                 if ruzgar_hiz not in (-9999, None)
                 else "--"
             )
@@ -2713,10 +2880,10 @@ class MintSkyApp(Gtk.Window):
         # 2. Rüzgar & Hava Grubu
         if ruzgar_hiz not in (-9999, None):
             all_pills.append(
-                (f"🌬️ {_('lbl_wind')}", f"{ruzgar_hiz:.0f} km/s {ruzgar_yon}".strip())
+                (f"🌬️ {_('lbl_wind')}", self._format_wind(ruzgar_hiz, ruzgar_yon))
             )
         if gustu is not None and self._show_extra:
-            all_pills.append((f"🌬️⚡ {_('lbl_wind_gust')}", f"{gustu:.0f} km/s"))
+            all_pills.append((f"🌬️⚡ {_('lbl_wind_gust')}", self._format_wind(gustu)))
         if basinc not in (-9999, None):
             all_pills.append((f"🎚️ {_('lbl_pressure')}", f"{basinc:.0f} hPa"))
 
@@ -2825,9 +2992,52 @@ class MintSkyApp(Gtk.Window):
                     (f"🌧 {_('lbl_precip_24h')}", f"{sd['yagis24Saat']:.1f} mm")
                 )
 
+            # MGM station observations expose shorter accumulation windows
+            # than the other providers. Show only measured, non-zero values.
+            for field, label_key in (
+                ("yagis00Now", "lbl_precip_since_midnight"),
+                ("yagis10Dk", "lbl_precip_10m"),
+                ("yagis6Saat", "lbl_precip_6h"),
+                ("yagis12Saat", "lbl_precip_12h"),
+            ):
+                try:
+                    amount = float(sd.get(field, -9999))
+                except (TypeError, ValueError):
+                    continue
+                if math.isfinite(amount) and amount > 0:
+                    all_pills.append((f"🌧 {_(label_key)}", f"{amount:.1f} mm"))
+
+            climate = sd.get("_ucdegerler") or {}
+            try:
+                average_low = float(climate["minOrt"])
+                average_high = float(climate["maxOrt"])
+                record_low = float(climate["min"])
+                record_high = float(climate["max"])
+                climate_values = (average_low, average_high, record_low, record_high)
+                if all(math.isfinite(value) and value != -9999 for value in climate_values):
+                    climate_text = f"{average_low:.0f}–{average_high:.0f}°C"
+                    climate_tip = (
+                        f"{_('lbl_climate_tooltip')}\n"
+                        f"{_('lbl_climate_records')}: {record_low:.0f}–{record_high:.0f}°C"
+                    )
+                    all_pills.append(
+                        (f"🌡️ {_('lbl_climate_norm')}", climate_text, climate_tip)
+                    )
+            except (KeyError, TypeError, ValueError):
+                pass
+
             deniz = sd.get("denizSicaklik", -9999)
             if deniz not in (-9999, None) and deniz > 0:
-                all_pills.append((f"🌊 {_('lbl_sea')}", f"{deniz:.0f}°C"))
+                sea_time = sd.get("denizVeriZamani")
+                sea_tip = None
+                if sea_time:
+                    sea_tip = (
+                        f"{_('lbl_measurement_time')} ({_('lbl_turkey_time')}): "
+                        f"{fmt_dt(sea_time)}"
+                    )
+                all_pills.append(
+                    (f"🌊 {_('lbl_sea')}", f"{deniz:.0f}°C", sea_tip)
+                )
 
             kar = sd.get("karYukseklik", -9999)
             if kar not in (-9999, None) and kar > 0:
@@ -2844,40 +3054,50 @@ class MintSkyApp(Gtk.Window):
                 grid.attach(self._make_pill(*item), i % 3, i // 3, 1, 1)
             self.content.pack_start(grid, False, False, 0)
 
-        ts_val = ""
-        if use_msn:
-            ts_val = msn_cur.get("created", "")
-        elif use_om:
-            ts_val = om_cur.get("time", "")
-        else:
-            ts_val = sd.get("veriZamani", "")
-            if not ts_val and om_cur:
-                ts_val = om_cur.get("time", "")
-            if not ts_val and msn_cur:
-                ts_val = msn_cur.get("created", "")
+        timestamp_parts = []
+        for source, value in (
+            ("MGM", sd.get("veriZamani", "")),
+            ("Open-Meteo", om_cur.get("time", "")),
+            ("MSN", msn_cur.get("created", "")),
+        ):
+            if value:
+                timestamp_parts.append(f"{source}: {fmt_dt(value)}")
 
-        if ts_val:
-            ts = Gtk.Label(label=f"{_('lbl_last_update')}: {fmt_dt(ts_val)}")
+        if timestamp_parts:
+            timestamp_text = " · ".join(timestamp_parts)
+            ts = Gtk.Label(
+                label=(
+                    f"{_('lbl_last_update')} ({_('lbl_turkey_time')}): "
+                    f"{timestamp_text}"
+                )
+            )
             self._sc(ts, "ts-lbl")
             ts.set_halign(Gtk.Align.END)
             ts.set_margin_end(12)
             self.content.pack_start(ts, False, False, 0)
 
         # ── Uyarılar ──
-        aktif_mgm = [a for a in alarmlar if a.get("il", "").upper() == il.upper()]
-        aktif_ma = [
-            ma
-            for ma in (meteoalarm or [])
-            if ma.get("il", "").upper() == il.upper() and int(ma.get("seviye", 1)) >= 2
-        ]
+        aktif_mgm = []
+        for alert in alarmlar if isinstance(alarmlar, list) else []:
+            if not isinstance(alert, dict):
+                continue
+            if il and self._mgm_alert_matches_city(alert, il):
+                aktif_mgm.append(alert)
+        aktif_ma = WeatherAPI.meteoalerts_for_center(
+            meteoalarm, merkez.get("merkezId")
+        )
         if aktif_mgm or aktif_ma:
             self._section_title("⚠  AKTİF UYARILAR (Kaynak: MGM)")
             for a in aktif_mgm[:4]:
                 self._add_alert_row(a.get("baslik", ""))
             for ma in aktif_ma[:2]:
-                etkinlik = ma.get("etkinlik") or ma.get("tip") or "MeteoAlarm"
-                seviye = METEOALARM_SEVIYE.get(str(ma.get("seviye", 1)), "")
-                self._add_alert_row(f"{etkinlik} — {seviye} (MeteoAlarm)")
+                level_number = {"yellow": "2", "orange": "3", "red": "4"}.get(
+                    ma["level"], "1"
+                )
+                severity = METEOALARM_SEVIYE.get(level_number, "")
+                self._add_alert_row(
+                    f"{severity} — {ma['description']}\nMeteoAlarm"
+                )
 
         # ── Saatlik tahmin ──
         if self._show_saatlik:
@@ -3049,6 +3269,22 @@ class MintSkyApp(Gtk.Window):
             self.compact_content.pack_start(wfin, False, False, 0)
 
     def _render_finance_main(self, rates):
+        old_section = self._finance_section
+        if old_section is not None and old_section.get_parent() is self.content:
+            self.content.remove(old_section)
+
+        self._finance_section = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=0
+        )
+        self.content.pack_start(self._finance_section, False, False, 0)
+        parent_content = self.content
+        self.content = self._finance_section
+        try:
+            self._render_finance_content(rates)
+        finally:
+            self.content = parent_content
+
+    def _render_finance_content(self, rates):
         """Ana pencerede tam finans bölümü"""
         # ── Bölüm başlığı + Yenile butonu ──
         sec_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -3095,24 +3331,7 @@ class MintSkyApp(Gtk.Window):
             f"son istek atılmayacak)"
         )
 
-        def _on_fin_refresh(*args):
-            btn_ref.set_label("⏳")
-            btn_ref.set_sensitive(False)
-            self.finance_api.reset_cache()
-
-            def _do():
-                self.finance_api.fetch_bg(force=True)
-                GLib.idle_add(
-                    lambda: (
-                        btn_ref.set_label("🔄 Yenile"),
-                        btn_ref.set_sensitive(True),
-                    )
-                    or False
-                )
-
-            threading.Thread(target=_do, daemon=True).start()
-
-        btn_ref.connect("clicked", _on_fin_refresh)
+        btn_ref.connect("clicked", self._force_finance_refresh)
         sec_row.pack_start(btn_ref, False, False, 0)
         self.content.pack_start(sec_row, False, False, 0)
 
@@ -3289,7 +3508,7 @@ class MintSkyApp(Gtk.Window):
             wl_box.set_halign(Gtk.Align.CENTER)
             if rh not in (-9999, None):
                 wl_ic = get_svg_image("wind", size=14, folder="pills")
-                wl_lbl = Gtk.Label(label=f"{rh:.0f} km/s")
+                wl_lbl = Gtk.Label(label=self._format_wind(rh))
                 self._sc(wl_lbl, "h-wind")
                 wl_box.pack_start(wl_ic, False, False, 0)
                 wl_box.pack_start(wl_lbl, False, False, 0)
@@ -3299,6 +3518,12 @@ class MintSkyApp(Gtk.Window):
             hc.pack_start(ttl, False, False, 0)
             hc.pack_start(c_lbl, False, False, 0)
             hc.pack_start(wl_box, False, False, 0)
+            max_wind = item.get("maksimumRuzgarHizi", -9999)
+            if max_wind not in (-9999, None):
+                gust_lbl = Gtk.Label(label=f"↗ {self._format_wind(max_wind)}")
+                self._sc(gust_lbl, "w3-nem")
+                gust_lbl.set_tooltip_text(_("lbl_wind_gust"))
+                hc.pack_start(gust_lbl, False, False, 0)
             h_box.pack_start(hc, False, False, 0)
         hs.add(h_box)
         self.content.pack_start(hs, False, False, 0)
@@ -3348,7 +3573,7 @@ class MintSkyApp(Gtk.Window):
             wl_box.set_halign(Gtk.Align.CENTER)
             if wsp not in (-9999, None):
                 wl_ic = get_svg_image("wind", size=14, folder="pills")
-                wl_lbl = Gtk.Label(label=f"{wsp:.0f} km/s")
+                wl_lbl = Gtk.Label(label=self._format_wind(wsp))
                 self._sc(wl_lbl, "h-wind")
                 wl_box.pack_start(wl_ic, False, False, 0)
                 wl_box.pack_start(wl_lbl, False, False, 0)
@@ -3400,7 +3625,7 @@ class MintSkyApp(Gtk.Window):
             rl_box.set_halign(Gtk.Align.END)
             if rh2 not in (-9999, None):
                 rl_ic = get_svg_image("wind", size=16, folder="pills")
-                rl_lbl = Gtk.Label(label=f"{rh2:.0f} km/s")
+                rl_lbl = Gtk.Label(label=self._format_wind(rh2))
                 self._sc(rl_lbl, "fc-cond")
                 rl_box.pack_start(rl_ic, False, False, 0)
                 rl_box.pack_start(rl_lbl, False, False, 0)
@@ -3464,7 +3689,7 @@ class MintSkyApp(Gtk.Window):
             rl_box.set_halign(Gtk.Align.END)
             if rh2 is not None:
                 rl_ic = get_svg_image("wind", size=16, folder="pills")
-                rl_lbl = Gtk.Label(label=f"{rh2:.0f} km/s")
+                rl_lbl = Gtk.Label(label=self._format_wind(rh2))
                 self._sc(rl_lbl, "fc-cond")
                 rl_box.pack_start(rl_ic, False, False, 0)
                 rl_box.pack_start(rl_lbl, False, False, 0)

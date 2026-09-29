@@ -1,47 +1,48 @@
 import json
-import os
-from unittest.mock import patch
+import stat
 
-import pytest
-
-from mintsky.constants import SETTING_FILE
-from mintsky.core.settings import load_settings, save_settings
+from mintsky.core import settings
 
 
-def test_settings_corruption(tmp_path):
-    # Mocking SETTING_FILE directly would require patching the constant,
-    # but since it's already imported, we will just patch it in the module.
-    pass
+def test_load_corrupted_settings_is_backed_up(tmp_path, monkeypatch):
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text("{invalid json", encoding="utf-8")
+    monkeypatch.setattr(settings, "SETTING_FILE", str(settings_path))
+    monkeypatch.setattr(settings.keyring, "get_password", lambda *_: None)
+
+    assert settings.load_settings() == {}
+    assert (tmp_path / "settings.json.bak").read_text(encoding="utf-8") == "{invalid json"
 
 
-@patch("mintsky.core.settings.SETTING_FILE", "/tmp/mock_settings.json")
-def test_load_corrupted_settings():
-    with open("/tmp/mock_settings.json", "w") as f:
-        f.write("{invalid json")
+def test_save_settings_keeps_key_out_of_file_when_keyring_fails(tmp_path, monkeypatch):
+    settings_path = tmp_path / "settings.json"
+    monkeypatch.setattr(settings, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(settings, "SETTING_FILE", str(settings_path))
 
-    data = load_settings()
-    assert data == {}
-    assert os.path.exists("/tmp/mock_settings.json.bak")
+    def unavailable(*_args):
+        raise RuntimeError("No keyring")
 
-    if os.path.exists("/tmp/mock_settings.json"):
-        os.remove("/tmp/mock_settings.json")
-    if os.path.exists("/tmp/mock_settings.json.bak"):
-        os.remove("/tmp/mock_settings.json.bak")
+    monkeypatch.setattr(settings.keyring, "set_password", unavailable)
+    data = {"theme": "dark", "groq_api_key": "secret"}
+
+    assert settings.save_settings(data) is False
+    assert data["groq_api_key"] == "secret"
+    assert json.loads(settings_path.read_text(encoding="utf-8")) == {"theme": "dark"}
+    assert stat.S_IMODE(settings_path.stat().st_mode) == 0o600
 
 
-@patch("mintsky.core.settings.keyring.set_password")
-@patch("mintsky.core.settings.SETTING_FILE", "/tmp/mock_settings.json")
-def test_save_settings_keyring_fail(mock_set_password):
-    mock_set_password.side_effect = Exception("No keyring")
+def test_failed_atomic_write_preserves_previous_file(tmp_path):
+    from mintsky.core.storage import save_json_atomic
 
-    data = {"theme": "dark", "groq_api_key": "123"}
-    success = save_settings(data)
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text('{"theme": "dark"}\n', encoding="utf-8")
 
-    assert success is False
-    with open("/tmp/mock_settings.json", "r") as f:
-        saved_data = json.load(f)
-    assert "groq_api_key" not in saved_data
-    assert saved_data["theme"] == "dark"
+    try:
+        save_json_atomic(settings_path, {"unsupported": object()})
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("Unsupported JSON value should raise TypeError")
 
-    if os.path.exists("/tmp/mock_settings.json"):
-        os.remove("/tmp/mock_settings.json")
+    assert settings_path.read_text(encoding="utf-8") == '{"theme": "dark"}\n'
+    assert list(tmp_path.iterdir()) == [settings_path]

@@ -6,7 +6,7 @@ MGM resmi API + Open-Meteo yedek + MSN Hava Durumu (Global) + Groq AI Hava Danı
 Finans Modülü: Truncgil Finance API (Altın, Gümüş, Döviz, Kripto)
 Portföy Takibi: Alım fiyatı girişi, kar/zarar hesaplama
 Geliştirici : https://github.com/tarihcituranx (Turan Kaya)
-Versiyon    : 7.3.0
+Versiyon    : 7.4.0
 Lisans      : MIT
 """
 
@@ -24,10 +24,11 @@ GITHUB_REPO = "https://github.com/tarihcituranx/mintsky"
 
 MGM_HEADERS = {
     "Origin": "https://www.mgm.gov.tr",
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "User-Agent": "MintSky/7.4.0 (+https://github.com/tarihcituranx/mintsky)",
 }
-NOM_HEADERS = {"User-Agent": "MintSkyApp/7.3.0 (github.com/tarihcituranx)"}
+NOM_HEADERS = {
+    "User-Agent": "MintSky/7.4.0 (+https://github.com/tarihcituranx/mintsky)"
+}
 TIMEOUT = 12
 WEATHER_CACHE_TTL = 300  # saniye — widget/ayar geçişi API atılmaz, önbellekten render
 FINANCE_CACHE_TTL = 120  # saniye — Truncgil API minimum yenileme aralığı
@@ -47,7 +48,7 @@ ICON_DIR = os.path.expanduser("~/.local/share/icons/hicolor/256x256/apps")
 GELISTIRICI = "https://github.com/tarihcituranx"
 MGM_SIMGELER = "https://www.mgm.gov.tr/site/yardim1.aspx?=Simgeler99"
 UYGULAMA_ADI = "MintSky"
-VERSIYON = "7.3.0"
+VERSIYON = "7.4.0"
 
 # ─── Finans: gösterilecek kodlar ve türkçe isimleri ─────────────────────
 ALTIN_KODLAR = {
@@ -295,7 +296,7 @@ WMO_HADISE = {
 
 PILL_TOOLTIPS = {
     "💧 Nem": "Bağıl Nem (%)\\nHavadaki su buharının oranı.\\n✦ %40–60 konforlu • %60+ bunaltıcı",
-    "💨 Rüzgar": "Rüzgar Hızı ve Yönü (km/s)",
+    "💨 Rüzgar": "Rüzgar Hızı ve Yönü (km/h)",
     "🔵 Basınç": "Denize İndirgenmiş Basınç (hPa)\\n✦ Normal ~1013 hPa",
     "👁 Görüş": "Yatay Görüş Mesafesi\\n✦ <1 km: Yoğun sis • 10 km+: Açık",
     "🌧 Yağış 1s": "Son 1 Saatlik Yağış (mm)",
@@ -305,7 +306,7 @@ PILL_TOOLTIPS = {
     "❄ Kar": "Yerde Biriken Kar Kalınlığı (cm)",
     "🔆 UV İndeksi": "UV Işıma İndeksi\\n✦ 0–2: Düşük • 3–5: Orta • 6–7: Yüksek • 8+: Çok Yüksek",
     "🌂 Yağış Olas.": "Yağış Olasılığı %\\n✦ <30%: Olası değil • 80%+: Çok muhtemel",
-    "💨 Rüzgar Gustu": "Anlık En Yüksek Rüzgar Hızı (km/s)",
+    "💨 Rüzgar Gustu": "Anlık En Yüksek Rüzgar Hızı (km/h)",
     "🌡 Çiğ Noktası": "Çiğ Noktası Sıcaklığı (°C)",
     "☀ Güneşlenme": "Günlük Güneşlenme Süresi (saat)",
     "🌡 Hissedilen": "Hissedilen (Apparent) Sıcaklık (°C)",

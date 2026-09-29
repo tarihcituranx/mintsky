@@ -12,19 +12,23 @@
 
 <p align="center"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=764BA2&width=520&lines=MintSky+-+Linux+Weather+App+%F0%9F%8C%A4%EF%B8%8F;GTK3+%2B+Groq+AI+%F0%9F%A4%96;System+Tray+Widget+%F0%9F%94%94;Live+Finance+%2B+Portfolio+%F0%9F%92%B0;Open+Source+%26+Free+%E2%9D%A4%EF%B8%8F" alt="Typing SVG" /></p>
 
-MintSky is a **next-generation GTK3 desktop weather and assistant application** built specifically for Linux desktop environments (especially Linux Mint, Ubuntu, Debian derivatives). It combines data from the Turkish Meteorological Service (MGM), Open-Meteo, and MSN Weather through an intelligent fallback chain. Beyond weather, it's a full desktop assistant with Groq LLaMA AI, Edge-TTS voice reading, live finance tracking, and portfolio management.
+MintSky is a GTK3 weather and desktop assistant for Linux desktops such as Linux Mint, Ubuntu, and Debian. In Türkiye, it combines MGM station observations and forecasts with coordinate-based Open-Meteo forecasts; MSN data is an optional extra when credentials are configured. It also offers Groq AI, Edge-TTS, finance tracking, and portfolio features.
+
+Current development version: **7.4.0**.
 
 ## 🌟 Features
 
 ### 🌦️ Weather Engine
-* **Triple API + Smart Fallback:** MGM (Turkish official), Open-Meteo (global backup), and MSN Weather API work in a chain. If one fails, the next one takes over automatically.
-* **Real-time Data:** Temperature, feels-like, humidity, pressure, wind speed/direction/gust, dew point, cloud cover, visibility.
+* **MGM + Open-Meteo + optional MSN:** MGM provides Turkish station observations, daily/hourly forecasts, and alerts; Open-Meteo supplements these with coordinate-based forecasts and astronomy. MSN fields are used only when valid API credentials are configured.
+* **Station details:** Observation time, precipitation accumulations, and sea/snow measurements when available. Climate normals and historical temperature extremes are shown when provided by MGM.
+* **Real-time Data:** Temperature, feels-like, humidity, pressure, wind direction/speed and Beaufort scale, dew point, cloud cover, visibility, and maximum hourly forecast wind.
 * **UV Index & Precipitation:** Real-time UV, precipitation amount, and snow data from Open-Meteo — cross-validated across multiple sources.
 * **Hourly & 5-Day Forecast:** Hourly temperature, precipitation probability, wind, and UV forecasts; 5-day day/night min/max graphs.
 * **Sunrise / Sunset:** Daily sun times from Open-Meteo for every forecast day.
-* **MGM Alarms & MeteoAlarm:** Official meteorological alerts (storms, floods, frost, etc.) displayed in real time. Desktop notification fires when a new alarm appears.
+* **MGM Alarms & MeteoAlarm:** Official alerts are matched against the current API response schema and location identifiers. Desktop notifications are sent for new alerts.
 * **Air Quality (AQI):** Real-time Air Quality Index from MSN Weather API.
-* **Nominatim Fallback:** For locations not registered in MGM, OpenStreetMap Nominatim resolves coordinates and feeds Open-Meteo + MSN for forecasts.
+* **Location:** Uses Linux GeoClue when available, then approximate IP geolocation. Coordinates are matched to the nearest MGM station; Nominatim is a geocoding fallback for places without a station. IP location can be imprecise.
+* **Türkiye time:** MGM, Open-Meteo, and MSN measurement times are displayed in `Europe/Istanbul` with the source name.
 
 ### 🤖 AI & Voice Assistant
 * **Groq LLaMA AI:** Clothing advice, outdoor activity recommendations, and weather-specific insights via Groq API (LLaMA model). Works without an API key too (shows a warning).
@@ -39,19 +43,19 @@ MintSky is a **next-generation GTK3 desktop weather and assistant application** 
 * **2-Minute Cache:** Finance data refreshes every 120 seconds, keeping API load minimal.
 
 ### 🖥️ Interface & Usability
-* **Compact Widget Mode:** One click transforms the app into a pinned desktop corner widget. In compact mode: current temperature + 3-hour forecast are shown.
+* **Compact Widget Mode:** One click transforms the app into a pinned desktop corner widget. In compact mode: current temperature + 3-hour forecast are shown. The normal window opens maximized.
 * **System Tray (AppIndicator3 & libnotify):** Runs silently in the background. Right-click tray icon for weather summary, left-click to open. Auto-detects AyatanaAppIndicator3 (Ubuntu/Mint) and classic AppIndicator3.
 * **Desktop Notifications:** Sends clean GTK notifications via libnotify for weather alarms, app updates, and major weather changes.
 * **Autostart:** One-click enable/disable startup at login. A `.desktop` file is automatically written to `~/.config/autostart/`.
 * **Install as App:** Adds a permanent icon and `.desktop` entry to the system menu (`~/.local/share/applications/`).
 * **Auto Update Check:** Checks GitHub for the latest version on startup; shows a banner and offers one-click update if newer.
 * **Favorites:** Save frequently visited cities and load them with one click.
-* **Cache System:** Weather data is cached for `WEATHER_CACHE_TTL` seconds — window resizing or re-opening is instant.
+* **Cache and API etiquette:** Weather/station data is briefly cached to avoid duplicate requests. The client identifies itself as MintSky, uses timeouts, and respects `Retry-After` on rate limits. It does not use proxies, fake browser identities, or protection bypasses.
 * **Keyboard Shortcuts:** `Ctrl+R` to refresh, `Escape` to hide, `Ctrl+F` to focus city search.
 * **Lucide SVG Icons & GTK3 Theme Compatibility:** 100% native GTK3 rendering, adapts to your desktop theme (dark/light).
 
 ### 🌐 Multi-Language (i18n)
-All UI text is driven by JSON locale files. **Turkish** and **English** are fully supported. Infrastructure exists for German, French, Arabic, Persian, Chinese, and Azerbaijani. Language can be changed instantly from Settings. TTS voice automatically matches the selected language (8 voice profiles).
+UI text is loaded from JSON locale files: Turkish, English, German, French, Azerbaijani, Arabic, Persian, and Chinese. The app restarts after a language change so all views use the new locale. Some legacy dialogs and descriptions may have partial translations.
 
 ### ♿ Accessibility (A11y)
 GTK3's built-in accessibility layer is active. Basic keyboard navigation and screen reader (e.g. Orca) support is available via GTK3 defaults.
@@ -59,7 +63,8 @@ GTK3's built-in accessibility layer is active. Basic keyboard navigation and scr
 ### 🔐 Security
 * API keys (Groq) are stored encrypted in the system **keyring** — never written to the JSON settings file.
 * MSN API credentials are read from environment variables (`MSN_API_KEY`, `MSN_APP_ID`) — no hardcoded values in source.
-* Portfolio file permissions are set to `0o600` (owner-read only).
+* Settings and portfolio files are saved atomically with owner-only (`0600`) permissions.
+* Requests use the declared MintSky client identity and do not attempt to evade service limits or bot protections.
 
 ---
 
@@ -112,9 +117,17 @@ mintsky --autostart
 | **Groq API Key** | `Settings → 🤖 AI` tab — get a free [Groq API Key](https://console.groq.com/keys). Stored encrypted in keyring. |
 | **Pin Location** | Search a city and press "⭐ Pin" — loads that location on every startup. |
 | **Finance Panel** | `Settings → 💰 Finance` tab — select gold instruments, currencies to display. |
-| **Language** | `Settings → ⚙️ System` tab — TR / EN selection. |
+| **Language** | `Settings → ⚙️ System` tab — choose among the supported locales. The app restarts to apply the change. |
 | **Autostart** | Toggle in `Settings → ⚙️ System` to launch at login. |
-| **MSN API** | Set `MSN_API_KEY` and `MSN_APP_ID` environment variables (optional, needed for AQI). |
+| **MSN API** | Set `MSN_API_KEY` and `MSN_APP_ID` environment variables (optional). Without them MSN/AQI data is unavailable; MGM and Open-Meteo continue to work. |
+
+### Location and time
+
+Automatic location uses GeoClue when available, otherwise approximate IP geolocation. Searching for or pinning a city/district gives more precise results. Measurement timestamps are displayed in Türkiye time.
+
+### Developer checks
+
+Run the source-tree tests with `python3 -m pytest -q`. Tests do not depend on live network services; live API responses should be checked separately. Some MGM fields are naturally absent depending on season or station equipment.
 
 ---
 

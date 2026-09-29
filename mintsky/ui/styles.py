@@ -1,6 +1,6 @@
 def make_css(scale_val, theme="dark"):
     def fs(n):
-        return int(round(n * scale_val * 1.35))
+        return int(round(n * scale_val))
 
     if theme == "light":
         bg, card_bg = "#f0f4f8", "#ffffff"
@@ -48,13 +48,13 @@ def make_css(scale_val, theme="dark"):
         pill_shadow = "rgba(0,0,0,0.35)"
 
     return f"""
-* {{ font-family:"Ubuntu","Cantarell",sans-serif; font-size:{fs(15)}px; font-weight:700; text-shadow:0px 1px 3px rgba(0,0,0,0.15); }}
+* {{ font-family:"Inter","Noto Sans","Ubuntu","Cantarell",sans-serif; font-size:{fs(15)}px; }}
 #main-win {{ background-color:{bg}; }}
 
 /* ─── Header ─── */
 .hdr {{ background:{hdr_grad}; padding:{fs(14)}px {fs(18)}px {fs(10)}px {fs(18)}px;
         border-bottom:2px solid {border};
-        box-shadow:0 2px 12px {pill_shadow}; }}
+        box-shadow:0 1px 4px {pill_shadow}; }}
 .hdr-title {{ font-size:{fs(20)}px; font-weight:900; color:{text_accent};
               letter-spacing:2px; text-shadow:0 1px 4px {pill_shadow}; }}
 .search-row {{ margin-top:{fs(8)}px; }}
@@ -108,7 +108,7 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
 .cur-card {{ background:{card_grad}; border-radius:16px;
              margin:{fs(12)}px {fs(12)}px {fs(6)}px {fs(12)}px; padding:{fs(12)}px;
              border:1px solid {border};
-             box-shadow:0 8px 32px {pill_shadow}, 0 2px 8px {pill_shadow}; }}
+             box-shadow:0 3px 12px {pill_shadow}; }}
 .cur-city  {{ font-size:{fs(24)}px; font-weight:800; color:{text_main};
               text-shadow:0 1px 4px {pill_shadow}; }}
 .cur-cond  {{ font-size:{fs(18)}px; color:{text_sub}; margin-top:{fs(2)}px; font-weight:600; }}

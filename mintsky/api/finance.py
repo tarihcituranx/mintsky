@@ -8,6 +8,27 @@ from mintsky.constants import FINANCE_API, FINANCE_CACHE_TTL, TIMEOUT
 session = requests.Session()
 
 
+def parse_price(value):
+    """Parse API price strings without treating a decimal point as grouping."""
+    if value is None or value == "":
+        return None
+    try:
+        if isinstance(value, str):
+            value = value.strip().replace("\u00a0", "").replace(" ", "")
+            if "," in value and "." in value:
+                decimal_separator = "," if value.rfind(",") > value.rfind(".") else "."
+                grouping_separator = "." if decimal_separator == "," else ","
+                value = value.replace(grouping_separator, "")
+                if decimal_separator == ",":
+                    value = value.replace(",", ".")
+            else:
+                value = value.replace(",", ".")
+        price = float(value)
+        return price if price == price and abs(price) != float("inf") else None
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 class FinanceAPI:
     def __init__(self):
         self._data = {}
@@ -41,9 +62,22 @@ class FinanceAPI:
             r = session.get(FINANCE_API, timeout=TIMEOUT)
             r.raise_for_status()
             data = r.json()
+            rates = data.get("Rates") if isinstance(data, dict) else None
+            if not isinstance(rates, dict) or not rates:
+                raise ValueError("Finance API returned an invalid Rates object")
+            clean_rates = {
+                code: values
+                for code, values in rates.items()
+                if isinstance(code, str) and isinstance(values, dict)
+            }
+            if not clean_rates:
+                raise ValueError("Finance API returned no usable rates")
             with self._lock:
-                self._data = data.get("Rates", {})
-                self._update_date = data.get("Meta_Data", {}).get("Update_Date", "")
+                self._data = clean_rates
+                meta = data.get("Meta_Data")
+                self._update_date = (
+                    meta.get("Update_Date", "") if isinstance(meta, dict) else ""
+                )
                 self._last_fetch = time.time()
                 self._fetching = False
             success = True
@@ -65,9 +99,7 @@ class FinanceAPI:
                     val = r.get("TRY_Price")
                 else:
                     val = r.get("Buying") or r.get("Selling")
-                if isinstance(val, str):
-                    val = val.replace(".", "").replace(",", ".")
-                return float(val) if val else None
+                return parse_price(val)
             except Exception:
                 return None
 
