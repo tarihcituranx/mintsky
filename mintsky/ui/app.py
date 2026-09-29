@@ -785,7 +785,7 @@ class MintSkyApp(Gtk.Window):
         title_row.pack_start(title_col, False, False, 0)
         title_row.pack_start(Gtk.Box(), True, True, 0)  # spacer
 
-        for icon, text, tooltip, cb in [
+        tools_list = [
             (
                 "view-restore-symbolic",
                 _("btn_widget"),
@@ -804,19 +804,25 @@ class MintSkyApp(Gtk.Window):
                 _("btn_version_tt"),
                 self._show_changelog,
             ),
-            (
-                "dialog-information-symbolic",
-                _("btn_icons"),
-                _("btn_icons_tt"),
-                self._open_mgm_simgeler,
-            ),
+        ]
+        if self._language == "tr":
+            tools_list.append(
+                (
+                    "dialog-information-symbolic",
+                    _("btn_icons"),
+                    _("btn_icons_tt"),
+                    self._open_mgm_simgeler,
+                )
+            )
+        tools_list.append(
             (
                 "preferences-system-symbolic",
                 _("btn_settings"),
                 _("btn_settings_tt"),
                 self._show_settings,
-            ),
-        ]:
+            )
+        )
+        for icon, text, tooltip, cb in tools_list:
             title_row.pack_start(
                 self._create_tool_btn(icon, text, tooltip, cb), False, False, 0
             )
@@ -998,10 +1004,14 @@ class MintSkyApp(Gtk.Window):
         p1, t1 = _tab(f"☁️  {_('settings_tab_weather')}")
 
         cb_src = Gtk.ComboBoxText()
-        cb_src.append("mgm", _("src_mgm"))
+        if self._language == "tr":
+            cb_src.append("mgm", _("src_mgm"))
         cb_src.append("openmeteo", _("src_om"))
         cb_src.append("msn", _("src_msn"))
-        cb_src.set_active_id(self._api_source)
+        active_src = self._api_source
+        if self._language != "tr" and active_src == "mgm":
+            active_src = "openmeteo"
+        cb_src.set_active_id(active_src)
         _row(_("settings_src"), cb_src, p1)
         _sep(p1)
 
@@ -1533,10 +1543,15 @@ class MintSkyApp(Gtk.Window):
         dlg.set_modal(True)
         dlg.set_program_name(UYGULAMA_ADI)
         dlg.set_version(VERSIYON)
-        dlg.set_comments(
+        comments = (
             "MintSky by tarihcituranx (Turan Kaya)\n"
-            "MGM resmi API + Open-Meteo + Groq AI + Truncgil Finance."
+            + (
+                "MGM resmi API + Open-Meteo + Groq AI + Truncgil Finance."
+                if self._language == "tr"
+                else "Open-Meteo + MSN Weather + Groq AI + Truncgil Finance."
+            )
         )
+        dlg.set_comments(comments)
         dlg.set_website(GELISTIRICI)
         dlg.set_website_label("GitHub: tarihcituranx")
         dlg.set_license_type(Gtk.License.MIT_X11)
@@ -1940,13 +1955,20 @@ class MintSkyApp(Gtk.Window):
 
     def _build_tray_menu(self):
         menu = Gtk.Menu()
-        if hasattr(self, "_last_tray_fetch") and self._last_tray_fetch > 0:
+        ts_list = getattr(self, "_weather_timestamps", [])
+        if ts_list:
+            for ts_item in ts_list:
+                m_time = Gtk.MenuItem.new_with_label(f"🕒 {ts_item}")
+                m_time.set_sensitive(False)
+                menu.append(m_time)
+            menu.append(Gtk.SeparatorMenuItem())
+        elif hasattr(self, "_last_tray_fetch") and self._last_tray_fetch > 0:
             import datetime
 
             last_dt = datetime.datetime.fromtimestamp(self._last_tray_fetch).strftime(
                 "%H:%M:%S"
             )
-            m_time = Gtk.MenuItem.new_with_label(f"🕒 Son Güncelleme: {last_dt}")
+            m_time = Gtk.MenuItem.new_with_label(f"🕒 {_('lbl_last_update')}: {last_dt}")
             m_time.set_sensitive(False)
             menu.append(m_time)
             menu.append(Gtk.SeparatorMenuItem())
@@ -1988,11 +2010,11 @@ class MintSkyApp(Gtk.Window):
         )
         menu.append(update_chk)
 
-        ab = Gtk.MenuItem.new_with_label("ℹ️ Hakkında")
+        ab = Gtk.MenuItem.new_with_label(f"ℹ️ {_('app_about') if _('app_about') != 'app_about' else 'Hakkında'}")
         ab.connect("activate", self._show_about)
         menu.append(ab)
 
-        q = Gtk.MenuItem.new_with_label("❌ Çıkış")
+        q = Gtk.MenuItem.new_with_label(f"❌ {_('tray_quit') if _('tray_quit') != 'tray_quit' else 'Çıkış'}")
         q.connect("activate", self._quit)
         menu.append(q)
 
@@ -2020,12 +2042,16 @@ class MintSkyApp(Gtk.Window):
         )
         icon_name = _safe_icon(raw)
         tooltip_text = f"MintSky | {sehir}\n🌡 {temp_txt}° | {kisa_desc}"
-        tooltip_text += f"\n🌡️ Hissedilen: {his_txt}°\n💧 Nem: %{nem_txt}\n🌬️ Rüzgar: {ruzgar_txt}"
+        tooltip_text += f"\n🌡️ {_('lbl_feels_like')}: {his_txt}°\n💧 {_('lbl_humidity')}: %{nem_txt}\n🌬️ {_('lbl_wind')}: {ruzgar_txt}"
+
+        title_text = f"{sehir} {temp_txt}° · {kisa_desc}"
+        if his_txt not in ("-", "--", None) and str(his_txt).strip() != str(temp_txt).strip():
+            title_text += f" ({_('lbl_feels_like')}: {his_txt}°)"
 
         if HAS_INDICATOR:
             self._indicator.set_icon_full(icon_name, tooltip_text)
-            self._indicator.set_title(f" {sehir} {temp_txt}°")
-            # Menüyü yenile (finans eklenebilir)
+            self._indicator.set_title(title_text)
+            # Menüyü yenile
             self._indicator.set_menu(self._build_tray_menu())
         else:
             self._tray.set_from_icon_name(icon_name)
@@ -2071,56 +2097,85 @@ class MintSkyApp(Gtk.Window):
             self._tray_busy = False
             return
         try:
-            merk = self._safe_json(
-                requests.get(
-                    f"{BASE_MGM}/web/merkezler?il={il}"
-                    + (f"&ilce={ilce}" if ilce else ""),
-                    headers=MGM_HEADERS,
-                    timeout=TIMEOUT,
-                )
-            )
-            if not merk:
+            success, msg, data = WeatherAPI.fetch_weather(il, ilce)
+            if not success or not data:
                 self._tray_busy = False
                 return
 
-            merkez_id = merk[0]["merkezId"]
-            sondur = self._safe_json(
-                requests.get(
-                    f"{BASE_MGM}/web/sondurumlar?merkezid={merkez_id}",
-                    headers=MGM_HEADERS,
-                    timeout=TIMEOUT,
-                )
-            )
-            alarmlar_r = self._safe_json(
-                requests.get(
-                    f"{BASE_MGM}/web/alarmlar", headers=MGM_HEADERS, timeout=TIMEOUT
-                )
-            )
-            meteoalarm = self._safe_json(
-                requests.get(
-                    f"{BASE_MGM}/web/meteoalarm/today",
-                    headers=MGM_HEADERS,
-                    timeout=TIMEOUT,
-                )
-            )
-            if not sondur:
+            merkez, sd, gd, sk, alarmlar_r, meteoalarm, om_data, msn_data = data
+            if not sd and not om_data and not msn_data:
                 self._tray_busy = False
                 return
 
-            sd = sondur[0]
-            h_kod = sd.get("hadiseKodu", "")
-            now_h = datetime.now().hour
-            is_night = now_h < 6 or now_h >= 19
-            emoji, kisa, _dummy = hadise_mgm(h_kod, is_night)
-            sicak = sd.get("sicaklik", -9999)
+            msn_cur = {}
+            if msn_data and "responses" in msn_data and msn_data["responses"]:
+                try:
+                    msn_cur = msn_data["responses"][0]["weather"][0]["current"]
+                except Exception:
+                    pass
+
+            om_cur = om_data.get("current", {}) if om_data else {}
+            use_msn = self._api_source == "msn" and msn_cur
+            use_om = (
+                (self._api_source == "openmeteo" and om_cur)
+                or (not sd and om_cur and not use_msn)
+                or (self._language != "tr" and om_cur and not use_msn)
+            )
+
+            if use_msn:
+                cap = msn_cur.get("cap", "")
+                emoji, kisa = "🌤️", cap
+                sicak = msn_cur.get("temp", -9999)
+                his = msn_cur.get("feels", -9999)
+                h_kod = 0
+                nem = msn_cur.get("rh", -9999)
+                r_hiz = msn_cur.get("windSpd", -9999)
+                r_yon_txt = ""
+            elif use_om:
+                wmo_kod = om_cur.get("weather_code")
+                is_night = om_cur.get("is_day", 1) == 0
+                emoji, kisa, _dummy = hadise_wmo(wmo_kod, is_night)
+                sicak = om_cur.get("temperature_2m", -9999)
+                his = om_cur.get("apparent_temperature", -9999)
+                h_kod = wmo_kod or 0
+                nem = om_cur.get("relative_humidity_2m", -9999)
+                r_hiz = om_cur.get("wind_speed_10m", -9999)
+                r_yon = om_cur.get("wind_direction_10m")
+                r_yon_txt = yon(r_yon) if r_yon is not None else ""
+            else:
+                h_kod = sd.get("hadiseKodu", "") if sd else ""
+                now_h = datetime.now().hour
+                is_night = now_h < 6 or now_h >= 19
+                emoji, kisa, _dummy = hadise_mgm(h_kod, is_night)
+                sicak = sd.get("sicaklik", -9999) if sd else -9999
+                his = sd.get("hissedilenSicaklik", -9999) if sd else -9999
+                nem = sd.get("nem", -9999) if sd else -9999
+                r_yon_val = sd.get("ruzgarYon", -9999) if sd else -9999
+                r_yon_txt = yon(r_yon_val) if r_yon_val not in (-9999, None) else ""
+                r_hiz = sd.get("ruzgarHiz", -9999) if sd else -9999
+
             ttxt = f"{sicak:.0f}" if sicak not in (-9999, None) else "--"
             sehir = f"{il} / {ilce}" if ilce else il
-            hissedilen_bg = sd.get("hissedilenSicaklik", sd.get("sicaklik", "-"))
-            nem_bg = sd.get("nem", "-")
-            r_yon_bg = sd.get("ruzgarYon", -9999)
-            r_yon_txt_bg = yon(r_yon_bg) if r_yon_bg != -9999 else ""
-            r_hiz_bg = sd.get("ruzgarHiz", "-")
-            ruzgar_bg = self._format_wind(r_hiz_bg, r_yon_txt_bg)
+            hissedilen_bg = f"{his:.0f}" if his not in (-9999, None) else "--"
+            nem_bg = f"{nem:.0f}" if nem not in (-9999, None) else "--"
+            ruzgar_bg = (
+                self._format_wind(r_hiz, r_yon_txt)
+                if r_hiz not in (-9999, None)
+                else "--"
+            )
+
+            timestamp_parts = []
+            for source, value in (
+                ("MGM", sd.get("veriZamani", "") if sd else ""),
+                ("Open-Meteo", om_cur.get("time", "") if om_cur else ""),
+                ("MSN", msn_cur.get("created", "") if msn_cur else ""),
+            ):
+                if value:
+                    if source == "MGM" and self._language != "tr":
+                        continue
+                    timestamp_parts.append(f"{source}: {fmt_dt(value)}")
+            self._weather_timestamps = timestamp_parts
+
             GLib.idle_add(
                 self._apply_tray_data,
                 emoji,
@@ -2134,17 +2189,19 @@ class MintSkyApp(Gtk.Window):
             )
             self._last_tray_fetch = time.time()
 
-            aktif = [
-                a.get("baslik")
-                for a in alarmlar_r
-                if a.get("il", "").upper() == il.upper()
-            ]
-            for ma in meteoalarm or []:
-                if (
-                    ma.get("il", "").upper() == il.upper()
-                    and int(ma.get("seviye", 1)) >= 2
-                ):
-                    aktif.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
+            aktif = []
+            if self._language == "tr":
+                for a in alarmlar_r if isinstance(alarmlar_r, list) else []:
+                    if not isinstance(a, dict):
+                        continue
+                    if a.get("il", "").upper() == il.upper():
+                        aktif.append(a.get("baslik"))
+                for ma in meteoalarm or []:
+                    if (
+                        ma.get("il", "").upper() == il.upper()
+                        and int(ma.get("seviye", 1)) >= 2
+                    ):
+                        aktif.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
 
             if self._last_bg_hadise is None:
                 self._last_bg_hadise = h_kod
@@ -2161,7 +2218,13 @@ class MintSkyApp(Gtk.Window):
 
             if msgs and self._notify_enabled and HAS_NOTIFY:
                 icon = _safe_icon(
-                    "weather-storm" if yeni else TRAY_ICONS.get(h_kod, "weather-clear")
+                    "weather-storm"
+                    if yeni
+                    else (
+                        WMO_TRAY.get(h_kod, "weather-clear")
+                        if isinstance(h_kod, int)
+                        else TRAY_ICONS.get(h_kod, "weather-clear")
+                    )
                 )
                 title = (
                     f"⚠️ MintSky Hava Uyarısı — {sehir}"
@@ -2489,7 +2552,7 @@ class MintSkyApp(Gtk.Window):
         pill.pack_start(k_box, False, False, 0)
         pill.pack_start(vl, False, False, 0)
 
-        tt = tooltip or PILL_TOOLTIPS.get(key)
+        tt = tooltip or PILL_TOOLTIPS.get(clean_key) or PILL_TOOLTIPS.get(key)
         if tt:
             pill.set_has_tooltip(True)
             pill.set_tooltip_text(tt)
@@ -2578,8 +2641,10 @@ class MintSkyApp(Gtk.Window):
 
         om_cur = om_data.get("current", {}) if om_data else {}
         use_msn = self._api_source == "msn" and msn_cur
-        use_om = (self._api_source == "openmeteo" and om_cur) or (
-            not sd and om_cur and not use_msn
+        use_om = (
+            (self._api_source == "openmeteo" and om_cur)
+            or (not sd and om_cur and not use_msn)
+            or (self._language != "tr" and om_cur and not use_msn)
         )
 
         if use_msn:
@@ -2611,16 +2676,18 @@ class MintSkyApp(Gtk.Window):
             his = sd.get("hissedilenSicaklik", -9999)
             h_kod_for_tray = h_kod
 
-        uyarilar = [
-            a.get("baslik", "")
-            for a in alarmlar
-            if a.get("il", "").upper() == il.upper()
-        ]
-        for ma in meteoalarm or []:
-            if ma.get("il", "").upper() == il.upper() and int(ma.get("seviye", 1)) >= 2:
-                uyarilar.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
+        uyarilar = []
+        if self._language == "tr":
+            uyarilar = [
+                a.get("baslik", "")
+                for a in alarmlar
+                if a.get("il", "").upper() == il.upper()
+            ]
+            for ma in meteoalarm or []:
+                if ma.get("il", "").upper() == il.upper() and int(ma.get("seviye", 1)) >= 2:
+                    uyarilar.append(f"{ma.get('etkinlik') or 'MeteoAlarm'}")
 
-        mgm_tahminler = sk.get("tahmin", []) if not use_om else []
+        mgm_tahminler = sk.get("tahmin", []) if (not use_om and self._language == "tr") else []
         om_hourly = om_data.get("hourly", {}) if om_data else {}
         om_times = om_hourly.get("time", [])
 
@@ -2764,8 +2831,8 @@ class MintSkyApp(Gtk.Window):
             desc.set_max_width_chars(38)
             lcol.pack_start(desc, False, False, 0)
         if use_msn:
-            lbl_txt = "🛰 <span font_weight='bold'>MSN</span> Hava Durumu"
-        elif use_om:
+            lbl_txt = f"🛰 <span font_weight='bold'>MSN</span> {_('settings_tab_weather') if self._language != 'tr' else 'Hava Durumu'}"
+        elif use_om or self._language != "tr":
             lbl_txt = "🛰 <span font_weight='bold'>Open-Meteo</span> API"
         else:
             lbl_txt = "🛰 <span font_weight='bold'>MGM</span>"
@@ -2795,6 +2862,18 @@ class MintSkyApp(Gtk.Window):
             rcol.pack_start(f_lbl, False, False, 0)
         top.pack_start(rcol, False, False, 0)
         card.pack_start(top, False, False, 0)
+
+        timestamp_parts = []
+        for source, value in (
+            ("MGM", sd.get("veriZamani", "") if sd else ""),
+            ("Open-Meteo", om_cur.get("time", "") if om_cur else ""),
+            ("MSN", msn_cur.get("created", "") if msn_cur else ""),
+        ):
+            if value:
+                if source == "MGM" and self._language != "tr":
+                    continue
+                timestamp_parts.append(f"{source}: {fmt_dt(value)}")
+        self._weather_timestamps = timestamp_parts
 
         if self._cur_il == self._def_il and self._cur_ilce == self._def_ilce:
             ttxt = f"{sicak:.0f}" if sicak not in (-9999, None) else "--"
@@ -2982,39 +3061,40 @@ class MintSkyApp(Gtk.Window):
                     (f"🌧 {_('lbl_precip_24h')}", f"{sd['yagis24Saat']:.1f} mm")
                 )
 
-            # MGM station observations expose shorter accumulation windows
-            # than the other providers. Show only measured, non-zero values.
-            for field, label_key in (
-                ("yagis00Now", "lbl_precip_since_midnight"),
-                ("yagis10Dk", "lbl_precip_10m"),
-                ("yagis6Saat", "lbl_precip_6h"),
-                ("yagis12Saat", "lbl_precip_12h"),
-            ):
-                try:
-                    amount = float(sd.get(field, -9999))
-                except (TypeError, ValueError):
-                    continue
-                if math.isfinite(amount) and amount > 0:
-                    all_pills.append((f"🌧 {_(label_key)}", f"{amount:.1f} mm"))
+            if self._language == "tr":
+                # MGM station observations expose shorter accumulation windows
+                # than the other providers. Show only measured, non-zero values.
+                for field, label_key in (
+                    ("yagis00Now", "lbl_precip_since_midnight"),
+                    ("yagis10Dk", "lbl_precip_10m"),
+                    ("yagis6Saat", "lbl_precip_6h"),
+                    ("yagis12Saat", "lbl_precip_12h"),
+                ):
+                    try:
+                        amount = float(sd.get(field, -9999))
+                    except (TypeError, ValueError):
+                        continue
+                    if math.isfinite(amount) and amount > 0:
+                        all_pills.append((f"🌧 {_(label_key)}", f"{amount:.1f} mm"))
 
-            climate = sd.get("_ucdegerler") or {}
-            try:
-                average_low = float(climate["minOrt"])
-                average_high = float(climate["maxOrt"])
-                record_low = float(climate["min"])
-                record_high = float(climate["max"])
-                climate_values = (average_low, average_high, record_low, record_high)
-                if all(math.isfinite(value) and value != -9999 for value in climate_values):
-                    climate_text = f"{average_low:.0f}–{average_high:.0f}°C"
-                    climate_tip = (
-                        f"{_('lbl_climate_tooltip')}\n"
-                        f"{_('lbl_climate_records')}: {record_low:.0f}–{record_high:.0f}°C"
-                    )
-                    all_pills.append(
-                        (f"🌡️ {_('lbl_climate_norm')}", climate_text, climate_tip)
-                    )
-            except (KeyError, TypeError, ValueError):
-                pass
+                climate = sd.get("_ucdegerler") or {}
+                try:
+                    average_low = float(climate["minOrt"])
+                    average_high = float(climate["maxOrt"])
+                    record_low = float(climate["min"])
+                    record_high = float(climate["max"])
+                    climate_values = (average_low, average_high, record_low, record_high)
+                    if all(math.isfinite(value) and value != -9999 for value in climate_values):
+                        climate_text = f"{average_low:.0f}–{average_high:.0f}°C"
+                        climate_tip = (
+                            f"{_('lbl_climate_tooltip')}\n"
+                            f"{_('lbl_climate_records')}: {record_low:.0f}–{record_high:.0f}°C"
+                        )
+                        all_pills.append(
+                            (f"🌡️ {_('lbl_climate_norm')}", climate_text, climate_tip)
+                        )
+                except (KeyError, TypeError, ValueError):
+                    pass
 
             deniz = sd.get("denizSicaklik", -9999)
             if deniz not in (-9999, None) and deniz > 0:
@@ -3044,15 +3124,6 @@ class MintSkyApp(Gtk.Window):
                 grid.attach(self._make_pill(*item), i % 3, i // 3, 1, 1)
             self.content.pack_start(grid, False, False, 0)
 
-        timestamp_parts = []
-        for source, value in (
-            ("MGM", sd.get("veriZamani", "")),
-            ("Open-Meteo", om_cur.get("time", "")),
-            ("MSN", msn_cur.get("created", "")),
-        ):
-            if value:
-                timestamp_parts.append(f"{source}: {fmt_dt(value)}")
-
         if timestamp_parts:
             timestamp_text = " · ".join(timestamp_parts)
             ts = Gtk.Label(
@@ -3067,38 +3138,39 @@ class MintSkyApp(Gtk.Window):
             self.content.pack_start(ts, False, False, 0)
 
         # ── Uyarılar ──
-        aktif_mgm = []
-        for alert in alarmlar if isinstance(alarmlar, list) else []:
-            if not isinstance(alert, dict):
-                continue
-            if il and self._mgm_alert_matches_city(alert, il):
-                aktif_mgm.append(alert)
-        aktif_ma = WeatherAPI.meteoalerts_for_center(
-            meteoalarm, merkez.get("merkezId")
-        )
-        if aktif_mgm or aktif_ma:
-            self._section_title("⚠  AKTİF UYARILAR (Kaynak: MGM)")
-            for a in aktif_mgm[:4]:
-                self._add_alert_row(a.get("baslik", ""))
-            for ma in aktif_ma[:2]:
-                level_number = {"yellow": "2", "orange": "3", "red": "4"}.get(
-                    ma["level"], "1"
-                )
-                severity = METEOALARM_SEVIYE.get(level_number, "")
-                self._add_alert_row(
-                    f"{severity} — {ma['description']}\nMeteoAlarm"
-                )
+        if self._language == "tr":
+            aktif_mgm = []
+            for alert in alarmlar if isinstance(alarmlar, list) else []:
+                if not isinstance(alert, dict):
+                    continue
+                if il and self._mgm_alert_matches_city(alert, il):
+                    aktif_mgm.append(alert)
+            aktif_ma = WeatherAPI.meteoalerts_for_center(
+                meteoalarm, merkez.get("merkezId")
+            )
+            if aktif_mgm or aktif_ma:
+                self._section_title("⚠  AKTİF UYARILAR (Kaynak: MGM)")
+                for a in aktif_mgm[:4]:
+                    self._add_alert_row(a.get("baslik", ""))
+                for ma in aktif_ma[:2]:
+                    level_number = {"yellow": "2", "orange": "3", "red": "4"}.get(
+                        ma["level"], "1"
+                    )
+                    severity = METEOALARM_SEVIYE.get(level_number, "")
+                    self._add_alert_row(
+                        f"{severity} — {ma['description']}\nMeteoAlarm"
+                    )
 
         # ── Saatlik tahmin ──
         if self._show_saatlik:
-            if mgm_tahminler:
+            if self._language == "tr" and mgm_tahminler:
                 self._render_hourly_mgm(mgm_tahminler)
             elif om_times:
                 self._render_hourly_om(om_hourly, om_times)
 
         # ── Günlük tahmin ──
         if self._show_gunluk:
-            if not use_om and gd:
+            if self._language == "tr" and not use_om and gd:
                 self._render_daily_mgm(gd)
             elif om_data.get("daily"):
                 self._render_daily_om(om_data["daily"])

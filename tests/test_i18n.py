@@ -60,3 +60,20 @@ def test_english_weather_labels_are_sensible():
         assert i18n._("settings_theme") == "Theme"
     finally:
         i18n.load_language("tr")
+
+
+def test_weather_labels_are_not_mistranslated_in_locales():
+    checks = {
+        "de": {"lbl_humidity": "Luftfeuchtigkeit", "lbl_visibility": "Sichtweite", "lbl_dew_point": "Taupunkt"},
+        "fr": {"lbl_humidity": "Humidité", "lbl_visibility": "Visibilité", "lbl_dew_point": "Point de rosée"},
+        "zh": {"lbl_humidity": "湿度", "lbl_visibility": "能见度", "lbl_dew_point": "露点"},
+        "ar": {"lbl_humidity": "الرطوبة", "lbl_visibility": "مدى الرؤية", "lbl_dew_point": "نقطة الندى"},
+        "tr": {"lbl_rain_prob": "Yağış İhtimali", "wind_violent_storm": "Şiddetli fırtına"},
+    }
+    for lang, expected in checks.items():
+        i18n.load_language(lang)
+        try:
+            for key, exp_val in expected.items():
+                assert i18n._(key) == exp_val, f"Failed for {lang} {key}"
+        finally:
+            i18n.load_language("tr")
