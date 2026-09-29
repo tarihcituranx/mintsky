@@ -159,10 +159,10 @@
   "lbl_precip_10m": "10 dakikalık yağış",
   "lbl_precip_6h": "6 saatlik yağış",
   "lbl_precip_12h": "12 saatlik yağış",
-  "lbl_climate_norm": "MGM iklim normali",
-  "lbl_climate_tooltip": "Bu takvim günü için MGM uzun dönem sıcaklık normali; parantez içinde tarihsel en düşük ve en yüksek değerler.",
+  "lbl_climate_norm": "Mevsim normali",
+  "lbl_climate_tooltip": "Bu takvim günü için geçmiş yıllar ortalama sıcaklık aralığı (Mevsim normalleri).",
   "lbl_turkey_time": "Türkiye saati",
   "lbl_measurement_time": "Ölçüm zamanı",
-  "lbl_climate_records": "Tarihsel uçlar",
+  "lbl_climate_records": "Tarihi rekorlar",
   "wind_violent_storm": "Şiddetli fırtına"
 }
