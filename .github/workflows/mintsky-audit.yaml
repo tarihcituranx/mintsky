@@ -49,7 +49,7 @@ jobs:
           yamllint .github/workflows/ || echo "⚠️ Sadece temel yaml hataları raporlandı."
 
           echo "2. Actionlint kontrolü..."
-          bash <(curl -sfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.6.27
+          bash <(curl -sfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) latest
           ./actionlint -color || { echo "❌ GitHub Actions YAML hatası!"; exit 1; }
 
           echo "yaml_status=pass" >> "$GITHUB_OUTPUT"

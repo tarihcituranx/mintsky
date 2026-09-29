@@ -21,7 +21,7 @@ jobs:
       - name: Python Kur
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Bağımlılıkları Yükle
         run: |
