@@ -112,6 +112,7 @@ def test_tray_menu_shows_current_city_and_weather(monkeypatch):
 
     app = MintSkyApp()
     try:
+        app._weather_timestamps = ["MGM: 29.09.2026 14:48"]
         app._apply_tray_data("drizzle", "19", "Samsun / Atakum", 51, "Hafif Sağanak Yağışlı", "19", "88", "6 km/h · Hafif KB")
         menu = app._build_tray_menu()
         labels = [item.get_label() for item in menu.get_children() if hasattr(item, "get_label") and item.get_label()]
@@ -120,6 +121,10 @@ def test_tray_menu_shows_current_city_and_weather(monkeypatch):
         assert not any("drizzle" in l.lower() for l in labels)
         assert any("Hissedilen: 19°" in l for l in labels)
         assert any("💧 %88" in l for l in labels)
+        if hasattr(app, "_tray") and hasattr(app._tray, "get_tooltip_text"):
+            tt = app._tray.get_tooltip_text()
+            assert "29.09.2026 14:48" in tt
+            assert "Samsun / Atakum" in tt
     finally:
         app.destroy()
 

@@ -2448,6 +2448,17 @@ class MintSkyApp(Gtk.Window):
         tooltip_text = f"MintSky | {sehir}\n{clean_emoji} {temp_txt}° | {kisa_desc}"
         tooltip_text += f"\n🌡️ {_('lbl_feels_like')}: {his_txt}°\n💧 {_('lbl_humidity')}: %{nem_txt}\n🌬️ {_('lbl_wind')}: {ruzgar_txt}"
 
+        ts_list = getattr(self, "_weather_timestamps", [])
+        if ts_list:
+            for ts in ts_list:
+                tooltip_text += f"\n🕒 {ts}"
+        elif hasattr(self, "_last_tray_fetch") and self._last_tray_fetch > 0:
+            last_dt = datetime.fromtimestamp(self._last_tray_fetch).strftime("%d.%m.%Y %H:%M")
+            tooltip_text += f"\n🕒 {_('lbl_last_update')}: {last_dt}"
+        else:
+            now_dt = datetime.now().strftime("%d.%m.%Y %H:%M")
+            tooltip_text += f"\n🕒 {_('lbl_last_update')}: {now_dt}"
+
         title_text = f"{sehir} {temp_txt}° · {kisa_desc}"
         if his_txt not in ("-", "--", None) and str(his_txt).strip() != str(temp_txt).strip():
             title_text += f" ({_('lbl_feels_like')}: {his_txt}°)"
