@@ -67,42 +67,136 @@ entry:focus {{ border-color:{text_accent}; background-color:{card_bg};
                box-shadow:0 0 0 3px rgba(96,165,250,0.15); }}
 
 /* ─── Buttons ─── */
-.btn-search {{ background:linear-gradient(135deg,#2ecc71,#27ae60); color:#ffffff;
-               border:none; border-radius:8px; padding:{fs(7)}px {fs(18)}px;
-               font-size:{fs(14)}px; font-weight:bold; min-width:{fs(60)}px;
-               box-shadow:0 3px 8px rgba(39,174,96,0.35); }}
-.btn-search label {{ color:#ffffff; font-size:{fs(14)}px; font-weight:bold; }}
-.btn-search:hover  {{ background:linear-gradient(135deg,#3be07e,#30c26d);
-                      box-shadow:0 4px 12px rgba(39,174,96,0.50); }}
-.btn-search:active {{ background:linear-gradient(135deg,#25a557,#1f8e4d); }}
+.btn-search {{ background:linear-gradient(135deg,#0284c7,#0369a1); color:#ffffff;
+               border:1px solid #38bdf8; border-radius:8px; padding:{fs(6)}px {fs(14)}px;
+               font-size:{fs(13)}px; font-weight:bold; min-width:{fs(50)}px;
+               box-shadow:0 2px 6px rgba(2,132,199,0.35); }}
+.btn-search label {{ color:#ffffff; font-size:{fs(13)}px; font-weight:bold; }}
+.btn-search:hover  {{ background:linear-gradient(135deg,#0ea5e9,#0284c7);
+                      box-shadow:0 3px 8px rgba(2,132,199,0.50); }}
+.btn-search:active {{ background:linear-gradient(135deg,#0369a1,#075985); }}
 
 .btn-tool {{ background-color:{btn_bg}; color:{text_main}; border:1px solid {border};
-             border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px; min-width:{fs(50)}px;
-             box-shadow:0 2px 4px {pill_shadow}; }}
-.btn-tool label {{ color:{text_main}; font-size:{fs(14)}px; font-weight:bold; }}
-.btn-tool:hover  {{ background-color:{btn_hover}; border-color:{text_accent}; }}
+             border-radius:8px; padding:{fs(5)}px {fs(9)}px; font-size:{fs(13)}px;
+             box-shadow:0 1px 3px {pill_shadow}; transition:all 0.15s ease-in-out; }}
+.btn-tool label {{ color:{text_main}; font-size:{fs(13)}px; font-weight:600; }}
+.btn-tool:hover  {{ background-color:{btn_hover}; border-color:{text_accent}; box-shadow:0 2px 6px {pill_shadow}; }}
 .btn-tool:active {{ background-color:{btn_active}; }}
 
 .btn-ai  {{ background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#ffffff;
-            border:1px solid #8b5cf6; border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px;
-            min-width:{fs(50)}px; box-shadow:0 3px 8px rgba(124,58,237,0.35); }}
-.btn-ai label {{ color:#ffffff; font-size:{fs(14)}px; font-weight:bold; }}
+            border:1px solid #8b5cf6; border-radius:8px; padding:{fs(5)}px {fs(9)}px; font-size:{fs(13)}px;
+            box-shadow:0 2px 6px rgba(124,58,237,0.30); }}
+.btn-ai label {{ color:#ffffff; font-size:{fs(13)}px; font-weight:bold; }}
 .btn-ai:hover  {{ background:linear-gradient(135deg,#8b5cf6,#6d28d9);
-                  box-shadow:0 4px 12px rgba(124,58,237,0.50); }}
+                  box-shadow:0 3px 8px rgba(124,58,237,0.45); }}
 .btn-ai:active {{ background:linear-gradient(135deg,#6d28d9,#5b21b6); }}
 
-.btn-fin {{ background:linear-gradient(135deg,#d4a017,#b8860b); color:#ffffff;
-            border:1px solid #c9a227; border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px;
-            min-width:{fs(50)}px; box-shadow:0 3px 8px rgba(184,134,11,0.35); }}
-.btn-fin label {{ color:#ffffff; font-size:{fs(14)}px; font-weight:bold; }}
-.btn-fin:hover  {{ background:linear-gradient(135deg,#e8b420,#cc9910); }}
-.btn-fin:active {{ background:linear-gradient(135deg,#b87b0a,#9a6508); }}
+.btn-fin {{ background:linear-gradient(135deg,#d97706,#b45309); color:#ffffff;
+            border:1px solid #f59e0b; border-radius:8px; padding:{fs(5)}px {fs(9)}px; font-size:{fs(13)}px;
+            box-shadow:0 2px 6px rgba(217,119,6,0.30); }}
+.btn-fin label {{ color:#ffffff; font-size:{fs(13)}px; font-weight:bold; }}
+.btn-fin:hover  {{ background:linear-gradient(135deg,#f59e0b,#d97706);
+                   box-shadow:0 3px 8px rgba(217,119,6,0.45); }}
+.btn-fin:active {{ background:linear-gradient(135deg,#b45309,#92400e); }}
 
-.btn-fav-active {{ background:linear-gradient(135deg,#92400e,#78350f); color:#fbbf24;
-                   border:1px solid #d97706; border-radius:8px; padding:{fs(6)}px {fs(10)}px; font-size:{fs(14)}px;
-                   min-width:{fs(50)}px; box-shadow:0 3px 8px rgba(217,119,6,0.35); }}
-.btn-fav-active label {{ color:#fbbf24; font-size:{fs(14)}px; font-weight:bold; }}
-.btn-fav-active:hover {{ background:linear-gradient(135deg,#a45a0e,#8a3f0f); }}
+.btn-fav-active {{ background:linear-gradient(135deg,#b45309,#78350f); color:#fef08a;
+                   border:1px solid #f59e0b; border-radius:8px; padding:{fs(5)}px {fs(9)}px; font-size:{fs(13)}px;
+                   box-shadow:0 2px 6px rgba(245,158,11,0.30); }}
+.btn-fav-active label {{ color:#fef08a; font-size:{fs(13)}px; font-weight:bold; }}
+.btn-fav-active:hover {{ background:linear-gradient(135deg,#d97706,#92400e); }}
+
+/* ─── BiP Style Modern Dialog & Cards ─── */
+.mintsky-dialog,
+.mintsky-dialog.background,
+.mintsky-dialog dialog,
+.mintsky-dialog .dialog-vbox,
+.mintsky-dialog scrolledwindow,
+.mintsky-dialog viewport {{
+    background-color: {bg};
+    color: {text_main};
+}}
+
+.mintsky-dialog headerbar {{
+    background: {hdr_grad};
+    border-bottom: 1px solid {border};
+}}
+
+.mintsky-dialog headerbar .title {{
+    color: {text_main};
+    font-weight: bold;
+}}
+
+.mintsky-dialog headerbar .subtitle {{
+    color: {text_mut};
+}}
+
+.about-title {{
+    color: {text_accent};
+    font-weight: 900;
+    font-size: {fs(22)}px;
+    letter-spacing: 1px;
+}}
+
+.about-card {{
+    background-color: {card_bg};
+    border: 1px solid {border};
+    border-radius: 12px;
+}}
+.about-card label {{
+    color: {text_main};
+    font-size: {fs(13)}px;
+}}
+
+.about-disclaimer {{
+    background-color: {entry_bg};
+    border: 1px solid {border};
+    border-radius: 10px;
+}}
+.about-disclaimer label {{
+    color: {text_sub};
+    font-size: {fs(12)}px;
+}}
+
+.about-val {{
+    color: {text_main};
+    font-size: {fs(13)}px;
+    font-weight: 500;
+}}
+
+.about-src-text {{
+    color: {text_sub};
+    font-size: {fs(12)}px;
+}}
+
+.about-changelog-text {{
+    color: {text_main};
+    font-size: {fs(13)}px;
+}}
+
+.badge-version {{
+    background-color: #0284c7;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-weight: 800;
+    font-size: {fs(11)}px;
+}}
+.about-btn {{
+    border-radius: 8px;
+    padding: {fs(6)}px {fs(24)}px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}}
+.about-btn:hover {{
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+}}
+.dim-label {{
+    color: {text_mut};
+    font-size: {fs(12)}px;
+}}
 
 /* ─── Ana kart (şimdiki hava) ─── */
 .cur-card {{ background:{card_grad}; border-radius:16px;

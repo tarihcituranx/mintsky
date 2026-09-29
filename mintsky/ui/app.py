@@ -125,6 +125,183 @@ def _safe_icon(icon_name):
         print(f"[MintSky] Hata: {e}")
     return "dialog-information"
 
+class MintSkyAboutDialog(Gtk.Dialog):
+    def __init__(self, parent=None, language="tr"):
+        super().__init__(
+            title=_("app_about") if _("app_about") != "app_about" else "MintSky Hakkında",
+            transient_for=parent,
+            modal=True,
+            destroy_with_parent=True,
+        )
+        self.get_style_context().add_class("mintsky-dialog")
+        self.set_default_size(500, 530)
+        self.set_resizable(False)
+        if parent:
+            self.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
+        else:
+            self.set_position(Gtk.WindowPosition.CENTER)
+
+        # HeaderBar (Modern Cinnamon / GTK Başlığı)
+        hb = Gtk.HeaderBar()
+        hb.set_show_close_button(True)
+        hb.set_title(UYGULAMA_ADI)
+        hb.set_subtitle(f"Modern Hava Durumu & Finans • v{VERSIYON}")
+        self.set_titlebar(hb)
+
+        content = self.get_content_area()
+        content.set_spacing(0)
+        content.set_border_width(0)
+
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        main_box.set_margin_start(20)
+        main_box.set_margin_end(20)
+        main_box.set_margin_top(14)
+        main_box.set_margin_bottom(16)
+
+        # 1. Logo
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mintsky.png"
+        )
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mintsky.png")
+        if os.path.exists(icon_path):
+            try:
+                from gi.repository import GdkPixbuf
+
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                    icon_path, 64, 64, True
+                )
+                img = Gtk.Image.new_from_pixbuf(pixbuf)
+            except Exception:
+                img = Gtk.Image.new_from_icon_name("weather-clear", Gtk.IconSize.DIALOG)
+        else:
+            img = Gtk.Image.new_from_icon_name("weather-clear", Gtk.IconSize.DIALOG)
+        img.set_halign(Gtk.Align.CENTER)
+        main_box.pack_start(img, False, False, 0)
+
+        # 2. Başlık ve Versiyon Rozeti
+        title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        title_box.set_halign(Gtk.Align.CENTER)
+
+        lbl_title = Gtk.Label(label=UYGULAMA_ADI)
+        lbl_title.get_style_context().add_class("about-title")
+        title_box.pack_start(lbl_title, False, False, 0)
+
+        lbl_badge = Gtk.Label()
+        lbl_badge.set_markup(
+            f'<span font_weight="bold" font_size="9000" foreground="#ffffff" background="#0284c7">  v{VERSIYON}  </span>'
+        )
+        title_box.pack_start(lbl_badge, False, False, 0)
+        main_box.pack_start(title_box, False, False, 0)
+
+        lbl_sub = Gtk.Label(
+            label="Linux için Modern Açık Kaynaklı Hava Durumu & Finans İstemcisi"
+        )
+        lbl_sub.set_halign(Gtk.Align.CENTER)
+        lbl_sub.get_style_context().add_class("dim-label")
+        main_box.pack_start(lbl_sub, False, False, 0)
+
+        # 3. Bilgi Kartı (Geliştirici & Lisans)
+        card = Gtk.Frame()
+        card.get_style_context().add_class("about-card")
+        card_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        card_box.set_margin_start(14)
+        card_box.set_margin_end(14)
+        card_box.set_margin_top(8)
+        card_box.set_margin_bottom(8)
+
+        # Geliştirici Satırı
+        row_dev = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        lbl_dev_k = Gtk.Label(label="Geliştirici:")
+        lbl_dev_k.get_style_context().add_class("dim-label")
+        row_dev.pack_start(lbl_dev_k, False, False, 0)
+
+        btn_dev = Gtk.LinkButton(
+            uri=GELISTIRICI, label="Turan KAYA (@tarihcituranx)"
+        )
+        row_dev.pack_end(btn_dev, False, False, 0)
+        card_box.pack_start(row_dev, False, False, 0)
+
+        card_box.pack_start(
+            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 1
+        )
+
+        # Lisans Satırı
+        row_lic = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        lbl_lic_k = Gtk.Label(label="Lisans:")
+        lbl_lic_k.get_style_context().add_class("dim-label")
+        row_lic.pack_start(lbl_lic_k, False, False, 0)
+
+        lbl_lic_v = Gtk.Label(label="MIT Lisansı • Özgür ve Açık Kaynak")
+        lbl_lic_v.get_style_context().add_class("about-val")
+        row_lic.pack_end(lbl_lic_v, False, False, 0)
+        card_box.pack_start(row_lic, False, False, 0)
+
+        card.add(card_box)
+        main_box.pack_start(card, False, False, 0)
+
+        # 4. Veri Sağlayıcıları Kartı
+        src_frame = Gtk.Frame()
+        src_frame.get_style_context().add_class("about-disclaimer")
+        src_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        src_box.set_margin_start(12)
+        src_box.set_margin_end(12)
+        src_box.set_margin_top(8)
+        src_box.set_margin_bottom(8)
+
+        lbl_src_h = Gtk.Label()
+        lbl_src_h.set_markup(
+            '<span font_weight="bold" font_size="8500" foreground="#38bdf8">🛰️ VERİ VE ENTEGRASYON SERVİSLERİ</span>'
+        )
+        lbl_src_h.set_halign(Gtk.Align.START)
+        src_box.pack_start(lbl_src_h, False, False, 0)
+
+        if language == "tr":
+            sources_text = (
+                "• MGM (Meteoroloji Genel Müdürlüğü): Türkiye resmi anlık gözlemleri ve tahminleri.\n"
+                "• Open-Meteo & WMO: Küresel yüksek çözünürlüklü hava modeli ve saatlik tahminler.\n"
+                "• MSN Weather: Microsoft Weather Falcon meteoroloji servisi.\n"
+                "• Truncgil Finans: Serbest piyasa canlı altın, döviz kurları ve kripto verileri.\n"
+                "• Groq Cloud AI: Llama 3 ultra-hızlı yapay zeka hava danışmanı."
+            )
+        else:
+            sources_text = (
+                "• Open-Meteo & WMO: Global high-resolution meteorological models.\n"
+                "• MSN Weather: Microsoft Weather Falcon service.\n"
+                "• Truncgil Finance: Live exchange rates, precious metals and crypto data.\n"
+                "• Groq Cloud AI: Llama 3 ultra-fast AI weather consultant."
+            )
+
+        lbl_src_body = Gtk.Label()
+        lbl_src_body.set_text(sources_text)
+        lbl_src_body.set_line_wrap(True)
+        lbl_src_body.set_max_width_chars(52)
+        lbl_src_body.set_halign(Gtk.Align.START)
+        lbl_src_body.get_style_context().add_class("about-src-text")
+        src_box.pack_start(lbl_src_body, False, False, 0)
+
+        src_frame.add(src_box)
+        main_box.pack_start(src_frame, False, False, 0)
+
+        # 5. Alt Butonlar (Sürüm Notları & Kapat)
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        btn_box.set_halign(Gtk.Align.CENTER)
+
+        btn_changes = Gtk.Button(label="📋 Sürüm Notları")
+        btn_changes.get_style_context().add_class("btn-tool")
+        btn_changes.connect("clicked", lambda _: self.response(Gtk.ResponseType.APPLY))
+        btn_box.pack_start(btn_changes, False, False, 0)
+
+        btn_close = Gtk.Button(label="Kapat")
+        btn_close.get_style_context().add_class("about-btn")
+        btn_close.connect("clicked", lambda _: self.response(Gtk.ResponseType.CLOSE))
+        btn_box.pack_start(btn_close, False, False, 0)
+
+        main_box.pack_start(btn_box, False, False, 4)
+
+        content.pack_start(main_box, True, True, 0)
+        self.show_all()
+
 
 class MintSkyApp(Gtk.Window):
     def __init__(self):
@@ -718,24 +895,35 @@ class MintSkyApp(Gtk.Window):
     # ──────────────────── UI Yardımcıları ──────────────────────────────────
     def _create_tool_btn(self, icon, text, tooltip, cb, css_class="btn-tool"):
         btn = Gtk.Button()
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_margin_start(4)
+        box.set_margin_end(4)
         box.set_margin_top(2)
         box.set_margin_bottom(2)
         if (
             icon.endswith("-symbolic")
             or icon.startswith("system-")
             or icon.startswith("view-")
+            or icon.startswith("preferences-")
+            or icon.startswith("help-")
+            or icon.startswith("go-")
+            or icon.startswith("dialog-")
+            or icon.startswith("text-")
+            or icon.startswith("non-starred-")
+            or icon.startswith("starred-")
+            or icon.startswith("find-")
         ):
-            l1 = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.DND)
+            l1 = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.BUTTON)
         else:
-            l1 = Gtk.Label(label=f"<span size='large'>{icon}</span>", use_markup=True)
+            l1 = Gtk.Label(label=f"<span size='medium'>{icon}</span>", use_markup=True)
 
-        # Use simple label without hardcoded color markup so GTK CSS takes over
         l2 = Gtk.Label(label=text)
         self._sc(l2, "tool-btn-text")
 
-        box.pack_start(l1, True, True, 0)
-        box.pack_start(l2, True, True, 0)
+        box.pack_start(l1, False, False, 0)
+        box.pack_start(l2, False, False, 0)
         btn.add(box)
         self._sc(btn, css_class)
         btn.set_tooltip_text(tooltip)
@@ -747,85 +935,79 @@ class MintSkyApp(Gtk.Window):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.add(root)
 
-        self.hdr = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.hdr = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.hdr.get_style_context().add_class("hdr")
 
-        title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        title = Gtk.Label(label=UYGULAMA_ADI.upper())
+        # ── 1. Satır: Başlık, Versiyon Rozeti, Geliştirici & Üst Araç Butonları ──
+        title_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        left_brand = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        left_brand.set_valign(Gtk.Align.CENTER)
+
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mintsky.png"
+        )
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mintsky.png")
+        if os.path.exists(icon_path):
+            try:
+                from gi.repository import GdkPixbuf
+
+                pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(icon_path, 26, 26, True)
+                app_logo = Gtk.Image.new_from_pixbuf(pb)
+            except Exception:
+                app_logo = Gtk.Label(label="🌤️")
+        else:
+            app_logo = Gtk.Label(label="🌤️")
+        left_brand.pack_start(app_logo, False, False, 0)
+
+        title = Gtk.Label(label=UYGULAMA_ADI)
         self._sc(title, "hdr-title")
         title.set_halign(Gtk.Align.START)
+        left_brand.pack_start(title, False, False, 0)
 
-        # Sürüm no (okunaklı ve açık mavi)
         ver_lbl = Gtk.Label()
-        ver_lbl.set_markup(
-            f"<span size='medium' weight='bold' color='#79c0ff'>v{VERSIYON}</span>"
-        )
-        ver_lbl.set_margin_start(4)
+        ver_lbl.set_markup(f"<span weight='bold'>v{VERSIYON}</span>")
+        self._sc(ver_lbl, "badge-version")
+        ver_lbl.set_valign(Gtk.Align.CENTER)
+        left_brand.pack_start(ver_lbl, False, False, 0)
 
-        # Geliştirici (GitHub logo + isim)
-        gh_icon = Gtk.Label(label="👨‍💻")
         dev_lbl = Gtk.Label()
-        dev_lbl.set_markup(
-            "<span size='small' color='#8b949e'><b>Turan Kaya</b></span>"
-        )
+        dev_lbl.set_markup("<span size='small' color='#94a3b8'>• <b>Turan Kaya</b></span>")
+        dev_lbl.set_valign(Gtk.Align.CENTER)
+        left_brand.pack_start(dev_lbl, False, False, 0)
 
-        dev_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        dev_box.set_valign(Gtk.Align.CENTER)
-        dev_box.pack_start(gh_icon, False, False, 0)
-        dev_box.pack_start(dev_lbl, False, False, 0)
-
-        # Üst kısımda başlık ve sürüm, altında geliştirici
-        title_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        title_top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        title_top.pack_start(title, False, False, 0)
-        title_top.pack_start(ver_lbl, False, False, 0)
-        title_col.pack_start(title_top, False, False, 0)
-        title_col.pack_start(dev_box, False, False, 0)
-
-        title_row.pack_start(title_col, False, False, 0)
+        title_row.pack_start(left_brand, False, False, 0)
         title_row.pack_start(Gtk.Box(), True, True, 0)  # spacer
 
-        tools_list = [
-            (
-                "view-restore-symbolic",
-                _("btn_widget"),
-                _("btn_widget_tt"),
-                self._toggle_compact,
-            ),
-            (
-                "view-refresh-symbolic",
-                _("btn_refresh"),
-                _("btn_refresh_tt"),
-                self._manual_refresh,
-            ),
-            (
-                "text-x-generic-symbolic",
-                _("btn_version"),
-                _("btn_version_tt"),
-                self._show_changelog,
-            ),
-        ]
-        if self._language == "tr":
-            tools_list.append(
-                (
-                    "dialog-information-symbolic",
-                    _("btn_icons"),
-                    _("btn_icons_tt"),
-                    self._open_mgm_simgeler,
-                )
-            )
-        tools_list.append(
-            (
-                "preferences-system-symbolic",
-                _("btn_settings"),
-                _("btn_settings_tt"),
-                self._show_settings,
-            )
+        # Sağ araç butonları
+        right_tools = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        right_tools.set_valign(Gtk.Align.CENTER)
+
+        btn_widget = self._create_tool_btn(
+            "view-restore-symbolic",
+            _("btn_widget"),
+            _("btn_widget_tt"),
+            self._toggle_compact,
         )
-        for icon, text, tooltip, cb in tools_list:
-            title_row.pack_start(
-                self._create_tool_btn(icon, text, tooltip, cb), False, False, 0
+        right_tools.pack_start(btn_widget, False, False, 0)
+
+        btn_refresh = self._create_tool_btn(
+            "view-refresh-symbolic",
+            _("btn_refresh"),
+            _("btn_refresh_tt"),
+            self._manual_refresh,
+        )
+        right_tools.pack_start(btn_refresh, False, False, 0)
+
+        if self._language == "tr":
+            btn_icons = self._create_tool_btn(
+                "dialog-information-symbolic",
+                _("btn_icons"),
+                _("btn_icons_tt"),
+                self._open_mgm_simgeler,
             )
+            right_tools.pack_start(btn_icons, False, False, 0)
 
         self.btn_ai = self._create_tool_btn(
             "🤖",
@@ -834,7 +1016,7 @@ class MintSkyApp(Gtk.Window):
             self._show_ai_dialog,
             "btn-ai",
         )
-        title_row.pack_start(self.btn_ai, False, False, 0)
+        right_tools.pack_start(self.btn_ai, False, False, 0)
 
         self.btn_fin = self._create_tool_btn(
             "💰",
@@ -843,43 +1025,49 @@ class MintSkyApp(Gtk.Window):
             self._show_portfolio_dialog,
             "btn-fin",
         )
-        title_row.pack_start(self.btn_fin, False, False, 0)
+        right_tools.pack_start(self.btn_fin, False, False, 0)
 
+        btn_settings = self._create_tool_btn(
+            "preferences-system-symbolic",
+            _("btn_settings"),
+            _("btn_settings_tt"),
+            self._show_settings,
+        )
+        right_tools.pack_start(btn_settings, False, False, 0)
+
+        btn_about = self._create_tool_btn(
+            "help-about-symbolic",
+            _("app_about") if _("app_about") != "app_about" else "Hakkında",
+            "MintSky Hakkında",
+            self._show_about,
+        )
+        right_tools.pack_start(btn_about, False, False, 0)
+
+        title_row.pack_start(right_tools, False, False, 0)
         self.hdr.pack_start(title_row, False, False, 0)
 
-        srow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        # ── 2. Satır: Konum Araçları & Şehir Arama (Dengeli Tek Satır) ──
+        srow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         srow.get_style_context().add_class("search-row")
-        self.il_combo = Gtk.ComboBoxText.new_with_entry()
-        self.il_entry = self.il_combo.get_child()
-        self.il_entry.set_placeholder_text(_("search_city"))
-        self.il_entry.connect("activate", lambda *_: self._search(force=True))
-        self.il_combo.connect("changed", self._on_il_changed)
-        self.ilce_combo = Gtk.ComboBoxText.new_with_entry()
-        self.ilce_entry = self.ilce_combo.get_child()
-        self.ilce_entry.set_placeholder_text(_("search_district"))
-        self.ilce_entry.connect("activate", lambda *_: self._search(force=True))
-        btn_ara = Gtk.Button(label=_("btn_search"))
-        self._sc(btn_ara, "btn-search")
-        btn_ara.connect("clicked", lambda *_: self._search(force=True))
-        srow.pack_start(self.il_combo, True, True, 0)
-        srow.pack_start(self.ilce_combo, True, True, 0)
-        srow.pack_start(btn_ara, False, False, 0)
-        self.hdr.pack_start(srow, False, False, 0)
 
-        arow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        arow.set_margin_top(5)
-        for icon, text, tooltip, cb in [
-            (
-                "system-run-symbolic",
-                _("btn_gps"),
-                _("btn_gps_tt"),
-                lambda *args: self._fetch_location(),
-            ),
-            ("go-home-symbolic", _("btn_pin"), _("btn_pin_tt"), self._make_default),
-        ]:
-            arow.pack_start(
-                self._create_tool_btn(icon, text, tooltip, cb), False, False, 0
-            )
+        # Sol grup: Hızlı Konum & Favori İşlemleri
+        loc_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+
+        btn_gps = self._create_tool_btn(
+            "system-run-symbolic",
+            _("btn_gps"),
+            _("btn_gps_tt"),
+            lambda *args: self._fetch_location(),
+        )
+        loc_box.pack_start(btn_gps, False, False, 0)
+
+        btn_pin = self._create_tool_btn(
+            "go-home-symbolic",
+            _("btn_pin"),
+            _("btn_pin_tt"),
+            self._make_default,
+        )
+        loc_box.pack_start(btn_pin, False, False, 0)
 
         self.btn_fav = self._create_tool_btn(
             "non-starred-symbolic",
@@ -887,19 +1075,44 @@ class MintSkyApp(Gtk.Window):
             _("btn_fav_tt"),
             self._toggle_favorite,
         )
-        arow.pack_start(self.btn_fav, False, False, 0)
-        arow.pack_start(
-            self._create_tool_btn(
-                "view-list-bullet-symbolic",
-                _("btn_list"),
-                _("btn_list_tt"),
-                self._show_favorites_menu,
-            ),
-            False,
-            False,
-            0,
+        loc_box.pack_start(self.btn_fav, False, False, 0)
+
+        btn_fav_list = self._create_tool_btn(
+            "view-list-bullet-symbolic",
+            _("btn_list"),
+            _("btn_list_tt"),
+            self._show_favorites_menu,
         )
-        self.hdr.pack_start(arow, False, False, 0)
+        loc_box.pack_start(btn_fav_list, False, False, 0)
+
+        srow.pack_start(loc_box, False, False, 0)
+
+        sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        sep.set_margin_start(4)
+        sep.set_margin_end(4)
+        srow.pack_start(sep, False, False, 0)
+
+        # Sağ grup: Şehir/İlçe Seçimi ve Arama
+        self.il_combo = Gtk.ComboBoxText.new_with_entry()
+        self.il_entry = self.il_combo.get_child()
+        self.il_entry.set_placeholder_text(_("search_city"))
+        self.il_entry.connect("activate", lambda *_: self._search(force=True))
+        self.il_combo.connect("changed", self._on_il_changed)
+
+        self.ilce_combo = Gtk.ComboBoxText.new_with_entry()
+        self.ilce_entry = self.ilce_combo.get_child()
+        self.ilce_entry.set_placeholder_text(_("search_district"))
+        self.ilce_entry.connect("activate", lambda *_: self._search(force=True))
+
+        btn_ara = Gtk.Button(label=_("btn_search"))
+        self._sc(btn_ara, "btn-search")
+        btn_ara.connect("clicked", lambda *_: self._search(force=True))
+
+        srow.pack_start(self.il_combo, True, True, 0)
+        srow.pack_start(self.ilce_combo, True, True, 0)
+        srow.pack_start(btn_ara, False, False, 0)
+
+        self.hdr.pack_start(srow, False, False, 0)
         root.pack_start(self.hdr, False, False, 0)
 
         self.compact_event_box = Gtk.EventBox()
@@ -1515,49 +1728,104 @@ class MintSkyApp(Gtk.Window):
 
     # ──────────────────── Sürüm Notları ────────────────────────────────────
     def _show_changelog(self, *args):
-        dlg = Gtk.MessageDialog(
+        dlg = Gtk.Dialog(
+            title=f"MintSky v{VERSIYON} — Sürüm Notları",
             transient_for=self,
-            flags=0,
-            message_type=Gtk.MessageType.INFO,
-            buttons=Gtk.ButtonsType.OK,
-            text="Sürüm Notları",
+            modal=True,
+            destroy_with_parent=True,
         )
-        dlg.format_secondary_markup(
-            f"<b>v{VERSIYON} — İyileştirmeler</b>\n"
-            "• 🎨 Arayüz tipografisi ve kart yoğunluğu yenilendi; tray/widget hava ikonları ortak SVG setine alındı.\n"
-            "• 🌐 Dil değişikliği artık yeniden başlatılarak tam uygulanıyor; İngilizce hava durumu etiketleri düzeltildi.\n"
-            "• 📍 Konum bulma GeoClue, yaklaşık IP konumu ve MGM'nin en yakın istasyon verisini kullanıyor.\n"
-            "• 🌬️ Rüzgâr hızları doğru km/h birimiyle ve Beaufort açıklamasıyla gösteriliyor.\n"
-            "• ⚡ Arama sonuçları, finans yenileme ve API yanıt doğrulaması iyileştirildi.\n"
-            "• 🔐 Ayarlar/portföy dosyaları atomik ve kullanıcıya özel izinlerle kaydediliyor.\n\n"
-            "<b>v5.0 - v7.0:</b> Modüler altyapı, Concurrent Fetch, Tema Motoru, Portföy Takibi.\n"
-            "<b>v3.x - v4.x:</b> Temel API yapısı, Widget modu, MGM optimizasyonu.\n\n"
-            f"<small>Geliştirici: Turan Kaya | {GITHUB_REPO}</small>"
+        dlg.get_style_context().add_class("mintsky-dialog")
+        dlg.set_default_size(500, 480)
+        hb = Gtk.HeaderBar()
+        hb.set_show_close_button(True)
+        hb.set_title(f"MintSky v{VERSIYON}")
+        hb.set_subtitle("Yenilikler & Geliştirmeler")
+        dlg.set_titlebar(hb)
+
+        content = dlg.get_content_area()
+        sc = Gtk.ScrolledWindow()
+        sc.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        vbox.set_margin_start(18)
+        vbox.set_margin_end(18)
+        vbox.set_margin_top(14)
+        vbox.set_margin_bottom(14)
+
+        card = Gtk.Frame()
+        card.get_style_context().add_class("about-card")
+        c_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        c_box.set_margin_start(14)
+        c_box.set_margin_end(14)
+        c_box.set_margin_top(10)
+        c_box.set_margin_bottom(10)
+
+        h_lbl = Gtk.Label()
+        h_lbl.set_markup(f"<span weight='bold' size='large' color='#38bdf8'>🚀 v{VERSIYON} İyileştirmeleri</span>")
+        h_lbl.set_halign(Gtk.Align.START)
+        c_box.pack_start(h_lbl, False, False, 0)
+
+        b_lbl = Gtk.Label()
+        b_lbl.get_style_context().add_class("about-changelog-text")
+        b_lbl.set_markup(
+            "• 🎨 <b>Modern Arayüz &amp; Toolbar:</b> Butonlar yatay ve orantılı hale getirildi, boşluklar giderildi.\n"
+            "• ℹ️ <b>Yeni Modern Hakkında Diyaloğu:</b> Kart tabanlı tasarım ve detaylı servis açıklamaları.\n"
+            "• 🕒 <b>Gelişmiş Sistem Tepsisi (Tray):</b> Canlı ölçüm saatleri, anlık hava durumu ve hissedilen sıcaklık hover desteği.\n"
+            "• 🌍 <b>Çoklu Dil &amp; MGM İzolasyonu:</b> MGM öğeleri yalnızca Türkçe dilinde gösterilecek şekilde optimize edildi.\n"
+            "• 🌬️ <b>Doğru Hava Terimleri:</b> Nem, görüş mesafesi, rüzgar hamlesi ve çiğ noktası çevirileri düzeltildi."
         )
-        dlg.connect("response", lambda d, r: d.destroy())
+        b_lbl.set_line_wrap(True)
+        b_lbl.set_max_width_chars(52)
+        b_lbl.set_halign(Gtk.Align.START)
+        c_box.pack_start(b_lbl, False, False, 0)
+        card.add(c_box)
+        vbox.pack_start(card, False, False, 0)
+
+        card_past = Gtk.Frame()
+        card_past.get_style_context().add_class("about-disclaimer")
+        p_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        p_box.set_margin_start(14)
+        p_box.set_margin_end(14)
+        p_box.set_margin_top(8)
+        p_box.set_margin_bottom(8)
+
+        ph_lbl = Gtk.Label()
+        ph_lbl.set_markup("<span weight='bold' color='#94a3b8'>📦 Geçmiş Sürümler</span>")
+        ph_lbl.set_halign(Gtk.Align.START)
+        p_box.pack_start(ph_lbl, False, False, 0)
+
+        pt_lbl = Gtk.Label()
+        pt_lbl.set_markup(
+            "<small><b>v5.0 - v7.0:</b> Modüler altyapı, Concurrent Fetch, Tema Motoru, Portföy Takibi.\n"
+            "<b>v3.x - v4.x:</b> Temel API yapısı, Widget modu, MGM optimizasyonu.</small>"
+        )
+        pt_lbl.set_line_wrap(True)
+        pt_lbl.set_max_width_chars(52)
+        pt_lbl.set_halign(Gtk.Align.START)
+        p_box.pack_start(pt_lbl, False, False, 0)
+        card_past.add(p_box)
+        vbox.pack_start(card_past, False, False, 0)
+
+        sc.add(vbox)
+        content.pack_start(sc, True, True, 0)
+
+        btn_close = Gtk.Button(label="Kapat")
+        btn_close.get_style_context().add_class("about-btn")
+        btn_close.set_halign(Gtk.Align.CENTER)
+        btn_close.set_margin_top(8)
+        btn_close.set_margin_bottom(12)
+        btn_close.connect("clicked", lambda _: dlg.response(Gtk.ResponseType.CLOSE))
+        content.pack_start(btn_close, False, False, 0)
+
         dlg.show_all()
+        dlg.run()
+        dlg.destroy()
 
     def _show_about(self, *args):
-        dlg = Gtk.AboutDialog()
-        dlg.set_transient_for(self)
-        dlg.set_modal(True)
-        dlg.set_program_name(UYGULAMA_ADI)
-        dlg.set_version(VERSIYON)
-        comments = (
-            "MintSky by tarihcituranx (Turan Kaya)\n"
-            + (
-                "MGM resmi API + Open-Meteo + Groq AI + Truncgil Finance."
-                if self._language == "tr"
-                else "Open-Meteo + MSN Weather + Groq AI + Truncgil Finance."
-            )
-        )
-        dlg.set_comments(comments)
-        dlg.set_website(GELISTIRICI)
-        dlg.set_website_label("GitHub: tarihcituranx")
-        dlg.set_license_type(Gtk.License.MIT_X11)
-        dlg.set_authors(["Turan Kaya"])
-        dlg.connect("response", lambda d, r: d.destroy())
-        dlg.show_all()
+        dlg = MintSkyAboutDialog(parent=self, language=self._language)
+        res = dlg.run()
+        dlg.destroy()
+        if res == Gtk.ResponseType.APPLY:
+            self._show_changelog()
 
     def _check_for_updates_bg(self, forced=False):
         def _check():
